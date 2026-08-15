@@ -1,0 +1,23 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Set up Furbulous Cat",
+                "description": "Sign in with your Furbulous Cat account credentials",
+                "data": {
+                    "email": "Email",
+                    "password": "Password",
+                    "account_type": "Account type"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Invalid credentials",
+            "cannot_connect": "Unable to connect to the API",
+            "unknown": "Unexpected error"
+        },
+        "abort": {
+            "already_configured": "This account is already configured"
+        }
+    }
+}
