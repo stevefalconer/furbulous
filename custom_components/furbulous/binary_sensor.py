@@ -93,8 +93,8 @@ class FurbulousCatOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
         device = self.device_data
         if device:
             device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Connecté"
-        return f"Furbulous Device {self._device_id} - Connecté"
+            return f"{device_name} - Connected"
+        return f"Furbulous Device {self._device_id} - Connected"
 
     @property
     def is_on(self) -> bool:
@@ -164,8 +164,8 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
                     workstatus = workstatus_prop
                 
                 # workstatus == 1 means "Working" = Cat is using the litter box
-                # workstatus == 0 signifie "Idle" = Pas de chat
-                # workstatus == 2 signifie "Cleaning" = Nettoyage en cours
+                # workstatus == 0 means "Idle" = no cat
+                # workstatus == 2 means "Cleaning" = cleaning in progress
                 return workstatus == 1
         
         return False
@@ -200,7 +200,7 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
             attrs["work_status"] = status_map.get(workstatus, f"Unknown ({workstatus})")
             attrs["work_status_code"] = workstatus
         
-        # Ajouter le poids du chat si disponible
+        # Add cat weight if available
         cat_weight_prop = properties.get("catWeight")
         if cat_weight_prop:
             if isinstance(cat_weight_prop, dict):
@@ -250,8 +250,8 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
         device = self.device_data
         if device:
             device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Boîte poubelle pleine"
-        return f"Furbulous Device {self._device_id} - Boîte poubelle pleine"
+            return f"{device_name} - Waste bin full"
+        return f"Furbulous Device {self._device_id} - Waste bin full"
 
     @property
     def is_on(self) -> bool:
@@ -260,7 +260,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
         if device:
             properties = device.get("properties", {})
             
-            # Méthode 1: Vérifier le code d'erreur 16
+            # Method 1: Check error code 16
             error_prop = properties.get("errorReportEvent")
             if error_prop:
                 if isinstance(error_prop, dict):
@@ -271,8 +271,8 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
                 if error_code == 16:  # Litter full code
                     return True
             
-            # Méthode 2: Logique basée sur completionStatus
-            # completionStatus == 1 pourrait indiquer "terminé/plein"
+            # Method 2: Logic based on completionStatus
+            # completionStatus == 1 may indicate "done/full"
             completion_prop = properties.get("completionStatus")
             if completion_prop:
                 if isinstance(completion_prop, dict):
@@ -280,13 +280,13 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
                 else:
                     completion = completion_prop
                 
-                # Si completionStatus == 0, cela pourrait indiquer "plein"
-                # (à ajuster selon le comportement réel)
-                # Pour l'instant, on ne l'utilise que si errorCode == 16
+                # If completionStatus == 0, it may indicate "full"
+                # (adjust based on real-world behavior)
+                # For now, only rely on this when errorCode == 16
                 pass
             
-            # Méthode 3: Vérifier handMode == 2 (dump mode actif)
-            # Si le mode "dump" est actif, c'est peut-être parce que c'est plein
+            # Method 3: Check handMode == 2 (dump mode active)
+            # If dump mode is active, it may be because the bin is full
             hand_mode_prop = properties.get("handMode")
             if hand_mode_prop:
                 if isinstance(hand_mode_prop, dict):
@@ -294,8 +294,8 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
                 else:
                     hand_mode = hand_mode_prop
                 
-                # handMode == 2 pourrait indiquer "nécessite vidage"
-                # (à ajuster selon comportement)
+                # handMode == 2 may indicate "needs emptying"
+                # (adjust based on behavior)
                 pass
         
         return False
@@ -312,7 +312,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
         if device:
             properties = device.get("properties", {})
             
-            # Extraire les propriétés utiles
+            # Extract useful properties
             attrs = {}
             
             # Error code

@@ -3,8 +3,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorDeviceClass,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfMass, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -15,9 +20,6 @@ from .const import (
     WORK_STATUS,
     LITTER_TYPE,
     ERROR_CODES,
-    UNIT_GRAMS,
-    UNIT_SECONDS,
-    UNIT_TIMES,
 )
 from .device import get_device_info
 
@@ -121,9 +123,9 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
         if device:
             device_name = device.get("name", f"Device {self._device_id}")
             sensor_names = {
-                "status": "État",
-                "online": "Connexion",
-                "last_active": "Dernière activité",
+                "status": "Status",
+                "online": "Connection",
+                "last_active": "Last activity",
             }
             return f"{device_name} - {sensor_names.get(self._sensor_type, self._sensor_type)}"
         return f"Furbulous Device {self._device_id}"
@@ -138,7 +140,7 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
         if self._sensor_type == "status":
             return "Active" if device.get("device_online") == 1 else "Inactive"
         elif self._sensor_type == "online":
-            return "En ligne" if device.get("device_online") == 1 else "Hors ligne"
+            return "Online" if device.get("device_online") == 1 else "Offline"
         elif self._sensor_type == "last_active":
             timestamp = device.get("active_time")
             if timestamp:
@@ -255,11 +257,11 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
         
         elif self._property_key == "workstatus":
             # Work status mapping
-            return WORK_STATUS.get(value, f"Inconnu ({value})")
+            return WORK_STATUS.get(value, f"Unknown ({value})")
         
         elif self._property_key == "catLitterType":
             # Litter type mapping
-            return LITTER_TYPE.get(value, f"Inconnu ({value})")
+            return LITTER_TYPE.get(value, f"Unknown ({value})")
         
         elif self._property_key == "errorReportEvent":
             # Error code mapping
@@ -269,7 +271,7 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
                                      "masterSleepOnOff", "DisplaySwitch", "handMode", 
                                      "completionStatus"]:
             # Boolean switches
-            return "Activé" if value == 1 else "Désactivé"
+            return "On" if value == 1 else "Off"
         
         elif self._property_key == "mcuversion":
             # MCU version (might be hex encoded)
@@ -287,13 +289,32 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
-        """Return the unit of measurement."""
+        """Return the unit of measurement (API-native)."""
         if self._property_key == "catWeight":
-            return UNIT_GRAMS
+            # API reports grams; HA converts to lb when user profile is US
+            return UnitOfMass.GRAMS
         elif self._property_key == "excreteTimerEveryday":
-            return UNIT_SECONDS
+            return UnitOfTime.SECONDS
         elif self._property_key == "excreteTimesEveryday":
-            return UNIT_TIMES
+            return None  # dimensionless count
+        return None
+
+    @property
+    def device_class(self) -> SensorDeviceClass | None:
+        """Return the device class."""
+        if self._property_key == "catWeight":
+            return SensorDeviceClass.WEIGHT
+        elif self._property_key == "excreteTimerEveryday":
+            return SensorDeviceClass.DURATION
+        return None
+
+    @property
+    def state_class(self) -> SensorStateClass | None:
+        """Return the state class for statistics."""
+        if self._property_key == "catWeight":
+            return SensorStateClass.MEASUREMENT
+        elif self._property_key in ("excreteTimesEveryday", "excreteTimerEveryday"):
+            return SensorStateClass.MEASUREMENT
         return None
 
     @property
@@ -425,9 +446,23 @@ class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement."""
         if self._stat_key == "times":
-            return "fois"
+            return None  # dimensionless count of uses
         elif self._stat_key == "avg_duration":
-            return "s"
+            return UnitOfTime.SECONDS
+        return None
+
+    @property
+    def device_class(self) -> SensorDeviceClass | None:
+        """Return the device class."""
+        if self._stat_key == "avg_duration":
+            return SensorDeviceClass.DURATION
+        return None
+
+    @property
+    def state_class(self) -> SensorStateClass | None:
+        """Return the state class for statistics."""
+        if self._stat_key in ("times", "avg_duration"):
+            return SensorStateClass.MEASUREMENT
         return None
 
     @property

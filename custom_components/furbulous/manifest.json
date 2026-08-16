@@ -1,16 +1,17 @@
 {
     "domain": "furbulous",
-    "name": "Furbulous Cat",
+    "name": "Furbulous",
     "codeowners": [
-        "@fabienbounoir"
+        "@fabienbounoir",
+        "@stevenfalconer"
     ],
     "config_flow": true,
-    "documentation": "https://github.com/FabienBounoir/furbulous-litterbox-home-assistant",
-    "issue_tracker": "https://github.com/FabienBounoir/furbulous-litterbox-home-assistant/issues",
+    "documentation": "https://github.com/stevenfalconer/furbulous",
+    "issue_tracker": "https://github.com/stevenfalconer/furbulous/issues",
     "integration_type": "device",
     "iot_class": "cloud_polling",
     "requirements": [
         "requests>=2.31.0"
     ],
-    "version": "1.1.1-us"
+    "version": "1.1.2"
 }
