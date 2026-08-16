@@ -211,7 +211,6 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
 
     _attr_icon = "mdi:lightbulb-night"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator, device_id: int) -> None:
         """Initialize the sensor."""

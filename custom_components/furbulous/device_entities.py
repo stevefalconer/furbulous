@@ -18,11 +18,7 @@ from .binary_sensor import (
 from .button import FurbulousHandModeButton, FurbulousLitterResetButton
 from .live_extra_sensors import (
     FurbulousCompletionStatusSensor,
-    FurbulousDndStartSensor,
-    FurbulousDndStopSensor,
     FurbulousDurationVsYesterdaySensor,
-    FurbulousEcoStartSensor,
-    FurbulousEcoStopSensor,
     FurbulousFirmwareSensor,
     FurbulousHandModeSensor,
     FurbulousUsesVsYesterdaySensor,
@@ -68,10 +64,6 @@ def sensor_entities_for_device(
                 FurbulousErrorSensor(coordinator, device_id),
                 FurbulousHandModeSensor(coordinator, device_id),
                 FurbulousCompletionStatusSensor(coordinator, device_id),
-                FurbulousEcoStartSensor(coordinator, device_id),
-                FurbulousEcoStopSensor(coordinator, device_id),
-                FurbulousDndStartSensor(coordinator, device_id),
-                FurbulousDndStopSensor(coordinator, device_id),
                 FurbulousUsesVsYesterdaySensor(coordinator, device_id),
                 FurbulousDurationVsYesterdaySensor(coordinator, device_id),
             ]
@@ -172,3 +164,16 @@ def select_entities_for_device(
     if device_id is None or not iotid:
         return []
     return [FurbulousCleanDelaySelect(coordinator, api, device_id, iotid)]
+
+
+def time_entities_for_device(
+    coordinator: Any, api: Any, device: dict
+) -> list[Entity]:
+    """Writable Screen off / Quiet hours start–end times."""
+    from .time import schedule_time_entities
+
+    device_id = device.get("id")
+    iotid = device.get("iotid")
+    if device_id is None or not iotid:
+        return []
+    return list(schedule_time_entities(coordinator, api, device_id, iotid))

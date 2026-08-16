@@ -16,13 +16,20 @@ from custom_components.furbulous.device_entities import (
     sensor_entities_for_device,
     switch_entities_for_device,
 )
+from datetime import time
+
 from custom_components.furbulous.live_extra_sensors import (
     FurbulousCompletionStatusSensor,
-    FurbulousEcoStartSensor,
-    FurbulousEcoStopSensor,
     FurbulousHandModeSensor,
 )
-from custom_components.furbulous.schedule_props import _format_time_value, first_prop
+from custom_components.furbulous.schedule_props import (
+    _format_time_value,
+    encode_time,
+    first_prop,
+    raw_to_time,
+    resolve_write_payload,
+)
+from custom_components.furbulous.time import schedule_time_entities
 
 
 _DEFAULT_PROPS = {
@@ -175,16 +182,23 @@ def test_cycle_completion_mapping():
     assert FurbulousCompletionStatusSensor(_coord({}), 1).native_value == "-"
 
 
-def test_eco_mode_time_sensors():
+def test_screen_off_and_quiet_hours_time_entities_writable():
     coord = _coord()
-    start = FurbulousEcoStartSensor(coord, 1)
-    stop = FurbulousEcoStopSensor(coord, 1)
-    assert start.native_value == "22:00"
-    assert stop.native_value == "10:30"
-    assert "config" in str(start.entity_category).lower()
-    # Missing props → dash
-    empty = FurbulousEcoStartSensor(_coord({}), 1)
-    assert empty.native_value == "-"
+    api = MagicMock()
+    entities = schedule_time_entities(coord, api, 1, "iot-1")
+    by_key = {e.translation_key: e for e in entities}
+    assert set(by_key) == {
+        "screen_off_start",
+        "screen_off_end",
+        "quiet_hours_start",
+        "quiet_hours_end",
+    }
+    assert by_key["screen_off_start"].native_value == time(22, 0)
+    assert by_key["screen_off_end"].native_value == time(10, 30)
+    assert "config" in str(by_key["screen_off_start"].entity_category).lower()
+    # Defaults when properties empty
+    empty = schedule_time_entities(_coord({}), api, 1, "iot-1")
+    assert empty[0].native_value == time(22, 0)
 
 
 def test_format_time_value_variants():
@@ -192,24 +206,31 @@ def test_format_time_value_variants():
     assert _format_time_value(630) == "10:30"
     assert _format_time_value(2230) == "22:30"
     assert first_prop({"masterSleepStartTime": "21:00"}, ("masterSleepStartTime",))[0] == "21:00"
+    assert raw_to_time(630) == time(10, 30)
+    assert encode_time(time(22, 30), "minutes") == 22 * 60 + 30
+    payload = resolve_write_payload(
+        {"masterSleepStartTime": 1320},
+        ("masterSleepStartTime",),
+        "masterSleepStartTime",
+        time(23, 0),
+    )
+    assert payload == {"masterSleepStartTime": 23 * 60}
 
 
-def test_disabled_by_default_count():
+def test_all_entities_enabled_by_default():
     coord = _coord()
     analytics = _analytics()
     entities = sensor_entities_for_device(
         coord, coord, analytics, coord.data["devices"][0]
     )
-    entities += [
-        FurbulousSleepModeSensor(coord, 1),
-    ]
+    entities += [FurbulousSleepModeSensor(coord, 1)]
+    entities += schedule_time_entities(coord, MagicMock(), 1, "iot-1")
     disabled = [
         e
         for e in entities
         if getattr(e, "entity_registry_enabled_default", True) is False
     ]
-    # At least the secondary analytics set + day-over-day + sleep mirror
-    assert len(disabled) >= 10
+    assert disabled == []
 
 
 def test_screen_off_single_control():
@@ -222,9 +243,9 @@ def test_screen_off_single_control():
         _coord(), MagicMock(), _coord().data["devices"][0]
     )
     assert not any(b.translation_key in ("screen_on", "screen_off") for b in buttons)
-    # Diagnostic mirror disabled by default
+    # Diagnostic mirror enabled
     mirror = FurbulousSleepModeSensor(_coord(), 1)
-    assert mirror.entity_registry_enabled_default is False
+    assert mirror.entity_registry_enabled_default is True
 
 
 def test_empty_state_policy():

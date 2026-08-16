@@ -126,11 +126,7 @@
       "pet_visits_30d": { "name": "Visits (30 days)" },
       "pet_avg_duration_30d": { "name": "Visit length average (30 days)" },
       "favorite_litter_box": { "name": "Favorite litter box" },
-      "pet_last_seen": { "name": "Last seen" },
-      "eco_mode_start": { "name": "Screen-off schedule starts" },
-      "eco_mode_stop": { "name": "Screen-off schedule ends" },
-      "dnd_start": { "name": "Quiet hours start" },
-      "dnd_stop": { "name": "Quiet hours end" }
+      "pet_last_seen": { "name": "Last seen" }
     },
     "binary_sensor": {
       "connected": { "name": "Online" },
@@ -163,7 +159,13 @@
       "mark_litter_reset": { "name": "I refilled the litter" }
     },
     "select": {
-      "cleaning_delay": { "name": "Minutes before auto-clean" }
+      "cleaning_delay": { "name": "Auto-clean minutes before" }
+    },
+    "time": {
+      "screen_off_start": { "name": "Screen off start" },
+      "screen_off_end": { "name": "Screen off end" },
+      "quiet_hours_start": { "name": "Quiet hours start" },
+      "quiet_hours_end": { "name": "Quiet hours end" }
     }
   }
 }

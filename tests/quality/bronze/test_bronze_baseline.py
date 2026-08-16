@@ -62,7 +62,7 @@ def test_manifest_version_present():
     )
     assert manifest["domain"] == "furbulous"
     assert manifest["version"]
-    assert manifest["version"] >= "1.3.7"
+    assert manifest["version"] >= "1.3.8"
 
 
 def test_all_entities_have_unique_id_and_has_entity_name():

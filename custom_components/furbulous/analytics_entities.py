@@ -562,7 +562,6 @@ def box_analytics_entities(
             metric_key="visits_7d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="avg_visit_duration_30d",
@@ -572,7 +571,6 @@ def box_analytics_entities(
             unit=UnitOfTime.SECONDS,
             icon="mdi:timer-outline",
             none_when_missing=True,
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="time_full_current",
@@ -605,7 +603,6 @@ def box_analytics_entities(
             metric_key="max_time_to_clear_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
-            entity_registry_enabled_default=False,
             none_when_missing=True,
         ),
         _s(
@@ -614,7 +611,6 @@ def box_analytics_entities(
             metric_key="full_episodes_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="last_pack",
@@ -631,7 +627,6 @@ def box_analytics_entities(
             unit="h",
             as_hours=True,
             icon="mdi:clock-outline",
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="avg_hours_between_packs_30d",
@@ -640,7 +635,6 @@ def box_analytics_entities(
             unit="h",
             as_hours=True,
             none_when_missing=True,
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="packs_30d",
@@ -693,7 +687,6 @@ def box_analytics_entities(
             metric_key="bags_replaced_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="visits_during_last_bag",
@@ -701,7 +694,6 @@ def box_analytics_entities(
             metric_key="visits_during_last_bag",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:paw",
-            entity_registry_enabled_default=False,
         ),
         _s(
             translation_key="last_litter_reset",
@@ -740,7 +732,6 @@ def box_analytics_entities(
             metric_key="litter_resets_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
-            entity_registry_enabled_default=False,
         ),
     ]
     return entities

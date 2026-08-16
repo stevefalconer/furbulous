@@ -2,6 +2,21 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.8 — 2026-08-16
+
+### Screen off / Quiet hours schedules (writable)
+
+- **Screen off start** / **Screen off end** and **Quiet hours start** / **Quiet hours end** are enabled **time** entities under Configuration.
+- Writes go to the cloud via `properties/set` (format matches device: minutes, HHMM, or `HH:MM`).
+- Names align with the enable switches so they sort together (Screen off… / Quiet hours…).
+- Device applies Screen off / Quiet hours only inside the daily window — set both times.
+
+### Naming & enablement
+
+- **Auto-clean minutes before** (was “Minutes before auto-clean”) sorts next to **Auto-clean after visits**.
+- **Screen is off** diagnostic enabled.
+- All previously default-disabled sensors enabled; one-shot registry enable for existing installs.
+
 ## 1.3.7 — 2026-08-16
 
 ### Breaking (pre–public adoption): cat-parent entity unique_ids

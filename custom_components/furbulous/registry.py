@@ -99,6 +99,62 @@ async def async_purge_config_entry_entities(
     return removed
 
 
+# Schedule times moved sensor → time platform (same unique_id slugs)
+_SCHEDULE_UID_SUFFIXES = (
+    "_screen_off_schedule_start",
+    "_screen_off_schedule_end",
+    "_quiet_hours_start",
+    "_quiet_hours_end",
+)
+
+
+async def async_remove_legacy_schedule_sensors(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+) -> int:
+    """Drop old sensor-domain schedule entities so time platform can own them."""
+    registry = er.async_get(hass)
+    removed = 0
+    for entity_entry in list(
+        er.async_entries_for_config_entry(registry, config_entry.entry_id)
+    ):
+        if entity_entry.domain != "sensor":
+            continue
+        uid = entity_entry.unique_id or ""
+        if not any(uid.endswith(s) for s in _SCHEDULE_UID_SUFFIXES):
+            continue
+        registry.async_remove(entity_entry.entity_id)
+        removed += 1
+    if removed:
+        _LOGGER.info(
+            "Removed %s legacy schedule sensor(s); use time entities instead",
+            removed,
+        )
+    return removed
+
+
+async def async_enable_all_entry_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+) -> int:
+    """Clear disabled_by so previously default-disabled entities appear."""
+    registry = er.async_get(hass)
+    enabled = 0
+    for entity_entry in list(
+        er.async_entries_for_config_entry(registry, config_entry.entry_id)
+    ):
+        if entity_entry.disabled_by is None:
+            continue
+        registry.async_update_entity(entity_entry.entity_id, disabled_by=None)
+        enabled += 1
+    if enabled:
+        _LOGGER.info(
+            "Enabled %s Furbulous entit(y/ies) that were disabled by default",
+            enabled,
+        )
+    return enabled
+
+
 async def async_clear_display_overrides(
     hass: HomeAssistant,
     config_entry: ConfigEntry,

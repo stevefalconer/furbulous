@@ -12,6 +12,8 @@ CONF_DISPLAY_RESET_DONE = "display_reset_done"
 CONF_WEIGHT_CALC_UNIT_RESET_DONE = "weight_calc_unit_reset_done"
 # One-shot: purge entity registry so cat-parent unique_id scheme recreates cleanly (1.3.7)
 CONF_CAT_UID_SCHEME_V1_DONE = "cat_uid_scheme_v1_done"
+# One-shot: enable all previously disabled-by-default entities (1.3.8)
+CONF_ENABLE_ALL_ENTITIES_DONE = "enable_all_entities_done"
 
 # Config entry version (v2 adds region)
 CONFIG_VERSION = 2
