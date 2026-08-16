@@ -209,13 +209,24 @@ class FurbulousAverageDurationSensor(FurbulousEntity, SensorEntity):
 
     @property
     def native_value(self) -> int | None:
-        """Return average duration in seconds."""
+        """Return average duration in seconds (None → HA shows unknown until data)."""
         device = self.device_data
         if not device:
             return None
         stats = device.get("daily_stats") or {}
         value = stats.get("avg_duration")
         return int(value) if value is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Explain empty/unknown for duration device class."""
+        return {
+            "empty_display": "unknown",
+            "note": (
+                "DURATION sensors cannot use “-” as state. Unknown means no "
+                "average yet (or stats not loaded). 0s is a real zero average."
+            ),
+        }
 
 
 class FurbulousErrorSensor(FurbulousEntity, SensorEntity):

@@ -82,9 +82,9 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
         return {
             "warning": (
                 "Empty dumps all litter from the globe. Confirm the litter drum "
-                "is closed, turn ON “Confirm empty ready”, then press Empty."
+                "is closed, turn ON “Empty confirm ready”, then press Empty."
             ),
-            "requires": "confirm_empty_ready",
+            "requires": "empty_confirm_ready",
         }
 
     async def async_press(self) -> None:
@@ -97,7 +97,7 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
                 raise HomeAssistantError(
                     translation_domain=DOMAIN,
                     translation_key="empty_not_confirmed",
-                )
+                )  # message references Empty confirm ready
 
         _LOGGER.debug(
             "handMode=%s iotid=%s", self._hand_mode, self._iotid

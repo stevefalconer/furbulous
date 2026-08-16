@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.select import SelectEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -46,11 +47,11 @@ async def async_setup_entry(
 
 
 class FurbulousCleanDelaySelect(FurbulousEntity, SelectEntity):
-    """Auto-clean delay select (1–30 minutes)."""
+    """Auto-clean delay select (1–30 minutes). Configuration setting."""
 
     _attr_icon = "mdi:timer-outline"
     _attr_options = CLEAN_DELAY_OPTIONS
-    # No entity_category → shows under Controls with switches/buttons
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize the select entity."""

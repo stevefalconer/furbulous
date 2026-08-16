@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -11,6 +12,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .entity import FurbulousEntity, extract_prop_value
 from .helpers import async_add_devices_listener
+from .schedule_props import (
+    DND_START_KEYS,
+    DND_STOP_KEYS,
+    ECO_START_KEYS,
+    ECO_STOP_KEYS,
+    first_prop,
+    schedule_probe_attributes,
+)
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -66,9 +75,14 @@ class _FurbulousSwitch(FurbulousEntity, SwitchEntity):
 
 
 class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
-    """Full auto mode switch."""
+    """Full auto mode — after a visit, clean automatically (no manual start).
+
+    Distinct from Pause/Resume, which only affect an in-progress cycle.
+    Configuration entity (settings-style, not daily chore buttons).
+    """
 
     _attr_icon = "mdi:auto-mode"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""
@@ -93,6 +107,16 @@ class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
             )
             == 1
         )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Clarify vs pause/resume."""
+        return {
+            "note": (
+                "ON: box starts cleaning after visits automatically. "
+                "Pause/Resume only stop or continue a cycle already running."
+            ),
+        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable full auto mode."""
@@ -121,11 +145,12 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
     """Do Not Disturb — quiet hours; stops cleaning runs while active.
 
     On/off is set via the cloud API. Start/stop schedule times for DND are
-    not exposed by the reverse-engineered client (set schedule in the
-    Furbulous app). This switch reflects whether DND is currently enabled.
+    usually set in the Furbulous app; when the API exposes them they appear
+    as Eco/DND time sensors under Configuration.
     """
 
     _attr_icon = "mdi:moon-waning-crescent"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""
@@ -148,11 +173,26 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify schedule is managed in the vendor app."""
-        return {
-            "schedule": "app",
-            "note": "DND start/stop times are set in the Furbulous app; HA toggles on/off.",
+        """Clarify schedule is managed in the vendor app when not in properties."""
+        device = self.device_data or {}
+        props = device.get("properties") or {}
+        start, start_key = first_prop(props, DND_START_KEYS)
+        stop, stop_key = first_prop(props, DND_STOP_KEYS)
+        attrs: dict[str, str] = {
+            "note": (
+                "DND start/stop daily times are set in the Furbulous app when "
+                "not returned by the cloud API. HA toggles active on/off."
+            ),
         }
+        if start:
+            attrs["dnd_start"] = start
+            if start_key:
+                attrs["dnd_start_key"] = start_key
+        if stop:
+            attrs["dnd_stop"] = stop
+            if stop_key:
+                attrs["dnd_stop_key"] = stop_key
+        return attrs
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable DND."""
@@ -176,15 +216,15 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
 class FurbulousEnergySavingSwitch(_FurbulousSwitch):
     """Screen off toggle (energy-saving display dim/blank in standby).
 
-    One switch replaces separate Screen on/off Press buttons.
+    Single control for the display (replaces legacy Screen on/off buttons):
     - ON  = screen off / dimmed (masterSleepOnOff = 1)
     - OFF = screen on / normal (masterSleepOnOff = 0)
 
-    Use in automations: turn ON when idle; turn OFF when bag full or errors.
+    Placed under Configuration with other settings-style switches.
     """
 
     _attr_icon = "mdi:monitor-off"
-    # Primary control — not CONFIG, so it sits with Controls in the UI
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""
@@ -221,13 +261,30 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify semantics for automations."""
-        return {
+        """Clarify semantics; surface eco schedule if API returns times."""
+        device = self.device_data or {}
+        props = device.get("properties") or {}
+        start, start_key = first_prop(props, ECO_START_KEYS)
+        stop, stop_key = first_prop(props, ECO_STOP_KEYS)
+        attrs: dict[str, str] = {
             "effect": "display_dim_standby",
             "when_on": "screen_off_or_dimmed",
             "when_off": "screen_on_normal",
-            "note": "Toggle blanking the display. Schedule times (if any) are in the Furbulous app.",
+            "note": (
+                "ON blanks/dims the screen. Daily eco start/stop times are set "
+                "in the Furbulous app unless shown on Eco mode start/stop sensors."
+            ),
         }
+        if start:
+            attrs["eco_start"] = start
+            if start_key:
+                attrs["eco_start_key"] = start_key
+        if stop:
+            attrs["eco_stop"] = stop
+            if stop_key:
+                attrs["eco_stop_key"] = stop_key
+        attrs.update(schedule_probe_attributes(props))
+        return attrs
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn screen off (energy saving on)."""
@@ -256,10 +313,12 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
     """Arm Empty for 90s after the user confirms the drum is closed.
 
     Required before the Empty button will run (safety). Auto-clears after use
-    or timeout. Appears under Controls (not Configuration).
+    or timeout. Name starts with “Empty” so it sorts next to the Empty button.
+    Stays under Controls (chore action, not a settings toggle).
     """
 
     _attr_icon = "mdi:checkbox-marked-outline"
+    # No entity_category → Controls section, next to Empty button alphabetically
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""
@@ -268,7 +327,7 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
             api,
             device_id,
             iotid,
-            translation_key="confirm_empty_ready",
+            translation_key="empty_confirm_ready",
             unique_id=f"{iotid}_confirm_empty_ready",
         )
 
@@ -305,10 +364,10 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
 
 
 class FurbulousChildLockSwitch(_FurbulousSwitch):
-    """Child lock switch."""
+    """Child lock switch (Configuration)."""
 
     _attr_icon = "mdi:lock"
-    # Shown under Controls with other device switches
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""

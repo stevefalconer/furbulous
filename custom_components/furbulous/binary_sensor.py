@@ -102,7 +102,11 @@ class FurbulousCatInBoxSensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
-    """Waste bin full (problem)."""
+    """Waste bin status (PROBLEM class: OK when not full, Problem when full).
+
+    Values: **OK** (bin has room) / **Problem** (litter full — empty needed).
+    errorReportEvent == 16.
+    """
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:delete-empty"
@@ -112,7 +116,7 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
         super().__init__(
             coordinator,
             device_id,
-            translation_key="waste_bin_full",
+            translation_key="waste_bin_status",
             unique_id=f"{device_id}_waste_bin_full",
         )
 
@@ -131,6 +135,15 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
     def icon(self) -> str:
         """Dynamic icon based on state."""
         return "mdi:delete-alert" if self.is_on else "mdi:delete-empty"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Explain OK vs Problem for cat parents."""
+        return {
+            "when_ok": "Waste bin has room",
+            "when_problem": "Litter full — empty / pack",
+            "error_code": "16",
+        }
 
 
 class FurbulousChildLockBinarySensor(FurbulousEntity, BinarySensorEntity):
@@ -176,14 +189,15 @@ class FurbulousChildLockBinarySensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
-    """Energy saving active (display dim/off while standby) — read-only mirror.
+    """Read-only mirror of Screen off (masterSleepOnOff).
 
-    Prefer the **Energy saving** switch for control. This binary remains for
-    automations that only need a problem-style/on-off signal.
+    Prefer the **Screen off** switch for control. Disabled by default so the
+    device page does not show a second Screen-off style control.
     """
 
     _attr_icon = "mdi:lightbulb-night"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator, device_id: int) -> None:
         """Initialize the sensor."""
@@ -217,7 +231,7 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
-    """Cover open (error code 128)."""
+    """Cover status (PROBLEM: OK when closed, Problem when open). Code 128."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:door-open"
@@ -226,7 +240,7 @@ class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
         super().__init__(
             coordinator,
             device_id,
-            translation_key="cover_open",
+            translation_key="cover_status",
             unique_id=f"furbulous_{device_id}_cover_open",
         )
 
@@ -242,9 +256,17 @@ class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
             == 128
         )
 
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "when_ok": "Cover closed",
+            "when_problem": "Cover open",
+            "error_code": "128",
+        }
+
 
 class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
-    """Drawer not in place (error code 64)."""
+    """Drawer status (PROBLEM: OK when seated, Problem when not). Code 64."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:tray-alert"
@@ -253,7 +275,7 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
         super().__init__(
             coordinator,
             device_id,
-            translation_key="drawer_not_in_place",
+            translation_key="drawer_status",
             unique_id=f"furbulous_{device_id}_drawer_not_in_place",
         )
 
@@ -268,3 +290,11 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
             )
             == 64
         )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "when_ok": "Drawer seated / in place",
+            "when_problem": "Drawer not in place",
+            "error_code": "64",
+        }
