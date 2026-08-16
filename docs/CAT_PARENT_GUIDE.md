@@ -53,7 +53,7 @@ You’ll see sections roughly like:
 - **Clean now** — run a clean cycle once.  
 - **Auto-clean after visits** (Configuration) — ON means the box cleans itself after visits.  
 - **Pause cleaning** / **Resume cleaning** — only for a cycle *already running*.  
-- **Minutes before auto-clean** — wait time after a visit before cleaning starts.
+- **Auto-clean minutes before** — wait time after a visit before cleaning starts.
 
 ### Empty / seal the waste
 
