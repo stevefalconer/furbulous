@@ -9,14 +9,18 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfMass, UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ERROR_CODES
 from .entity import FurbulousEntity, extract_prop_value
 from .helpers import async_add_devices_listener
-from .weight import resolve_cat_weight_grams
+from .weight import (
+    preferred_display_mass_unit,
+    resolve_cat_weight_for_display,
+    resolve_cat_weight_grams,
+)
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -29,20 +33,46 @@ async def async_setup_entry(
     config_entry: FurbulousConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Furbulous sensors; add more when new devices appear."""
+    """Set up Furbulous sensors; add more when new devices/pets appear."""
+    from .analytics_entities import pet_analytics_entities
     from .device_entities import sensor_entities_for_device
 
-    coordinator = config_entry.runtime_data.coordinator
-    known: set = set()
+    runtime = config_entry.runtime_data
+    coordinator = runtime.coordinator
+    presence = runtime.presence_coordinator
+    analytics = runtime.analytics
+    known_devices: set = set()
+    known_pets: set = set()
 
     def build(device: dict) -> list:
-        return sensor_entities_for_device(coordinator, device)
+        return sensor_entities_for_device(
+            coordinator, presence, analytics, device
+        )
 
-    listener = async_add_devices_listener(
-        coordinator, async_add_entities, build, known
+    device_listener = async_add_devices_listener(
+        coordinator, async_add_entities, build, known_devices
     )
-    config_entry.async_on_unload(coordinator.async_add_listener(listener))
-    listener()  # initial devices
+
+    def _add_devices_and_pets() -> None:
+        device_listener()
+        data = coordinator.data or {}
+        new_pet_entities: list = []
+        for pet in data.get("pets") or []:
+            pid = pet.get("id")
+            key = str(pid) if pid is not None else pet.get("name")
+            if key is None or key in known_pets:
+                continue
+            known_pets.add(key)
+            new_pet_entities.extend(
+                pet_analytics_entities(coordinator, analytics, pet)
+            )
+        if new_pet_entities:
+            async_add_entities(new_pet_entities)
+
+    config_entry.async_on_unload(
+        coordinator.async_add_listener(_add_devices_and_pets)
+    )
+    _add_devices_and_pets()
 
 
 class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
@@ -73,17 +103,20 @@ class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
 
 
 class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
-    """Cat weight — API native grams; display unit follows HA mass unit system.
+    """Cat weight — convert API grams to lb (US) or kg (metric) for the state.
 
-    Home Assistant does **not** auto-map weight g→lb from the unit system the way
-    it does for temperature. We set ``suggested_unit_of_measurement`` from
-    ``hass.config.units.mass_unit`` (lb for US Customary, g for Metric) so the
-    first registration and a registry refresh show pounds when the user chose
-    imperial mass.
+    HA unit-system auto-conversion for weight is sticky/unreliable on existing
+    entities (unlike temperature). Per product requirement we **calculate** the
+    display value from ``hass.config.units.mass_unit``:
+
+    - US Customary (mass lb/oz) → state in **lb**
+    - Metric → state in **kg**
+
+    ``native_value`` and ``native_unit_of_measurement`` always match so the UI
+    shows the correct number without relying on registry unit conversion.
     """
 
     _attr_device_class = SensorDeviceClass.WEIGHT
-    _attr_native_unit_of_measurement = UnitOfMass.GRAMS
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 1
     _attr_icon = "mdi:weight"
@@ -98,28 +131,33 @@ class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
-    def suggested_unit_of_measurement(self) -> str | None:
-        """Prefer HA mass unit (e.g. lb) when convertible from grams."""
-        if self.hass is None:
-            return None
-        mass_unit = self.hass.config.units.mass_unit
-        # Metric profile uses grams as mass_unit — keep native g (return None).
-        # US Customary uses pounds — suggest lb so the UI converts from grams.
-        if mass_unit and mass_unit != UnitOfMass.GRAMS:
-            return mass_unit
-        return None
+    def native_unit_of_measurement(self) -> str:
+        """lb for US Customary, kg for metric (from HA unit system)."""
+        return preferred_display_mass_unit(self.hass)
 
     @property
     def native_value(self) -> float | None:
-        """Return weight in grams (API-native)."""
+        """Return weight already converted to native_unit_of_measurement."""
         device = self.device_data
         if not device:
             return None
-        return resolve_cat_weight_grams(device.get("properties") or {})
+        value, _unit = resolve_cat_weight_for_display(
+            device.get("properties") or {}, self.hass
+        )
+        return value
+
+    def _entity_fingerprint(self) -> object:
+        """Include unit so a unit-system change forces a state write."""
+        return (
+            "weight",
+            self.native_value,
+            self.native_unit_of_measurement,
+            self.available,
+        )
 
     @property
     def available(self) -> bool:
-        """Available when a weight can be resolved."""
+        """Available when a weight can be resolved from the API."""
         device = self.device_data
         if not device or not self.coordinator.last_update_success:
             return False

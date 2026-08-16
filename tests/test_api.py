@@ -207,7 +207,7 @@ async def test_full_snapshot_pipeline(
     sample_properties_grams,
     sample_daily_stats,
 ):
-    """Full snapshot: list + properties + stats (no pets)."""
+    """Full snapshot: list + properties + stats + pets."""
     iotid = "iot-device-001"
     session = FakeSession()
     session.add(
@@ -224,6 +224,11 @@ async def test_full_snapshot_pipeline(
         f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
         payload=sample_daily_stats,
     )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
+    )
 
     api = FurbulousCatAPI(
         email="user@example.com",
@@ -236,7 +241,7 @@ async def test_full_snapshot_pipeline(
     assert data["authenticated"] is True
     assert data["identity_id"] == "identity-99"
     assert data["region"] == "us"
-    assert "pets" not in data
+    assert data["pets"] == [{"id": 1, "name": "Mochi"}]
     assert len(data["devices"]) == 1
     device = data["devices"][0]
     assert device["properties"]["catWeight"] == 4500
@@ -268,6 +273,11 @@ async def test_presence_snapshot_skips_list_and_stats(
         f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
         payload=sample_daily_stats,
     )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": []}},
+    )
     # Presence-only properties fetch
     session.add(
         "GET",
@@ -288,12 +298,13 @@ async def test_presence_snapshot_skips_list_and_stats(
     assert len(presence["devices"]) == 1
     assert presence["devices"][0]["properties"]["workstatus"] == 0
 
-    # Only one additional HTTP call (properties), not list/stats
+    # Only one additional HTTP call (properties), not list/stats/pets
     new_calls = session.calls[calls_after_full:]
     assert len(new_calls) == 1
     assert "properties/get" in new_calls[0]["url"]
     assert "wcheader" not in new_calls[0]["url"]
     assert "device/list" not in new_calls[0]["url"]
+    assert "pet/list" not in new_calls[0]["url"]
 
 
 @pytest.mark.asyncio

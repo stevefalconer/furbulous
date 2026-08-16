@@ -1,0 +1,543 @@
+"""Analytics-backed sensors (Layer B) + pet devices."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.core import callback
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .analytics.metrics import NONE_LABEL, UNKNOWN_LABEL
+from .const import DOMAIN
+from .device import get_device_info
+
+
+def _ts_to_dt(ts: float | None) -> datetime | None:
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts, tz=timezone.utc)
+
+
+class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
+    """Sensor driven by AnalyticsEngine metrics for one box."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(
+        self,
+        coordinator,
+        analytics,
+        device: dict[str, Any],
+        *,
+        translation_key: str,
+        unique_suffix: str,
+        metric_key: str,
+        device_class: SensorDeviceClass | None = None,
+        unit: str | None = None,
+        state_class: SensorStateClass | None = None,
+        icon: str | None = None,
+        entity_category: EntityCategory | None = None,
+        entity_registry_enabled_default: bool = True,
+        as_timestamp: bool = False,
+        as_hours: bool = False,
+        none_when_missing: bool = False,
+    ) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._metric_key = metric_key
+        self._as_timestamp = as_timestamp
+        self._as_hours = as_hours
+        self._none_when_missing = none_when_missing
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"furbulous_{self._device_id}_{unique_suffix}"
+        self._attr_device_info = get_device_info(device)
+        self._attr_device_class = device_class
+        self._attr_native_unit_of_measurement = unit
+        self._attr_state_class = state_class
+        if icon:
+            self._attr_icon = icon
+        if entity_category:
+            self._attr_entity_category = entity_category
+        self._attr_entity_registry_enabled_default = entity_registry_enabled_default
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._last_fingerprint: object | None = object()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        """Write state only when the metric value changed (Pi recorder-friendly)."""
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
+
+    def _raw(self) -> Any:
+        return self._analytics.metrics_for_device(self._device_id).get(
+            self._metric_key
+        )
+
+    @property
+    def native_value(self) -> Any:
+        raw = self._raw()
+        if raw is None:
+            # Duration/timestamp must stay None (not a text "none") for device classes.
+            if (
+                self._none_when_missing
+                and self._attr_device_class is None
+                and not self._as_timestamp
+            ):
+                return NONE_LABEL
+            return None
+        if self._as_timestamp:
+            return _ts_to_dt(float(raw))
+        if self._as_hours:
+            return round(float(raw), 2)
+        if isinstance(raw, float):
+            return round(raw, 1)
+        return raw
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        m = self._analytics.metrics_for_device(self._device_id)
+        attrs: dict[str, Any] = {}
+        for key in (
+            "avg_duration_sample_count",
+            "pack_gap_sample_count",
+            "bag_lifetime_sample_count",
+            "litter_interval_sample_count",
+            "time_to_clear_sample_count",
+        ):
+            if key in m and m[key] is not None:
+                attrs["sample_count"] = m[key]
+                break
+        return attrs
+
+
+class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
+    """Who is in the box now (name or Unknown)."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:cat"
+
+    def __init__(self, presence, analytics, device: dict) -> None:
+        super().__init__(presence)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "occupying_pet"
+        self._attr_unique_id = f"furbulous_{self._device_id}_occupying_pet"
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        return self._analytics.occupying_pet(self._device_id)
+
+
+class LastVisitorSensor(CoordinatorEntity, SensorEntity):
+    """Last visitor name or Unknown."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:paw"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "last_visitor"
+        self._attr_unique_id = f"furbulous_{self._device_id}_last_visitor"
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        return self._analytics.last_visitor(self._device_id)
+
+
+class PetDeviceSensor(CoordinatorEntity, SensorEntity):
+    """Sensor attached to a pet device."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(
+        self,
+        coordinator,
+        analytics,
+        pet: dict[str, Any],
+        *,
+        translation_key: str,
+        unique_suffix: str,
+        metric_key: str,
+        device_class: SensorDeviceClass | None = None,
+        unit: str | None = None,
+        icon: str | None = None,
+        as_timestamp: bool = False,
+    ) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._pet = pet
+        self._metric_key = metric_key
+        self._as_timestamp = as_timestamp
+        pid = pet.get("id")
+        self._pet_key = str(pid) if pid is not None else (pet.get("name") or "unknown")
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"furbulous_pet_{self._pet_key}_{unique_suffix}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"pet_{self._pet_key}")},
+            name=pet.get("name") or UNKNOWN_LABEL,
+            manufacturer="Furbulous",
+            model="Pet",
+            configuration_url="https://app.furbulouspet.com",
+        )
+        self._attr_device_class = device_class
+        self._attr_native_unit_of_measurement = unit
+        if icon:
+            self._attr_icon = icon
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    def _metrics(self) -> dict[str, Any]:
+        return self._analytics.pet_metrics.get(self._pet_key, {})
+
+    @property
+    def native_value(self) -> Any:
+        raw = self._metrics().get(self._metric_key)
+        if raw is None:
+            return None
+        if self._as_timestamp:
+            return _ts_to_dt(float(raw))
+        if isinstance(raw, float):
+            return round(raw, 1)
+        return raw
+
+
+def box_analytics_entities(
+    coordinator, presence, analytics, device: dict
+) -> list[Entity]:
+    """All Layer B sensors for one litter box."""
+    did = device.get("id")
+    if did is None:
+        return []
+
+    def _s(**kwargs) -> AnalyticsBoxSensor:
+        return AnalyticsBoxSensor(coordinator, analytics, device, **kwargs)
+
+    entities: list[Entity] = [
+        OccupyingPetSensor(presence, analytics, device),
+        LastVisitorSensor(coordinator, analytics, device),
+        # Primary cat-lover set (enabled). Secondary gauges disabled-by-default
+        # to keep first-run UX calm and recorder load low (HA Gold).
+        _s(
+            translation_key="visits_30_days",
+            unique_suffix="visits_30d",
+            metric_key="visits_30d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:counter",
+        ),
+        _s(
+            translation_key="visits_7_days",
+            unique_suffix="visits_7d",
+            metric_key="visits_7d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:counter",
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="avg_visit_duration_30d",
+            unique_suffix="avg_visit_duration_30d",
+            metric_key="avg_duration_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            icon="mdi:timer-outline",
+            none_when_missing=True,
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="time_full_current",
+            unique_suffix="time_full_current",
+            metric_key="current_time_full_s",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            icon="mdi:timer-alert",
+        ),
+        _s(
+            translation_key="last_time_to_clear",
+            unique_suffix="last_time_to_clear",
+            metric_key="last_time_to_clear_s",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            icon="mdi:timer-check",
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="avg_time_to_clear_30d",
+            unique_suffix="avg_time_to_clear_30d",
+            metric_key="avg_time_to_clear_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="max_time_to_clear_30d",
+            unique_suffix="max_time_to_clear_30d",
+            metric_key="max_time_to_clear_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            entity_registry_enabled_default=False,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="full_episodes_30d",
+            unique_suffix="full_episodes_30d",
+            metric_key="full_episodes_30d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:counter",
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="last_pack",
+            unique_suffix="last_pack",
+            metric_key="last_pack_ts",
+            device_class=SensorDeviceClass.TIMESTAMP,
+            as_timestamp=True,
+            icon="mdi:package-variant",
+        ),
+        _s(
+            translation_key="hours_since_last_pack",
+            unique_suffix="hours_since_pack",
+            metric_key="hours_since_pack",
+            unit="h",
+            as_hours=True,
+            icon="mdi:clock-outline",
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="avg_hours_between_packs_30d",
+            unique_suffix="avg_hours_between_packs",
+            metric_key="avg_hours_between_packs_30d",
+            unit="h",
+            as_hours=True,
+            none_when_missing=True,
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="packs_30d",
+            unique_suffix="packs_30d",
+            metric_key="packs_30d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:package-variant-closed",
+        ),
+        _s(
+            translation_key="visits_since_last_pack",
+            unique_suffix="visits_since_pack",
+            metric_key="visits_since_last_pack",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:paw",
+        ),
+        _s(
+            translation_key="last_bag_replaced",
+            unique_suffix="last_bag_replaced",
+            metric_key="last_bag_replaced_ts",
+            device_class=SensorDeviceClass.TIMESTAMP,
+            as_timestamp=True,
+            icon="mdi:delete-restore",
+        ),
+        _s(
+            translation_key="hours_since_bag_replaced",
+            unique_suffix="hours_since_bag",
+            metric_key="hours_since_bag_replaced",
+            unit="h",
+            as_hours=True,
+            # BA: primary “is the bag overdue?” gauge for multi-cat homes
+        ),
+        _s(
+            translation_key="last_bag_lifetime",
+            unique_suffix="last_bag_lifetime",
+            metric_key="last_bag_lifetime_s",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="avg_bag_lifetime_30d",
+            unique_suffix="avg_bag_lifetime_30d",
+            metric_key="avg_bag_lifetime_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="bags_replaced_30d",
+            unique_suffix="bags_replaced_30d",
+            metric_key="bags_replaced_30d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:counter",
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="visits_during_last_bag",
+            unique_suffix="visits_during_last_bag",
+            metric_key="visits_during_last_bag",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:paw",
+            entity_registry_enabled_default=False,
+        ),
+        _s(
+            translation_key="last_litter_reset",
+            unique_suffix="last_litter_reset",
+            metric_key="last_litter_reset_ts",
+            device_class=SensorDeviceClass.TIMESTAMP,
+            as_timestamp=True,
+            icon="mdi:shovel",
+        ),
+        _s(
+            translation_key="hours_since_litter_reset",
+            unique_suffix="hours_since_litter_reset",
+            metric_key="hours_since_litter_reset",
+            unit="h",
+            as_hours=True,
+            # BA: primary “time for fresh litter?” gauge
+        ),
+        _s(
+            translation_key="last_litter_interval",
+            unique_suffix="last_litter_interval",
+            metric_key="last_litter_interval_s",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="avg_litter_interval_30d",
+            unique_suffix="avg_litter_interval_30d",
+            metric_key="avg_litter_interval_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            none_when_missing=True,
+        ),
+        _s(
+            translation_key="litter_resets_30d",
+            unique_suffix="litter_resets_30d",
+            metric_key="litter_resets_30d",
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:counter",
+            entity_registry_enabled_default=False,
+        ),
+    ]
+    return entities
+
+
+def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
+    """Sensors for one pet."""
+    return [
+        PetDeviceSensor(
+            coordinator,
+            analytics,
+            pet,
+            translation_key="pet_visits_7d",
+            unique_suffix="visits_7d",
+            metric_key="visits_7d",
+            icon="mdi:counter",
+        ),
+        PetDeviceSensor(
+            coordinator,
+            analytics,
+            pet,
+            translation_key="pet_visits_30d",
+            unique_suffix="visits_30d",
+            metric_key="visits_30d",
+            icon="mdi:counter",
+        ),
+        PetDeviceSensor(
+            coordinator,
+            analytics,
+            pet,
+            translation_key="pet_avg_duration_30d",
+            unique_suffix="avg_duration_30d",
+            metric_key="avg_duration_s_30d",
+            device_class=SensorDeviceClass.DURATION,
+            unit=UnitOfTime.SECONDS,
+            icon="mdi:timer-outline",
+        ),
+        PetDeviceSensor(
+            coordinator,
+            analytics,
+            pet,
+            translation_key="favorite_litter_box",
+            unique_suffix="favorite_box",
+            metric_key="favorite_box",
+            icon="mdi:home-heart",
+        ),
+        PetDeviceSensor(
+            coordinator,
+            analytics,
+            pet,
+            translation_key="pet_last_seen",
+            unique_suffix="last_seen",
+            metric_key="last_seen_ts",
+            device_class=SensorDeviceClass.TIMESTAMP,
+            as_timestamp=True,
+            icon="mdi:eye",
+        ),
+    ]

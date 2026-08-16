@@ -32,10 +32,11 @@ async def async_setup_entry(
     runtime = entry.runtime_data
     coordinator = runtime.coordinator
     api = runtime.api
+    analytics = runtime.analytics
     known: set = set()
 
     def build(device: dict) -> list:
-        return button_entities_for_device(coordinator, api, device)
+        return button_entities_for_device(coordinator, api, device, analytics)
 
     listener = async_add_devices_listener(
         coordinator, async_add_entities, build, known
@@ -58,6 +59,7 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
         unique_id: str,
         hand_mode: int,
         icon: str,
+        analytics=None,
     ) -> None:
         """Initialize the button."""
         super().__init__(
@@ -70,6 +72,7 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
         self._iotid = iotid
         self._hand_mode = hand_mode
         self._attr_icon = icon
+        self._analytics = analytics
 
     async def async_press(self) -> None:
         """Send handMode command (user action — not a poll)."""
@@ -83,4 +86,40 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
+        if self._analytics is not None:
+            self._analytics.record_hand_mode(
+                self._device_id, self._iotid, self._hand_mode, source="ha_button"
+            )
+            await self._analytics.async_flush()
         await self.coordinator.async_request_refresh()
+
+
+class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
+    """Mark litter reset after topping up (analytics helper if API unknown)."""
+
+    _attr_icon = "mdi:shovel"
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: int,
+        iotid: str,
+        analytics,
+    ) -> None:
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="mark_litter_reset",
+            unique_id=f"{iotid}_mark_litter_reset",
+        )
+        self._iotid = iotid
+        self._analytics = analytics
+
+    async def async_press(self) -> None:
+        """Record a litter reset event for interval analytics."""
+        self._analytics.record_litter_reset(
+            self._device_id, self._iotid, source="ha_button"
+        )
+        await self._analytics.async_flush()
+        self.async_write_ha_state()

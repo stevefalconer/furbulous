@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from custom_components.furbulous.binary_sensor import FurbulousCatInBoxSensor
 from custom_components.furbulous.sensor import FurbulousCatWeightSensor
 from custom_components.furbulous.switch import FurbulousFullAutoModeSwitch
@@ -27,23 +29,28 @@ def _coord():
 def test_weight_sensor_unique_id_and_naming():
     """Weight sensor uses stable unique_id, translation_key, has_entity_name."""
     sensor = FurbulousCatWeightSensor(_coord(), 7)
+    sensor.hass = MagicMock()
+    sensor.hass.config.units.mass_unit = "kg"
     assert sensor.has_entity_name is True
     assert sensor.translation_key == "cat_weight"
     assert sensor.unique_id == "furbulous_7_catWeight"
-    assert sensor.native_value == 4000.0
+    # 4000 g → 4.0 kg when metric
+    assert sensor.native_value == pytest.approx(4.0)
+    assert sensor.native_unit_of_measurement == "kg"
 
 
-def test_weight_suggested_unit_follows_mass_unit():
-    """US mass unit (lb) is suggested; metric grams leaves suggestion unset."""
-    from homeassistant.const import UnitOfMass
-
+def test_weight_calculated_lb_for_us_and_kg_for_metric():
+    """US Customary → calculated lb; metric → calculated kg."""
     sensor = FurbulousCatWeightSensor(_coord(), 7)
     sensor.hass = MagicMock()
-    sensor.hass.config.units.mass_unit = UnitOfMass.POUNDS
-    assert sensor.suggested_unit_of_measurement == UnitOfMass.POUNDS
 
-    sensor.hass.config.units.mass_unit = UnitOfMass.GRAMS
-    assert sensor.suggested_unit_of_measurement is None
+    sensor.hass.config.units.mass_unit = "lb"
+    assert sensor.native_unit_of_measurement == "lb"
+    assert sensor.native_value == pytest.approx(4000.0 / 453.59237)
+
+    sensor.hass.config.units.mass_unit = "g"
+    assert sensor.native_unit_of_measurement == "kg"
+    assert sensor.native_value == pytest.approx(4.0)
 
 
 def test_presence_sensor_unique_id():

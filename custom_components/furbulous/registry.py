@@ -1,9 +1,9 @@
 """Entity registry helpers — clear sticky display overrides.
 
 Home Assistant stores per-entity unit and name overrides that survive reloads.
-Weight is special: HA unit system does **not** auto-convert g→lb (unlike °C/°F).
-The weight sensor suggests mass_unit (lb/g); registry must allow that suggestion
-to apply via ``sensor.private`` refresh after reconfigure/upgrade.
+Cat weight is calculated in lb (US) or kg (metric) as the sensor native unit.
+Clearing registry unit locks lets that native unit show without a stale ``g``
+override from older versions (suggested-unit path).
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _SENSOR_OPTION_KEYS = (
     "suggested_display_precision",
 )
 
-# Unique-id fragments for weight entities (native grams)
+# Unique-id fragments for weight entities (display lb/kg from API grams)
 _WEIGHT_UNIQUE_MARKERS = ("catWeight", "cat_weight")
 
 
@@ -96,21 +96,15 @@ async def async_clear_display_overrides(
                 )
                 changed = True
 
-            # Weight: force HA to re-run initial suggested unit (lb/g from unit system)
-            # via sensor.private refresh_initial_entity_options (core sensor path).
-            if is_weight:
-                registry.async_update_entity_options(
-                    entity_entry.entity_id,
-                    "sensor.private",
-                    {"refresh_initial_entity_options": True},
-                )
-                changed = True
-            elif not weight_units_only and "sensor.private" in entity_entry.options:
-                # Non-weight: drop private suggested unit so native unit applies
-                registry.async_update_entity_options(
-                    entity_entry.entity_id, "sensor.private", None
-                )
-                changed = True
+            # Drop private suggested-unit locks so calculated lb/kg native shows.
+            if is_weight or (
+                not weight_units_only and "sensor.private" in entity_entry.options
+            ):
+                if "sensor.private" in entity_entry.options or is_weight:
+                    registry.async_update_entity_options(
+                        entity_entry.entity_id, "sensor.private", None
+                    )
+                    changed = True
 
         if changed:
             updated += 1
@@ -123,7 +117,7 @@ async def async_clear_display_overrides(
     if updated:
         _LOGGER.info(
             "Cleared display overrides on %s Furbulous entit(y/ies) "
-            "(weight will follow HA mass unit: lb or g)",
+            "(cat weight uses calculated lb/kg from HA unit system)",
             updated,
         )
     return updated

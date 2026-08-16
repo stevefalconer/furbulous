@@ -8,6 +8,8 @@ CONF_ACCOUNT_TYPE = "account_type"
 CONF_TOKEN = "token"
 # One-shot: weight unit overrides cleared after upgrade (sticky g/kg/lb)
 CONF_DISPLAY_RESET_DONE = "display_reset_done"
+# One-shot: clear sticky registry units after switch to calculated lb/kg (1.2.2+)
+CONF_WEIGHT_CALC_UNIT_RESET_DONE = "weight_calc_unit_reset_done"
 
 # Config entry version (v2 adds region)
 CONFIG_VERSION = 2

@@ -64,6 +64,17 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
 
         self._mark_available()
         self._async_prune_stale_devices(data)
+        # Analytics: full recompute on 5 min path (hours-since gauges, pets)
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        if runtime is not None:
+            eng = getattr(runtime, "analytics", None)
+            if eng is not None:
+                eng.process_snapshot(
+                    data.get("devices") or [],
+                    pets=data.get("pets"),
+                    full_recompute=True,
+                )
+                eng.schedule_flush()
         return data
 
     def _mark_unavailable(self) -> None:
@@ -85,7 +96,10 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
             self._unavailable_logged = False
 
     def _async_prune_stale_devices(self, data: dict[str, Any]) -> None:
-        """Remove HA device registry entries no longer reported by the cloud."""
+        """Remove HA box devices no longer reported by the cloud.
+
+        Pet devices use identifiers ``pet_*`` and are never pruned here.
+        """
         entry = self.config_entry
         if entry is None:
             return
@@ -94,6 +108,12 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
             for device in (data.get("devices") or [])
             if device.get("id") is not None
         }
+        # Also keep pets currently in snapshot
+        for pet in data.get("pets") or []:
+            pid = pet.get("id")
+            if pid is not None:
+                current_ids.add(f"pet_{pid}")
+
         device_reg = dr.async_get(self.hass)
         for device_entry in dr.async_entries_for_config_entry(
             device_reg, entry.entry_id
@@ -103,6 +123,7 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
                 for ident in device_entry.identifiers
                 if ident[0] == DOMAIN
             }
+            # Prune boxes and pets no longer on the account
             if furbulous_ids and furbulous_ids.isdisjoint(current_ids):
                 device_reg.async_update_device(
                     device_entry.id, remove_config_entry_id=entry.entry_id
@@ -155,6 +176,17 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
                 self.api.region_id,
             )
             self._unavailable_logged = False
+
+        # Visit / full edges only (no pets/stats; no full rollup unless edges fire)
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        if runtime is not None:
+            eng = getattr(runtime, "analytics", None)
+            if eng is not None:
+                eng.process_snapshot(
+                    data.get("devices") or [],
+                    full_recompute=False,
+                )
+                eng.schedule_flush()
         return data
 
     def _mark_unavailable(self) -> None:

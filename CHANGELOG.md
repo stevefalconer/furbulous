@@ -2,11 +2,44 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.0 — 2026-08-16
+
+### Fixes (gap closure + verification)
+
+- **Weight UI:** Detect real HA `US_CUSTOMARY_SYSTEM` / metric (`mass_unit` is often **g** on metric) and always expose **lb** or **kg** — never grams. Verified under real HA unit systems in `tests/test_weight_ha.py`.
+- **Translations:** New entity keys merged into all language packs.
+- **Visit identity:** Keep pet name across exit polls when properties drop identity fields.
+- Expanded unit + full HA harness tests for analytics (pack/empty/litter/visits/pets/diagnostics).
+
+### Features — cat-lover analytics & API visibility
+
+- **Local analytics engine** (Layer B): append-only event store (90-day retention, Pi-safe cap), occupancy/full edge detection on the 30s presence path, Empty/Pack/litter-reset command hooks.
+- **Chore metrics per box:** bag lifetime (last/avg/30d count/current age), time-to-clear full bag (live wait, last, avg, max), litter reset intervals (helper button **Mark litter reset**), pack frequency + visits since pack.
+- **Visit metrics:** visits 7d/30d, avg duration 30d, occupying pet / last visitor (Unknown when unidentified).
+- **Pet roster:** `pet/list` on full poll only; HA pet devices with visits, avg duration, favorite box, last seen.
+- **P0b live API surface** (no extra HTTP): firmware, hand mode, completion status, uses/duration vs yesterday, cover open, drawer not in place.
+- Weight remains **calculated lb/kg** from HA unit system (1.2.2).
+
+### Performance
+
+- Pets + daily stats only on **5 min** full poll; presence path still properties-only.
+- Analytics idle path: **no full history recompute** on quiet 30s ticks; live full-wait is O(devices).
+- Per-device event index; 90-day prune + 50k cap; **debounced disk flush** (60s) + force flush on unload.
+- State-write fingerprints on coordinator and analytics entities (skip unchanged).
+- Secondary sensors **disabled by default** (hours-since, 7d, max clear, day-over-day, …).
+- Quality scale re-reviewed Bronze/Silver/Gold lean for 1.3.0 (`quality_scale.md`).
+
+## 1.2.2 — 2026-08-16
+
+### Fixed
+
+- **Cat weight always follows HA unit system by calculation:** API grams are converted in the integration to **lb** (US Customary) or **kg** (metric) as the sensor’s `native_value` / `native_unit_of_measurement`. No longer depends on sticky entity-registry unit conversion or `suggested_unit_of_measurement` (which left many US installs stuck on `g`). One-shot registry clear on upgrade to 1.2.2 removes leftover unit locks.
+
 ## 1.2.1 — 2026-08-16
 
 ### Fixed
 
-- **Cat weight in pounds:** Home Assistant does not auto-convert weight `g`→`lb` from the unit system (unlike temperature). The weight sensor now **suggests** `hass.config.units.mass_unit` (lb under US Customary). Reconfigure/reauth and the upgrade path force a registry refresh of that suggested unit so existing installs pick up lb without a manual entity edit (manual entity unit → lb still works anytime).
+- **Cat weight in pounds:** Home Assistant does not auto-convert weight `g`→`lb` from the unit system (unlike temperature). The weight sensor now **suggests** `hass.config.units.mass_unit` (lb under US Customary). Reconfigure/reauth and the upgrade path force a registry refresh of that suggested unit so existing installs pick up lb without a manual entity edit (manual entity unit → lb still works anytime). *(Superseded by 1.2.2 calculated units.)*
 
 ## 1.2.0 — 2026-08-15
 
