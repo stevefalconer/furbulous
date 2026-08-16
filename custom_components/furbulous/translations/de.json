@@ -92,6 +92,114 @@
       },
       "error": {
         "name": "Fehler"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "hand_mode": {
+        "name": "Hand mode"
+      },
+      "completion_status": {
+        "name": "Completion status"
+      },
+      "uses_vs_yesterday": {
+        "name": "Uses vs yesterday"
+      },
+      "duration_vs_yesterday": {
+        "name": "Duration vs yesterday"
+      },
+      "occupying_pet": {
+        "name": "Occupying pet"
+      },
+      "last_visitor": {
+        "name": "Last visitor"
+      },
+      "visits_7_days": {
+        "name": "Visits (7 days)"
+      },
+      "visits_30_days": {
+        "name": "Visits (30 days)"
+      },
+      "avg_visit_duration_30d": {
+        "name": "Avg visit duration (30 days)"
+      },
+      "time_full_current": {
+        "name": "Time full (current)"
+      },
+      "last_time_to_clear": {
+        "name": "Last time to clear"
+      },
+      "avg_time_to_clear_30d": {
+        "name": "Avg time to clear (30 days)"
+      },
+      "max_time_to_clear_30d": {
+        "name": "Max time to clear (30 days)"
+      },
+      "full_episodes_30d": {
+        "name": "Full episodes (30 days)"
+      },
+      "last_pack": {
+        "name": "Last pack"
+      },
+      "hours_since_last_pack": {
+        "name": "Hours since last pack"
+      },
+      "avg_hours_between_packs_30d": {
+        "name": "Avg hours between packs (30 days)"
+      },
+      "packs_30d": {
+        "name": "Packs (30 days)"
+      },
+      "visits_since_last_pack": {
+        "name": "Visits since last pack"
+      },
+      "last_bag_replaced": {
+        "name": "Last bag replaced"
+      },
+      "hours_since_bag_replaced": {
+        "name": "Hours since bag replaced"
+      },
+      "last_bag_lifetime": {
+        "name": "Last bag lifetime"
+      },
+      "avg_bag_lifetime_30d": {
+        "name": "Avg bag lifetime (30 days)"
+      },
+      "bags_replaced_30d": {
+        "name": "Bags replaced (30 days)"
+      },
+      "visits_during_last_bag": {
+        "name": "Visits during last bag"
+      },
+      "last_litter_reset": {
+        "name": "Last litter reset"
+      },
+      "hours_since_litter_reset": {
+        "name": "Hours since litter reset"
+      },
+      "last_litter_interval": {
+        "name": "Last litter interval"
+      },
+      "avg_litter_interval_30d": {
+        "name": "Avg litter interval (30 days)"
+      },
+      "litter_resets_30d": {
+        "name": "Litter resets (30 days)"
+      },
+      "pet_visits_7d": {
+        "name": "Visits (7 days)"
+      },
+      "pet_visits_30d": {
+        "name": "Visits (30 days)"
+      },
+      "pet_avg_duration_30d": {
+        "name": "Avg visit duration (30 days)"
+      },
+      "favorite_litter_box": {
+        "name": "Favorite litter box"
+      },
+      "pet_last_seen": {
+        "name": "Last seen"
       }
     },
     "binary_sensor": {
@@ -109,6 +217,12 @@
       },
       "sleep_mode": {
         "name": "Schlafmodus"
+      },
+      "cover_open": {
+        "name": "Cover open"
+      },
+      "drawer_not_in_place": {
+        "name": "Drawer not in place"
       }
     },
     "switch": {
@@ -137,6 +251,9 @@
       },
       "pack": {
         "name": "Verpacken"
+      },
+      "mark_litter_reset": {
+        "name": "Mark litter reset"
       }
     },
     "select": {

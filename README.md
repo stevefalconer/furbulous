@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.2.1 |
+| **Version** | 1.3.0 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -27,9 +27,10 @@ This is **not** an official Furbulous product and is **not** affiliated with or 
 2. You select the **account region** (must match the country chosen when you created the app account). Wrong region usually returns **invalid credentials**.
 3. The integration authenticates to that region’s cloud host, lists devices, and stores a single API client on the config entry.
 4. Two coordinators refresh data (entities never call the API themselves):
-   - **~5 minutes:** device list, full properties, daily stats  
-   - **~30 seconds:** properties only for known devices (cat-in-box occupancy)
-5. Entities expose presence, weight, usage, errors, and controls (clean / empty / pack, modes, delay) as supported by the cloud API.
+   - **~5 minutes:** device list, full properties, daily stats, **pet roster**  
+   - **~30 seconds:** properties only for known devices (occupancy + full-bag edges)
+5. Entities expose live control/status **and** local cat-lover analytics (visits, bag lifetime, litter intervals, time-to-clear full bags).  
+6. History for 7d/30d metrics is stored **locally** (90-day event log)—the cloud does not provide month history.
 
 ---
 
@@ -87,46 +88,63 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Coordinator | Interval | What it refreshes |
 |-------------|----------|-------------------|
-| **Normal** | 5 minutes | Device list, full properties, daily stats |
-| **Presence** | 30 seconds | Properties for known devices only (occupancy) |
+| **Normal** | 5 minutes | Device list, full properties, daily stats, pets |
+| **Presence** | 30 seconds | Properties for known devices only (occupancy / full edges) |
 
 - Requires internet and Furbulous cloud availability.  
 - On failure, entities go **unavailable**; the integration logs once when down and once when restored.  
 - Failed requests use short exponential backoff (no request storms).  
-- New litter boxes appear after the next normal poll **without** reloading the integration. Devices that disappear are pruned from the device registry.
+- New litter boxes appear after the next normal poll **without** reloading the integration. Devices that disappear are pruned from the device registry (pet devices are kept while still on the account).  
+- **Analytics** run from coordinator deltas + Empty/Pack/litter-reset buttons (no extra cloud history API).
 
-**Load (1 device, idle):** ~156 cloud HTTP calls/hour (120 presence + 36 full).
+**Load (1 device, idle):** ~157 cloud HTTP calls/hour (120 presence + 36 full + ~1 pet list on full cycles).
 
 ---
 
 ## 7. Entities / functions
 
+### Litter box (per device)
+
 | Platform | Entities |
 |----------|----------|
-| Binary sensor | Cat in litter box; Connected*; Waste bin full; Child lock*; Sleep mode* |
-| Sensor | Cat weight; Daily uses; Average daily duration; Last activity*; Error* |
+| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Sleep mode* |
+| Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; Hand mode*; Completion status*; Uses/duration vs yesterday‡ |
+| Sensor (analytics) | Occupying pet; Last visitor; Visits 7d/30d; Avg visit duration 30d; Time full (current); Last/avg/max‡ time-to-clear; Full episodes 30d; Last pack; Hours since pack; Avg hours between packs; Packs 30d; Visits since pack; Bag replaced / lifetime / averages; Litter reset intervals |
 | Switch | Full auto mode; Do not disturb; Child lock† |
-| Button | Manual clean; Pause cleaning; Resume cleaning; Empty; Pack |
+| Button | Manual clean; Pause; Resume; Empty; Pack; **Mark litter reset** |
 | Select | Cleaning delay† |
 
-\* Diagnostic category · † Config category  
+### Pets (per cat from account roster)
 
-Switches are suitable for HomeKit / dashboards when exposed by HA. Buttons and selects map to cloud property commands.
+| Platform | Entities |
+|----------|----------|
+| Sensor | Visits 7d / 30d; Avg visit duration 30d; Favorite litter box; Last seen |
+
+\* Diagnostic · † Config · ‡ Disabled by default  
+
+**Unknown** is used when a visitor cannot be identified. Averages with no samples show **none** / empty (not a fake zero).  
+
+### Cat-lover tips (get great analytics from day one)
+
+1. **Empty from HA** when you take out a full bag — that closes the **bag lifetime** cycle (Empty from the phone only is not always visible to the integration).  
+2. After adding litter, press **Mark litter reset** once — that starts the **litter interval** clock (vendor reset API is not confirmed yet).  
+3. **Pack** from HA when you seal a bag so pack frequency and “visits since pack” stay accurate.  
+4. Multi-cat names need the Furbulous pet roster + (when the API provides it) identity during a visit; otherwise visitors show as **Unknown** but still count on the box.  
+5. **7d/30d stats start empty** after install and grow from local events (90-day retention) — the cloud does not give month history.  
+6. After upgrade, **restart HA once** so weight shows **lb** (US) or **kg** (metric), not leftover grams.
 
 ---
 
 ## 8. Units
 
-- **Weight:** API native **grams** + `SensorDeviceClass.WEIGHT`. The integration **suggests** your HA mass unit (`lb` for US Customary, `g` for Metric) so the UI converts correctly. (Unlike temperature, HA does **not** auto-convert weight from the unit system alone without a suggested unit.)  
+- **Weight:** Cloud API reports **grams**. The integration **calculates** the sensor state from your Home Assistant **unit system** (Settings → System → General):  
+  - **US Customary** → state in **lb**  
+  - **Metric** → state in **kg**  
+  Device class remains `WEIGHT` with one decimal of precision.  
 - **Duration:** native **seconds** + `SensorDeviceClass.DURATION`.  
-- Suggested display precision is one decimal for converted weight.  
 - No login-time unit picker.
 
-**If Cat weight still shows grams** with US units (Fahrenheit / pounds):
-
-1. Open the **Cat weight** entity → gear (settings) → **Unit of measurement** → **lb** → Update.  
-2. Or: Devices & Services → Furbulous → **Reconfigure** (same credentials is fine) — clears locked units and refreshes the suggested unit from your mass unit system.  
-3. Confirm **Settings → System → General → Unit system** is **US Customary** (mass = pounds). “Home Information” alone is not enough if the entity unit was locked earlier.
+This avoids relying on HA’s sticky entity-registry conversion for weight (which often left grams on US installs). After upgrading to **1.2.2+**, reload or restart once so sticky `g` locks are cleared.
 
 ---
 

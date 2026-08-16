@@ -61,6 +61,8 @@ def _install_homeassistant_stubs() -> None:
     const.UnitOfMass = MagicMock()
     const.UnitOfMass.KILOGRAMS = "kg"
     const.UnitOfMass.GRAMS = "g"
+    const.UnitOfMass.POUNDS = "lb"
+    const.UnitOfMass.OUNCES = "oz"
     const.UnitOfTime = MagicMock()
     const.UnitOfTime.SECONDS = "s"
     const.EntityCategory = MagicMock()
@@ -84,6 +86,23 @@ def _install_homeassistant_stubs() -> None:
     helpers.__path__ = []
     aiohttp_client = _ensure_module("homeassistant.helpers.aiohttp_client")
     aiohttp_client.async_get_clientsession = MagicMock()
+
+    storage = _ensure_module("homeassistant.helpers.storage")
+
+    class _FakeStore:
+        def __init__(self, *a, **k):
+            pass
+
+        async def async_load(self):
+            return None
+
+        async def async_save(self, data):
+            return None
+
+    storage.Store = _FakeStore
+
+    device_registry = _ensure_module("homeassistant.helpers.device_registry")
+    device_registry.DeviceInfo = dict
 
     def _coord_init(self, *a, **k):
         self.hass = a[0] if a else k.get("hass")

@@ -55,6 +55,7 @@ async def test_setup_and_unload_entry(hass: HomeAssistant) -> None:
                 "daily_stats": {"times": 3, "avg_duration": 20},
             }
         ],
+        "pets": [{"id": 1, "name": "Mochi"}],
     }
 
     with (

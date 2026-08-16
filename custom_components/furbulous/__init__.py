@@ -14,10 +14,12 @@ from .const import (
     CONF_ACCOUNT_TYPE,
     CONF_DISPLAY_RESET_DONE,
     CONF_REGION,
+    CONF_WEIGHT_CALC_UNIT_RESET_DONE,
     CONFIG_VERSION,
     DEFAULT_ACCOUNT_TYPE,
     DOMAIN,
 )
+from .analytics.engine import AnalyticsEngine
 from .coordinator import FurbulousDataUpdateCoordinator, FurbulousPresenceCoordinator
 from .furbulous_api import (
     FurbulousCatAPI,
@@ -66,39 +68,65 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
             f"Cannot reach Furbulous cloud: {err}"
         ) from err
 
+    analytics = AnalyticsEngine(hass, entry.entry_id)
+    await analytics.async_setup()
+
     coordinator = FurbulousDataUpdateCoordinator(hass, api, entry)
     presence_coordinator = FurbulousPresenceCoordinator(hass, api, entry)
 
-    await coordinator.async_config_entry_first_refresh()
-    await presence_coordinator.async_config_entry_first_refresh()
-
+    # runtime_data before first refresh so coordinators can feed analytics
     entry.runtime_data = FurbulousRuntimeData(
         api=api,
         coordinator=coordinator,
         presence_coordinator=presence_coordinator,
+        analytics=analytics,
     )
+
+    await coordinator.async_config_entry_first_refresh()
+    await presence_coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # One-shot after upgrade from 1.1.x: drop sticky weight unit locks only
     # (does not wipe custom entity names the user intentionally set).
-    if not entry.data.get(CONF_DISPLAY_RESET_DONE):
+    data = dict(entry.data)
+    if not data.get(CONF_DISPLAY_RESET_DONE):
         await async_clear_display_overrides(
             hass,
             entry,
             clear_custom_names=False,
             weight_units_only=True,
         )
-        hass.config_entries.async_update_entry(
+        data[CONF_DISPLAY_RESET_DONE] = True
+        hass.config_entries.async_update_entry(entry, data=data)
+
+    # 1.2.2+: weight is calculated as lb/kg native — clear leftover g locks so
+    # entity registry does not fight the new native unit.
+    if not data.get(CONF_WEIGHT_CALC_UNIT_RESET_DONE):
+        await async_clear_display_overrides(
+            hass,
             entry,
-            data={**entry.data, CONF_DISPLAY_RESET_DONE: True},
+            clear_custom_names=False,
+            weight_units_only=True,
         )
+        data[CONF_WEIGHT_CALC_UNIT_RESET_DONE] = True
+        hass.config_entries.async_update_entry(entry, data=data)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -> bool:
-    """Unload a config entry (shared aiohttp session is not closed)."""
+    """Unload a config entry (flush analytics; shared aiohttp session stays open)."""
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is not None:
+        try:
+            eng = runtime.analytics
+            for task in (eng._flush_task, eng._delayed_flush_task):  # noqa: SLF001
+                if task is not None and not task.done():
+                    task.cancel()
+            await eng.async_flush(force=True)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.debug("Analytics flush on unload failed", exc_info=True)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

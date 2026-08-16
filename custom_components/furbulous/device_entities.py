@@ -5,14 +5,24 @@ from typing import Any
 
 from homeassistant.helpers.entity import Entity
 
+from .analytics_entities import box_analytics_entities
 from .binary_sensor import (
     FurbulousCatInBoxSensor,
     FurbulousChildLockBinarySensor,
     FurbulousConnectedSensor,
+    FurbulousCoverOpenSensor,
+    FurbulousDrawerNotInPlaceSensor,
     FurbulousSleepModeSensor,
     FurbulousWasteBinFullSensor,
 )
-from .button import FurbulousHandModeButton
+from .button import FurbulousHandModeButton, FurbulousLitterResetButton
+from .live_extra_sensors import (
+    FurbulousCompletionStatusSensor,
+    FurbulousDurationVsYesterdaySensor,
+    FurbulousFirmwareSensor,
+    FurbulousHandModeSensor,
+    FurbulousUsesVsYesterdaySensor,
+)
 from .select import FurbulousCleanDelaySelect
 from .sensor import (
     FurbulousAverageDurationSensor,
@@ -28,13 +38,21 @@ from .switch import (
 )
 
 
-def sensor_entities_for_device(coordinator: Any, device: dict) -> list[Entity]:
-    """Sensors for one device (normal coordinator)."""
+def sensor_entities_for_device(
+    coordinator: Any,
+    presence: Any,
+    analytics: Any,
+    device: dict,
+) -> list[Entity]:
+    """Sensors for one litter box (live + analytics)."""
     device_id = device.get("id")
     iotid = device.get("iotid")
     if device_id is None:
         return []
-    entities: list[Entity] = [FurbulousLastActivitySensor(coordinator, device_id)]
+    entities: list[Entity] = [
+        FurbulousLastActivitySensor(coordinator, device_id),
+        FurbulousFirmwareSensor(coordinator, device_id),
+    ]
     if iotid:
         entities.extend(
             [
@@ -42,7 +60,14 @@ def sensor_entities_for_device(coordinator: Any, device: dict) -> list[Entity]:
                 FurbulousDailyUsesSensor(coordinator, device_id),
                 FurbulousAverageDurationSensor(coordinator, device_id),
                 FurbulousErrorSensor(coordinator, device_id),
+                FurbulousHandModeSensor(coordinator, device_id),
+                FurbulousCompletionStatusSensor(coordinator, device_id),
+                FurbulousUsesVsYesterdaySensor(coordinator, device_id),
+                FurbulousDurationVsYesterdaySensor(coordinator, device_id),
             ]
+        )
+        entities.extend(
+            box_analytics_entities(coordinator, presence, analytics, device)
         )
     return entities
 
@@ -58,6 +83,8 @@ def binary_sensor_entities_for_device(
     return [
         FurbulousConnectedSensor(coordinator, device_id),
         FurbulousWasteBinFullSensor(coordinator, device_id),
+        FurbulousCoverOpenSensor(coordinator, device_id),
+        FurbulousDrawerNotInPlaceSensor(coordinator, device_id),
         FurbulousChildLockBinarySensor(coordinator, device_id),
         FurbulousSleepModeSensor(coordinator, device_id),
         FurbulousCatInBoxSensor(presence, device_id),
@@ -80,7 +107,7 @@ def switch_entities_for_device(
 
 
 def button_entities_for_device(
-    coordinator: Any, api: Any, device: dict
+    coordinator: Any, api: Any, device: dict, analytics: Any = None
 ) -> list[Entity]:
     """Buttons for one device."""
     device_id = device.get("id")
@@ -105,7 +132,12 @@ def button_entities_for_device(
                 unique_id=f"{iotid}_{unique_suffix}",
                 hand_mode=hand_mode,
                 icon=icon,
+                analytics=analytics,
             )
+        )
+    if analytics is not None:
+        entities.append(
+            FurbulousLitterResetButton(coordinator, device_id, iotid, analytics)
         )
     return entities
 

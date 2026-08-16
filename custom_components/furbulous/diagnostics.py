@@ -84,6 +84,8 @@ async def async_get_config_entry_diagnostics(
         },
         "devices": device_summaries,
         "known_device_count": len(api.known_devices),
+        "pets_count": len((coordinator.data or {}).get("pets") or []),
+        "analytics": runtime.analytics.diagnostics_summary(),
     }
 
 

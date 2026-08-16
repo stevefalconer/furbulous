@@ -210,3 +210,57 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
         if not device or not self.coordinator.last_update_success:
             return False
         return (device.get("properties") or {}).get("masterSleepOnOff") is not None
+
+
+class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
+    """Cover open (error code 128)."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:door-open"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="cover_open",
+            unique_id=f"furbulous_{device_id}_cover_open",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        device = self.device_data
+        if not device:
+            return False
+        return (
+            extract_prop_value(
+                (device.get("properties") or {}).get("errorReportEvent")
+            )
+            == 128
+        )
+
+
+class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
+    """Drawer not in place (error code 64)."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:tray-alert"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="drawer_not_in_place",
+            unique_id=f"furbulous_{device_id}_drawer_not_in_place",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        device = self.device_data
+        if not device:
+            return False
+        return (
+            extract_prop_value(
+                (device.get("properties") or {}).get("errorReportEvent")
+            )
+            == 64
+        )

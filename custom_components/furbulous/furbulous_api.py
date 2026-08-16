@@ -407,11 +407,31 @@ class FurbulousCatAPI:
             _LOGGER.warning("Error setting DND iotid=%s: %s", iotid, err)
             return False
 
-    async def async_get_full_snapshot(self) -> dict[str, Any]:
-        """Full poll: device list + properties + daily stats per device.
+    async def get_pets(self) -> list[dict[str, Any]]:
+        """Fetch pet roster (full poll only — never on presence path)."""
+        try:
+            result = await self._make_authenticated_request("/app/v1/pet/list")
+            if result.get("code") != 0:
+                return []
+            data = result.get("data")
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict):
+                pets = data.get("list") or data.get("pets") or data.get("data")
+                if isinstance(pets, list):
+                    return pets
+            return []
+        except (FurbulousCatAuthError, FurbulousCatConnectionError):
+            raise
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("Pet list error: %s", err)
+            return []
 
-        Intentionally omits pets (no entities consume them — saves 1 call/poll).
-        Returns a single current snapshot only (no history cache).
+    async def async_get_full_snapshot(self) -> dict[str, Any]:
+        """Full poll: device list + properties + daily stats + pets.
+
+        Pets are fetched here only (not on the 30s presence path). Snapshot is
+        current state only — history lives in the local analytics store.
         """
         start = time.monotonic()
         devices = await self.get_devices()
@@ -424,10 +444,13 @@ class FurbulousCatAPI:
                 device["daily_stats"] = await self.get_device_daily_stats(iotid)
             enriched.append(device)
 
+        pets = await self.get_pets()
+
         elapsed_ms = (time.monotonic() - start) * 1000
         _LOGGER.debug(
-            "Full snapshot devices=%s elapsed_ms=%.0f",
+            "Full snapshot devices=%s pets=%s elapsed_ms=%.0f",
             len(enriched),
+            len(pets),
             elapsed_ms,
         )
         return {
@@ -435,6 +458,7 @@ class FurbulousCatAPI:
             "identity_id": self.identity_id,
             "region": self.region_id,
             "devices": enriched,
+            "pets": pets,
         }
 
     async def async_get_presence_snapshot(self) -> dict[str, Any]:
