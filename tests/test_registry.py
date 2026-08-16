@@ -14,11 +14,11 @@ from custom_components.furbulous.registry import (
 
 def test_is_weight_entity_detects_cat_weight():
     """Unique id markers identify weight sensors."""
-    entry = SimpleNamespace(domain="sensor", unique_id="furbulous_42_catWeight")
+    entry = SimpleNamespace(domain="sensor", unique_id="furbulous_42_cat_weight")
     assert _is_weight_entity(entry) is True
-    entry2 = SimpleNamespace(domain="sensor", unique_id="furbulous_42_daily_times")
+    entry2 = SimpleNamespace(domain="sensor", unique_id="furbulous_42_uses_today")
     assert _is_weight_entity(entry2) is False
-    entry3 = SimpleNamespace(domain="binary_sensor", unique_id="furbulous_42_catWeight")
+    entry3 = SimpleNamespace(domain="binary_sensor", unique_id="furbulous_42_cat_weight")
     assert _is_weight_entity(entry3) is False
 
 
@@ -32,7 +32,7 @@ async def test_clear_display_overrides_clears_unit_and_name(monkeypatch):
         domain="sensor",
         platform="furbulous",
         config_entry_id="entry-1",
-        unique_id="furbulous_42_catWeight",
+        unique_id="furbulous_42_cat_weight",
         name="Poids du chat",  # sticky French custom name
         has_entity_name=False,
         unit_of_measurement="g",
@@ -48,7 +48,7 @@ async def test_clear_display_overrides_clears_unit_and_name(monkeypatch):
         domain="sensor",
         platform="furbulous",
         config_entry_id="entry-1",
-        unique_id="furbulous_42_daily_times",
+        unique_id="furbulous_42_uses_today",
         name=None,
         has_entity_name=True,
         unit_of_measurement=None,
@@ -109,7 +109,7 @@ async def test_clear_weight_units_only_skips_names(monkeypatch):
         domain="sensor",
         platform="furbulous",
         config_entry_id="entry-1",
-        unique_id="furbulous_42_catWeight",
+        unique_id="furbulous_42_cat_weight",
         name="My custom name",
         has_entity_name=True,
         unit_of_measurement=None,

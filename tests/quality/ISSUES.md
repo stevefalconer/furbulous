@@ -21,6 +21,7 @@ link tests that guard the fix.
 | Q-014 | 1.3.6 UX review | **resolved** 1.3.6 | gold | Period metrics only used `7d`/`30d` codes | Word prefixes Visits/Bag/Litter + “N days” | `test_period_average_name_prefixes` |
 | Q-015 | 1.3.6 UX review | **resolved** 1.3.6 | uat | Power users need event triggers without name scrape | Bus events visit/full/bag/litter/pack | `test_event_type_constants_are_namespaced`, `test_emit_event_fires_on_hass_bus` |
 | Q-016 | 1.3.6 UX review | **resolved** 1.3.6 | uat | Adoption docs missing for non-tech vs power | CAT_PARENT_GUIDE + POWER_USER + UX_REVIEW | `test_adoption_docs_exist` |
+| Q-017 | 1.3.7 | **resolved** 1.3.7 | bronze | unique_ids still vendor camelCase / iotid | Cat-parent slug scheme + one-shot purge | `test_all_box_unique_ids_use_cat_parent_scheme` |
 
 ## How to use
 

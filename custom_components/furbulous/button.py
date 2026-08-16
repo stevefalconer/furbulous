@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import FurbulousEntity
+from .entity_ids import UID_LITTER_REFILLED, box_uid
 from .helpers import async_add_devices_listener
 
 if TYPE_CHECKING:
@@ -139,7 +140,7 @@ class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
             coordinator,
             device_id,
             translation_key="mark_litter_reset",
-            unique_id=f"{iotid}_mark_litter_reset",
+            unique_id=box_uid(device_id, UID_LITTER_REFILLED),
         )
         self._iotid = iotid
         self._analytics = analytics

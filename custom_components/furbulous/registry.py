@@ -25,7 +25,7 @@ _SENSOR_OPTION_KEYS = (
 )
 
 # Unique-id fragments for weight entities (display lb/kg from API grams)
-_WEIGHT_UNIQUE_MARKERS = ("catWeight", "cat_weight")
+_WEIGHT_UNIQUE_MARKERS = ("cat_weight", "catWeight")
 
 # Removed in 1.3.4+ (replaced by Screen off switch); prune so UI has no dupes
 _ORPHAN_UNIQUE_SUFFIXES = (
@@ -71,6 +71,30 @@ async def async_remove_orphan_entities(
             "Removed orphaned entity %s (unique_id=%s)",
             entity_entry.entity_id,
             entity_entry.unique_id,
+        )
+    return removed
+
+
+async def async_purge_config_entry_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+) -> int:
+    """Remove all registry entities for this config entry (one-shot ID rewrite).
+
+    Used when unique_id scheme changes before public adoption so HA does not
+    leave unavailable orphans alongside the new cat-parent IDs.
+    """
+    registry = er.async_get(hass)
+    removed = 0
+    for entity_entry in list(
+        er.async_entries_for_config_entry(registry, config_entry.entry_id)
+    ):
+        registry.async_remove(entity_entry.entity_id)
+        removed += 1
+    if removed:
+        _LOGGER.info(
+            "Purged %s Furbulous entit(y/ies) for cat-parent unique_id scheme",
+            removed,
         )
     return removed
 

@@ -3,7 +3,7 @@
 Tracking against [HA Integration Quality Scale rules](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/).  
 Status: **PASS** | **EXEMPT** (with reason). Not a core submission claim.
 
-**Last reviewed:** 2026-08-16 (**v1.3.6**)
+**Last reviewed:** 2026-08-16 (**v1.3.7**)
 
 Automated tests:
 
@@ -25,7 +25,7 @@ Adoption: [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md) · Power: [docs/P
 | test-before-configure | PASS | Auth + device list before create_entry |
 | test-before-setup | PASS | ConfigEntryAuthFailed / ConfigEntryNotReady |
 | unique-config-entry | PASS | unique_id email_region |
-| entity-unique-id | PASS | Stable across friendly renames (1.3.6) |
+| entity-unique-id | PASS | Cat-parent slug scheme `furbulous_{id}_{slug}` (1.3.7) |
 | has-entity-name | PASS | translation_key names |
 | runtime-data | PASS | api, dual coordinators, analytics |
 | appropriate-polling | PASS | 30s / ≤60s pets / 5 min full |

@@ -76,7 +76,7 @@ async def test_empty_requires_confirm_ready():
         7,
         "iot-7",
         translation_key="empty",
-        unique_id="iot-7_dump",
+        unique_id="furbulous_7_empty_waste",
         hand_mode=2,
         icon="mdi:delete-empty",
         analytics=None,

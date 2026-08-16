@@ -15,6 +15,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ERROR_CODES
 from .entity import FurbulousEntity, extract_prop_value
+from .entity_ids import (
+    UID_AVERAGE_VISIT_TODAY,
+    UID_CAT_WEIGHT,
+    UID_DEVICE_LAST_ACTIVE,
+    UID_ERROR_MESSAGE,
+    UID_USES_TODAY,
+    box_uid,
+)
 from .helpers import async_add_devices_listener
 from .weight import (
     preferred_display_mass_unit,
@@ -87,7 +95,7 @@ class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="last_activity",
-            unique_id=f"furbulous_{device_id}_last_active",
+            unique_id=box_uid(device_id, UID_DEVICE_LAST_ACTIVE),
         )
 
     @property
@@ -127,7 +135,7 @@ class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="cat_weight",
-            unique_id=f"furbulous_{device_id}_catWeight",
+            unique_id=box_uid(device_id, UID_CAT_WEIGHT),
         )
 
     @property
@@ -176,7 +184,7 @@ class FurbulousDailyUsesSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="daily_uses",
-            unique_id=f"furbulous_{device_id}_daily_times",
+            unique_id=box_uid(device_id, UID_USES_TODAY),
         )
 
     @property
@@ -204,7 +212,7 @@ class FurbulousAverageDurationSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="average_daily_duration",
-            unique_id=f"furbulous_{device_id}_daily_avg_duration",
+            unique_id=box_uid(device_id, UID_AVERAGE_VISIT_TODAY),
         )
 
     @property
@@ -241,7 +249,7 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="error",
-            unique_id=f"furbulous_{device_id}_errorReportEvent",
+            unique_id=box_uid(device_id, UID_ERROR_MESSAGE),
         )
 
     @property

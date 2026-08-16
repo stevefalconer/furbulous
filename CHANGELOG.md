@@ -2,6 +2,21 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.7 — 2026-08-16
+
+### Breaking (pre–public adoption): cat-parent entity unique_ids
+
+- All litter-box unique_ids rewritten to  
+  `furbulous_{device_id}_{slug}` with **cat-language slugs**  
+  (e.g. `last_cat`, `needs_emptying`, `empty_waste`, `bag_age_hours`,  
+  `auto_clean_after_visits`, `what_box_doing`).
+- Pets: `furbulous_pet_{id}_{slug}`.
+- One-shot registry **purge** on upgrade recreates entities so no orphan  
+  “unavailable” leftovers from old camelCase / iotid-prefix IDs.
+- Central map: `custom_components/furbulous/entity_ids.py`.
+
+Safe because this fork is not yet widely adopted and has no production automations.
+
 ## 1.3.6 — 2026-08-16
 
 ### Cat-parent usability (names) without removing power features

@@ -7,7 +7,18 @@ Cat-parent **names** are friendly. Power-user **contracts** stay stable:
 - Analytics `metric_key` on rollup sensors  
 - Domain **bus events** for edge-triggered automations  
 
-**Version:** 1.3.6+
+**Version:** 1.3.7+
+
+### Unique IDs (cat-parent scheme)
+
+```
+furbulous_{device_id}_{slug}          # litter box
+furbulous_pet_{pet_key}_{slug}        # pet roster
+```
+
+Examples: `furbulous_42_last_cat`, `furbulous_42_needs_emptying`,  
+`furbulous_42_empty_waste`, `furbulous_42_bag_age_hours`.  
+Full map: `custom_components/furbulous/entity_ids.py`.
 
 ---
 

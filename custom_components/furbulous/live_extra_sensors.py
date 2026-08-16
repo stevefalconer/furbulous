@@ -7,6 +7,18 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import EntityCategory
 
 from .entity import FurbulousEntity, extract_prop_value
+from .entity_ids import (
+    UID_CLEAN_CYCLE_STATUS,
+    UID_FIRMWARE,
+    UID_QUIET_HOURS_END,
+    UID_QUIET_HOURS_START,
+    UID_SCREEN_OFF_SCHEDULE_END,
+    UID_SCREEN_OFF_SCHEDULE_START,
+    UID_USES_VS_YESTERDAY,
+    UID_VISIT_LENGTH_VS_YESTERDAY,
+    UID_WHAT_BOX_DOING,
+    box_uid,
+)
 from .schedule_props import (
     DND_START_KEYS,
     DND_STOP_KEYS,
@@ -45,7 +57,7 @@ class FurbulousFirmwareSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="firmware",
-            unique_id=f"furbulous_{device_id}_firmware",
+            unique_id=box_uid(device_id, UID_FIRMWARE),
         )
 
     @property
@@ -71,7 +83,7 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="box_action",
-            unique_id=f"furbulous_{device_id}_handMode",
+            unique_id=box_uid(device_id, UID_WHAT_BOX_DOING),
         )
 
     @property
@@ -124,7 +136,7 @@ class FurbulousCompletionStatusSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="cycle_completion",
-            unique_id=f"furbulous_{device_id}_completionStatus",
+            unique_id=box_uid(device_id, UID_CLEAN_CYCLE_STATUS),
         )
 
     @property
@@ -170,7 +182,7 @@ class FurbulousUsesVsYesterdaySensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="uses_vs_yesterday",
-            unique_id=f"furbulous_{device_id}_times_diff",
+            unique_id=box_uid(device_id, UID_USES_VS_YESTERDAY),
         )
 
     @property
@@ -195,7 +207,7 @@ class FurbulousDurationVsYesterdaySensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="duration_vs_yesterday",
-            unique_id=f"furbulous_{device_id}_avg_diff",
+            unique_id=box_uid(device_id, UID_VISIT_LENGTH_VS_YESTERDAY),
         )
 
     @property
@@ -223,7 +235,7 @@ class FurbulousEcoStartSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="eco_mode_start",
-            unique_id=f"furbulous_{device_id}_eco_mode_start",
+            unique_id=box_uid(device_id, UID_SCREEN_OFF_SCHEDULE_START),
         )
 
     @property
@@ -259,7 +271,7 @@ class FurbulousEcoStopSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="eco_mode_stop",
-            unique_id=f"furbulous_{device_id}_eco_mode_stop",
+            unique_id=box_uid(device_id, UID_SCREEN_OFF_SCHEDULE_END),
         )
 
     @property
@@ -296,7 +308,7 @@ class FurbulousDndStartSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="dnd_start",
-            unique_id=f"furbulous_{device_id}_dnd_start",
+            unique_id=box_uid(device_id, UID_QUIET_HOURS_START),
         )
 
     @property
@@ -320,7 +332,7 @@ class FurbulousDndStopSensor(FurbulousEntity, SensorEntity):
             coordinator,
             device_id,
             translation_key="dnd_stop",
-            unique_id=f"furbulous_{device_id}_dnd_stop",
+            unique_id=box_uid(device_id, UID_QUIET_HOURS_END),
         )
 
     @property

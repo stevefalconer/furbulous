@@ -12,6 +12,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import FurbulousEntity, extract_prop_value
+from .entity_ids import (
+    UID_CAT_INSIDE,
+    UID_CHILD_LOCK_ON,
+    UID_COVER_OPEN,
+    UID_DRAWER_OUT_OF_PLACE,
+    UID_NEEDS_EMPTYING,
+    UID_ONLINE,
+    UID_SCREEN_IS_OFF,
+    box_uid,
+)
 from .helpers import async_add_devices_listener
 
 if TYPE_CHECKING:
@@ -55,7 +65,7 @@ class FurbulousConnectedSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="connected",
-            unique_id=f"furbulous_{device_id}_connectivity",
+            unique_id=box_uid(device_id, UID_ONLINE),
         )
 
     @property
@@ -76,7 +86,7 @@ class FurbulousCatInBoxSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="cat_in_litter_box",
-            unique_id=f"furbulous_{device_id}_cat_in_box",
+            unique_id=box_uid(device_id, UID_CAT_INSIDE),
         )
 
     @property
@@ -117,7 +127,7 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="waste_bin_status",
-            unique_id=f"{device_id}_waste_bin_full",
+            unique_id=box_uid(device_id, UID_NEEDS_EMPTYING),
         )
 
     @property
@@ -162,7 +172,7 @@ class FurbulousChildLockBinarySensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="child_lock",
-            unique_id=f"furbulous_{device_id}_childLockOnOff_binary",
+            unique_id=box_uid(device_id, UID_CHILD_LOCK_ON),
         )
 
     @property
@@ -209,7 +219,7 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="energy_saving_active",
-            unique_id=f"furbulous_{device_id}_masterSleepOnOff_binary",
+            unique_id=box_uid(device_id, UID_SCREEN_IS_OFF),
         )
 
     @property
@@ -245,7 +255,7 @@ class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="cover_status",
-            unique_id=f"furbulous_{device_id}_cover_open",
+            unique_id=box_uid(device_id, UID_COVER_OPEN),
         )
 
     @property
@@ -283,7 +293,7 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
             coordinator,
             device_id,
             translation_key="drawer_status",
-            unique_id=f"furbulous_{device_id}_drawer_not_in_place",
+            unique_id=box_uid(device_id, UID_DRAWER_OUT_OF_PLACE),
         )
 
     @property
