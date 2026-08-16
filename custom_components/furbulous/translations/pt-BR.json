@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Entre com a mesma conta do app Furbulous. A região deve corresponder ao país escolhido no cadastro. Regiões fora dos EUA são experimentais.",
+        "data": {
+          "email": "E-mail",
+          "password": "Senha",
+          "region": "Região da conta"
+        },
+        "data_description": {
+          "email": "E-mail usado no app Furbulous",
+          "password": "Senha da sua conta Furbulous",
+          "region": "Deve corresponder à região do app. Região errada causa credenciais inválidas. Apenas EUA/Canadá é suportado pelo mantenedor."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reautenticar Furbulous",
+        "description": "Credenciais ou região não são mais válidas. Atualize para continuar. Região errada muitas vezes parece credenciais inválidas.",
+        "data": {
+          "email": "E-mail",
+          "password": "Senha",
+          "region": "Região da conta"
+        },
+        "data_description": {
+          "email": "E-mail usado no app Furbulous",
+          "password": "Senha da sua conta Furbulous",
+          "region": "Região na nuvem desta conta (EUA suportada; UE e Ásia experimentais)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar Furbulous",
+        "description": "Atualize e-mail, senha ou região na nuvem. A região deve corresponder à conta do app Furbulous.",
+        "data": {
+          "email": "E-mail",
+          "password": "Senha",
+          "region": "Região da conta"
+        },
+        "data_description": {
+          "email": "E-mail usado no app Furbulous",
+          "password": "Senha da sua conta Furbulous",
+          "region": "Região na nuvem desta conta (EUA suportada; UE e Ásia experimentais)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Credenciais inválidas ou região errada (ou endpoint experimental sem funcionamento)",
+      "cannot_connect": "Não foi possível alcançar a nuvem Furbulous na região selecionada",
+      "unknown": "Erro inesperado"
+    },
+    "abort": {
+      "already_configured": "Esta conta já está configurada para esta região",
+      "reauth_successful": "Reautenticação bem-sucedida",
+      "reconfigure_successful": "Reconfiguração bem-sucedida",
+      "wrong_account": "A conta não corresponde à configuração existente"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Não foi possível atualizar o dispositivo Furbulous. Verifique a conexão com a nuvem e tente novamente."
+    },
+    "invalid_auth": {
+      "message": "Credenciais inválidas ou região Furbulous errada"
+    },
+    "cannot_connect": {
+      "message": "Não foi possível alcançar a nuvem Furbulous"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "Estados Unidos / Canadá (Suportado)",
+        "eu": "Europa / Reino Unido (Experimental)",
+        "asia": "Ásia (Experimental)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "Última atividade"
+      },
+      "cat_weight": {
+        "name": "Peso do gato"
+      },
+      "daily_uses": {
+        "name": "Usos diários"
+      },
+      "average_daily_duration": {
+        "name": "Duração média diária"
+      },
+      "error": {
+        "name": "Erro"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Conectado"
+      },
+      "cat_in_litter_box": {
+        "name": "Gato na caixa de areia"
+      },
+      "waste_bin_full": {
+        "name": "Lixeira cheia"
+      },
+      "child_lock": {
+        "name": "Bloqueio infantil"
+      },
+      "sleep_mode": {
+        "name": "Modo de repouso"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "Modo totalmente automático"
+      },
+      "do_not_disturb": {
+        "name": "Não perturbe"
+      },
+      "child_lock": {
+        "name": "Bloqueio infantil"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "Limpeza manual"
+      },
+      "pause_cleaning": {
+        "name": "Pausar limpeza"
+      },
+      "resume_cleaning": {
+        "name": "Retomar limpeza"
+      },
+      "empty": {
+        "name": "Esvaziar"
+      },
+      "pack": {
+        "name": "Embalar"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "Atraso da limpeza"
+      }
+    }
+  }
+}

@@ -1,206 +1,214 @@
-"""Switch platform for Furbulous Cat - HomeKit Compatible."""
+"""Switch platform for Furbulous."""
 from __future__ import annotations
 
-import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
 
 from .const import DOMAIN
-from .device import get_device_info
+from .entity import FurbulousEntity, extract_prop_value
+from .helpers import async_add_devices_listener
 
-_LOGGER = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from . import FurbulousConfigEntry
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: FurbulousConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Furbulous Cat switches from a config entry."""
-    coordinators = hass.data[DOMAIN][entry.entry_id]
-    coordinator = coordinators["coordinator"]
+    """Set up switches; dynamically add for new devices."""
+    from .device_entities import switch_entities_for_device
 
-    switches = []
-    for device in coordinator.data.get("devices", []):
-        # Add switches for HomeKit compatibility
-        switches.extend([
-            FurbulousCatFullAutoModeSwitch(coordinator, device),
-            FurbulousCatDNDSwitch(coordinator, device),
-            FurbulousCatChildLockSwitch(coordinator, device),
-        ])
+    runtime = entry.runtime_data
+    coordinator = runtime.coordinator
+    api = runtime.api
+    known: set = set()
 
-    async_add_entities(switches)
+    def build(device: dict) -> list:
+        return switch_entities_for_device(coordinator, api, device)
+
+    listener = async_add_devices_listener(
+        coordinator, async_add_entities, build, known
+    )
+    entry.async_on_unload(coordinator.async_add_listener(listener))
+    listener()
 
 
-class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):
-    """Switch for full auto mode - HomeKit compatible."""
+class _FurbulousSwitch(FurbulousEntity, SwitchEntity):
+    """Switch that uses shared API for commands; state from coordinator."""
 
     def __init__(
-        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
+        self,
+        coordinator,
+        api,
+        device_id: int,
+        iotid: str,
+        *,
+        translation_key: str,
+        unique_id: str,
     ) -> None:
-        """Initialize the switch."""
-        super().__init__(coordinator)
-        self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_full_auto_mode_switch"
-        self._attr_name = f"{device['name']} - Full auto mode"
-        self._attr_icon = "mdi:auto-mode"
-        self._attr_device_info = get_device_info(device)
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key=translation_key,
+            unique_id=unique_id,
+        )
+        self._api = api
+        self._iotid = iotid
+
+
+class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
+    """Full auto mode switch."""
+
+    _attr_icon = "mdi:auto-mode"
+
+    def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            api,
+            device_id,
+            iotid,
+            translation_key="full_auto_mode",
+            unique_id=f"{iotid}_full_auto_mode_switch",
+        )
 
     @property
     def is_on(self) -> bool:
-        """Return true if full auto mode is on."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("iotid") == self.device_data["iotid"]:
-                properties = device.get("properties", {})
-                prop = properties.get("FullAutoModeSwitch")
-                if prop:
-                    if isinstance(prop, dict):
-                        return prop.get("value", 0) == 1
-                    return prop == 1
-        return False
+        """Return True if full auto mode is on."""
+        device = self.device_data
+        if not device:
+            return False
+        return (
+            extract_prop_value(
+                (device.get("properties") or {}).get("FullAutoModeSwitch")
+            )
+            == 1
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on full auto mode."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"FullAutoModeSwitch": 1}
-        )
-        if success:
-            _LOGGER.info("Full auto mode enabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to enable full auto mode for device %s", iotid)
+        """Enable full auto mode."""
+        if not await self._api.set_device_property(
+            self._iotid, {"FullAutoModeSwitch": 1}
+        ):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off full auto mode."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
+        """Disable full auto mode."""
+        if not await self._api.set_device_property(
+            self._iotid, {"FullAutoModeSwitch": 0}
+        ):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()
+
+
+class FurbulousDNDSwitch(_FurbulousSwitch):
+    """Do Not Disturb switch."""
+
+    _attr_icon = "mdi:moon-waning-crescent"
+
+    def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            api,
+            device_id,
             iotid,
-            {"FullAutoModeSwitch": 0}
+            translation_key="do_not_disturb",
+            unique_id=f"{iotid}_dnd_switch",
         )
-        if success:
-            _LOGGER.info("Full auto mode disabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to disable full auto mode for device %s", iotid)
-
-
-class FurbulousCatDNDSwitch(CoordinatorEntity, SwitchEntity):
-    """Switch for Do Not Disturb mode - HomeKit compatible."""
-
-    def __init__(
-        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
-    ) -> None:
-        """Initialize the switch."""
-        super().__init__(coordinator)
-        self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_dnd_switch"
-        self._attr_name = f"{device['name']} - Do not disturb"
-        self._attr_icon = "mdi:moon-waning-crescent"
-        self._attr_device_info = get_device_info(device)
 
     @property
     def is_on(self) -> bool:
-        """Return true if DND is on."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("id") == self.device_data["id"]:
-                return device.get("is_disturb", 0) == 1
-        return False
+        """Return True if DND is on."""
+        device = self.device_data
+        if not device:
+            return False
+        return device.get("is_disturb", 0) == 1
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on DND."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_disturb,
-            iotid,
-            True
-        )
-        if success:
-            _LOGGER.info("DND enabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to enable DND for device %s", iotid)
+        """Enable DND."""
+        if not await self._api.set_device_disturb(self._iotid, True):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off DND."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_disturb,
+        """Disable DND."""
+        if not await self._api.set_device_disturb(self._iotid, False):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()
+
+
+class FurbulousChildLockSwitch(_FurbulousSwitch):
+    """Child lock switch."""
+
+    _attr_icon = "mdi:lock"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            api,
+            device_id,
             iotid,
-            False
+            translation_key="child_lock",
+            unique_id=f"{iotid}_child_lock_switch",
         )
-        if success:
-            _LOGGER.info("DND disabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to disable DND for device %s", iotid)
-
-
-class FurbulousCatChildLockSwitch(CoordinatorEntity, SwitchEntity):
-    """Switch for child lock - HomeKit compatible."""
-
-    def __init__(
-        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
-    ) -> None:
-        """Initialize the switch."""
-        super().__init__(coordinator)
-        self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_child_lock_switch"
-        self._attr_name = f"{device['name']} - Child lock"
-        self._attr_icon = "mdi:lock"
-        self._attr_device_info = get_device_info(device)
 
     @property
     def is_on(self) -> bool:
-        """Return true if child lock is on."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("iotid") == self.device_data["iotid"]:
-                properties = device.get("properties", {})
-                prop = properties.get("childLockOnOff")
-                if prop:
-                    if isinstance(prop, dict):
-                        return prop.get("value", 0) == 1
-                    return prop == 1
-        return False
+        """Return True if child lock is on."""
+        device = self.device_data
+        if not device:
+            return False
+        return (
+            extract_prop_value(
+                (device.get("properties") or {}).get("childLockOnOff")
+            )
+            == 1
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on child lock."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"childLockOnOff": 1}
-        )
-        if success:
-            _LOGGER.info("Child lock enabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to enable child lock for device %s", iotid)
+        """Enable child lock."""
+        if not await self._api.set_device_property(
+            self._iotid, {"childLockOnOff": 1}
+        ):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off child lock."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"childLockOnOff": 0}
-        )
-        if success:
-            _LOGGER.info("Child lock disabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to disable child lock for device %s", iotid)
+        """Disable child lock."""
+        if not await self._api.set_device_property(
+            self._iotid, {"childLockOnOff": 0}
+        ):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()

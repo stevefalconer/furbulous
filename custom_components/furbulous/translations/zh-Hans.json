@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "请使用与 Furbulous 应用相同的账户登录。地区必须与注册时选择的国家一致。美国以外地区为实验性支持。",
+        "data": {
+          "email": "电子邮箱",
+          "password": "密码",
+          "region": "账户地区"
+        },
+        "data_description": {
+          "email": "Furbulous 应用中使用的电子邮箱",
+          "password": "Furbulous 账户密码",
+          "region": "必须与应用账户地区一致。错误地区会导致认证失败。维护者仅支持美国/加拿大。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新认证 Furbulous",
+        "description": "凭据或地区已失效。请更新后继续。错误地区常表现为凭据无效。",
+        "data": {
+          "email": "电子邮箱",
+          "password": "密码",
+          "region": "账户地区"
+        },
+        "data_description": {
+          "email": "Furbulous 应用中使用的电子邮箱",
+          "password": "Furbulous 账户密码",
+          "region": "此账户的云地区（美国受支持；欧盟和亚洲为实验性）"
+        }
+      },
+      "reconfigure": {
+        "title": "重新配置 Furbulous",
+        "description": "更新电子邮箱、密码或云地区。地区必须与 Furbulous 应用账户一致。",
+        "data": {
+          "email": "电子邮箱",
+          "password": "密码",
+          "region": "账户地区"
+        },
+        "data_description": {
+          "email": "Furbulous 应用中使用的电子邮箱",
+          "password": "Furbulous 账户密码",
+          "region": "此账户的云地区（美国受支持；欧盟和亚洲为实验性）"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "凭据无效或地区错误（或实验性端点不可用）",
+      "cannot_connect": "无法连接所选地区的 Furbulous 云",
+      "unknown": "意外错误"
+    },
+    "abort": {
+      "already_configured": "此账户已在该地区配置",
+      "reauth_successful": "重新认证成功",
+      "reconfigure_successful": "重新配置成功",
+      "wrong_account": "账户与现有配置不匹配"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "无法更新 Furbulous 设备。请检查云连接后重试。"
+    },
+    "invalid_auth": {
+      "message": "凭据无效或 Furbulous 地区错误"
+    },
+    "cannot_connect": {
+      "message": "无法连接 Furbulous 云"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "美国 / 加拿大（支持）",
+        "eu": "欧洲 / 英国（实验性）",
+        "asia": "亚洲（实验性）"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "上次活动"
+      },
+      "cat_weight": {
+        "name": "猫咪体重"
+      },
+      "daily_uses": {
+        "name": "每日使用次数"
+      },
+      "average_daily_duration": {
+        "name": "每日平均时长"
+      },
+      "error": {
+        "name": "错误"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "已连接"
+      },
+      "cat_in_litter_box": {
+        "name": "猫在猫砂盆中"
+      },
+      "waste_bin_full": {
+        "name": "集便仓已满"
+      },
+      "child_lock": {
+        "name": "童锁"
+      },
+      "sleep_mode": {
+        "name": "睡眠模式"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "全自动模式"
+      },
+      "do_not_disturb": {
+        "name": "勿扰模式"
+      },
+      "child_lock": {
+        "name": "童锁"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "手动清理"
+      },
+      "pause_cleaning": {
+        "name": "暂停清理"
+      },
+      "resume_cleaning": {
+        "name": "继续清理"
+      },
+      "empty": {
+        "name": "清空"
+      },
+      "pack": {
+        "name": "打包"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "清理延迟"
+      }
+    }
+  }
+}

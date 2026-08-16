@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Accedi con lo stesso account dell'app Furbulous. La regione deve corrispondere al paese scelto in registrazione. Le regioni non USA sono sperimentali.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "region": "Regione account"
+        },
+        "data_description": {
+          "email": "Email usata nell'app Furbulous",
+          "password": "Password del tuo account Furbulous",
+          "region": "Deve corrispondere alla regione dell'app. Regione errata = credenziali non valide. Solo USA/Canada è supportato dal maintainer."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Riautentica Furbulous",
+        "description": "Credenziali o regione non più valide. Aggiornale per continuare. Una regione errata spesso sembra credenziali non valide.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "region": "Regione account"
+        },
+        "data_description": {
+          "email": "Email usata nell'app Furbulous",
+          "password": "Password del tuo account Furbulous",
+          "region": "Regione cloud di questo account (USA supportata; UE e Asia sperimentali)"
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigura Furbulous",
+        "description": "Aggiorna email, password o regione cloud. La regione deve corrispondere all'account dell'app Furbulous.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "region": "Regione account"
+        },
+        "data_description": {
+          "email": "Email usata nell'app Furbulous",
+          "password": "Password del tuo account Furbulous",
+          "region": "Regione cloud di questo account (USA supportata; UE e Asia sperimentali)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Credenziali non valide o regione errata (o endpoint sperimentale non funzionante)",
+      "cannot_connect": "Impossibile raggiungere il cloud Furbulous per la regione selezionata",
+      "unknown": "Errore imprevisto"
+    },
+    "abort": {
+      "already_configured": "Questo account è già configurato per questa regione",
+      "reauth_successful": "Riautenticazione riuscita",
+      "reconfigure_successful": "Riconfigurazione riuscita",
+      "wrong_account": "L'account non corrisponde alla configurazione esistente"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Impossibile aggiornare il dispositivo Furbulous. Controlla la connessione cloud e riprova."
+    },
+    "invalid_auth": {
+      "message": "Credenziali non valide o regione Furbulous errata"
+    },
+    "cannot_connect": {
+      "message": "Impossibile raggiungere il cloud Furbulous"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "Stati Uniti / Canada (Supportato)",
+        "eu": "Europa / Regno Unito (Sperimentale)",
+        "asia": "Asia (Sperimentale)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "Ultima attività"
+      },
+      "cat_weight": {
+        "name": "Peso del gatto"
+      },
+      "daily_uses": {
+        "name": "Utilizzi giornalieri"
+      },
+      "average_daily_duration": {
+        "name": "Durata media giornaliera"
+      },
+      "error": {
+        "name": "Errore"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Connesso"
+      },
+      "cat_in_litter_box": {
+        "name": "Gatto nella lettiera"
+      },
+      "waste_bin_full": {
+        "name": "Cestino rifiuti pieno"
+      },
+      "child_lock": {
+        "name": "Blocco bambini"
+      },
+      "sleep_mode": {
+        "name": "Modalità sonno"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "Modalità automatica completa"
+      },
+      "do_not_disturb": {
+        "name": "Non disturbare"
+      },
+      "child_lock": {
+        "name": "Blocco bambini"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "Pulizia manuale"
+      },
+      "pause_cleaning": {
+        "name": "Pausa pulizia"
+      },
+      "resume_cleaning": {
+        "name": "Riprendi pulizia"
+      },
+      "empty": {
+        "name": "Svuota"
+      },
+      "pack": {
+        "name": "Imballa"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "Ritardo pulizia"
+      }
+    }
+  }
+}

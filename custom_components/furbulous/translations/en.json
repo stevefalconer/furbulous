@@ -78,33 +78,71 @@
   },
   "entity": {
     "sensor": {
-      "last_activity": { "name": "Last activity" },
-      "cat_weight": { "name": "Cat weight" },
-      "daily_uses": { "name": "Daily uses" },
-      "average_daily_duration": { "name": "Average daily duration" },
-      "error": { "name": "Error" }
+      "last_activity": {
+        "name": "Last activity"
+      },
+      "cat_weight": {
+        "name": "Cat weight"
+      },
+      "daily_uses": {
+        "name": "Daily uses"
+      },
+      "average_daily_duration": {
+        "name": "Average daily duration"
+      },
+      "error": {
+        "name": "Error"
+      }
     },
     "binary_sensor": {
-      "connected": { "name": "Connected" },
-      "cat_in_litter_box": { "name": "Cat in litter box" },
-      "waste_bin_full": { "name": "Waste bin full" },
-      "child_lock": { "name": "Child lock" },
-      "sleep_mode": { "name": "Sleep mode" }
+      "connected": {
+        "name": "Connected"
+      },
+      "cat_in_litter_box": {
+        "name": "Cat in litter box"
+      },
+      "waste_bin_full": {
+        "name": "Waste bin full"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "sleep_mode": {
+        "name": "Sleep mode"
+      }
     },
     "switch": {
-      "full_auto_mode": { "name": "Full auto mode" },
-      "do_not_disturb": { "name": "Do not disturb" },
-      "child_lock": { "name": "Child lock" }
+      "full_auto_mode": {
+        "name": "Full auto mode"
+      },
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      }
     },
     "button": {
-      "manual_clean": { "name": "Manual clean" },
-      "pause_cleaning": { "name": "Pause cleaning" },
-      "resume_cleaning": { "name": "Resume cleaning" },
-      "empty": { "name": "Empty" },
-      "pack": { "name": "Pack" }
+      "manual_clean": {
+        "name": "Manual clean"
+      },
+      "pause_cleaning": {
+        "name": "Pause cleaning"
+      },
+      "resume_cleaning": {
+        "name": "Resume cleaning"
+      },
+      "empty": {
+        "name": "Empty"
+      },
+      "pack": {
+        "name": "Pack"
+      }
     },
     "select": {
-      "cleaning_delay": { "name": "Cleaning delay" }
+      "cleaning_delay": {
+        "name": "Cleaning delay"
+      }
     }
   }
 }

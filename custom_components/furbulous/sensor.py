@@ -1,499 +1,208 @@
-"""Platform for sensor integration."""
+"""Sensor platform for Furbulous."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import (
-    SensorEntity,
     SensorDeviceClass,
+    SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfMass, UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfMass, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import FurbulousCatDataUpdateCoordinator
-from .const import (
-    DOMAIN,
-    WORK_STATUS,
-    LITTER_TYPE,
-    ERROR_CODES,
-)
-from .device import get_device_info
+from .const import ERROR_CODES
+from .entity import FurbulousEntity, extract_prop_value
+from .helpers import async_add_devices_listener
+from .weight import resolve_cat_weight_grams
+
+if TYPE_CHECKING:
+    from . import FurbulousConfigEntry
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: FurbulousConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Furbulous Cat sensors."""
-    coordinators = hass.data[DOMAIN][config_entry.entry_id]
-    coordinator = coordinators["coordinator"]
+    """Set up Furbulous sensors; add more when new devices appear."""
+    from .device_entities import sensor_entities_for_device
 
-    entities = []
-    
-    # Add a sensor for each device
-    devices = coordinator.data.get("devices", [])
-    for device in devices:
-        device_id = device.get("id")
-        iotid = device.get("iotid")
-        
-        # Basic sensors
-        entities.extend([
-            FurbulousCatDeviceSensor(coordinator, device_id, "last_active"),
-        ])
-        
-        # Property-based sensors
-        if iotid:
-            entities.extend([
-                # Weight and usage
-                FurbulousCatPropertySensor(coordinator, device_id, "catWeight", "Cat weight"),
-                FurbulousCatDailyStatsSensor(coordinator, device_id, "times", "Daily uses"),
-                FurbulousCatDailyStatsSensor(coordinator, device_id, "avg_duration", "Average daily duration"),
-                
-                # Status
-                FurbulousCatPropertySensor(coordinator, device_id, "errorReportEvent", "Error"),
-            ])
-    
-    async_add_entities(entities)
+    coordinator = config_entry.runtime_data.coordinator
+    known: set = set()
+
+    def build(device: dict) -> list:
+        return sensor_entities_for_device(coordinator, device)
+
+    listener = async_add_devices_listener(
+        coordinator, async_add_entities, build, known
+    )
+    config_entry.async_on_unload(coordinator.async_add_listener(listener))
+    listener()  # initial devices
 
 
-class FurbulousCatStatusSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Furbulous Cat status sensor."""
+class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
+    """Timestamp of last device activity."""
 
-    def __init__(self, coordinator: FurbulousCatDataUpdateCoordinator) -> None:
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, device_id: int) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._attr_name = "Furbulous Cat Status"
-        self._attr_unique_id = f"{coordinator.api.identity_id}_status"
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="last_activity",
+            unique_id=f"furbulous_{device_id}_last_active",
+        )
 
     @property
-    def native_value(self) -> str:
-        """Return the state of the sensor."""
-        if self.coordinator.data.get("authenticated"):
-            device_count = len(self.coordinator.data.get("devices", []))
-            return f"{device_count} device(s)"
-        return "Disconnected"
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional attributes."""
-        return {
-            "identity_id": self.coordinator.data.get("identity_id"),
-            "device_count": len(self.coordinator.data.get("devices", [])),
-        }
-
-
-class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Furbulous Cat device sensor."""
-
-    def __init__(
-        self,
-        coordinator: FurbulousCatDataUpdateCoordinator,
-        device_id: int,
-        sensor_type: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._sensor_type = sensor_type
-        self._attr_unique_id = f"furbulous_{device_id}_{sensor_type}"
-        
-        # Set device info
-        device = self.device_data
-        if device:
-            self._attr_device_info = get_device_info(device)
-
-    @property
-    def device_data(self) -> dict | None:
-        """Get the device data from coordinator."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("id") == self._device_id:
-                return device
-        return None
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            sensor_names = {
-                "status": "Status",
-                "online": "Connection",
-                "last_active": "Last activity",
-            }
-            return f"{device_name} - {sensor_names.get(self._sensor_type, self._sensor_type)}"
-        return f"Furbulous Device {self._device_id}"
-
-    @property
-    def native_value(self) -> str | datetime | None:
-        """Return the state of the sensor."""
+    def native_value(self) -> datetime | None:
+        """Return last activity as UTC datetime."""
         device = self.device_data
         if not device:
             return None
-
-        if self._sensor_type == "status":
-            return "Active" if device.get("device_online") == 1 else "Inactive"
-        elif self._sensor_type == "online":
-            return "Online" if device.get("device_online") == 1 else "Offline"
-        elif self._sensor_type == "last_active":
-            timestamp = device.get("active_time")
-            if timestamp:
-                # Return datetime object with UTC timezone for TIMESTAMP device class
-                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
-            return None
-        
+        timestamp = device.get("active_time")
+        if timestamp:
+            return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         return None
 
-    @property
-    def device_class(self) -> SensorDeviceClass | None:
-        """Return the device class."""
-        if self._sensor_type == "last_active":
-            return SensorDeviceClass.TIMESTAMP
-        return None
+
+class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
+    """Cat weight — native grams; HA converts to lb/kg for the user profile."""
+
+    _attr_device_class = SensorDeviceClass.WEIGHT
+    _attr_native_unit_of_measurement = UnitOfMass.GRAMS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+    _attr_icon = "mdi:weight"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="cat_weight",
+            unique_id=f"furbulous_{device_id}_catWeight",
+        )
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional attributes."""
+    def native_value(self) -> float | None:
+        """Return weight in grams (API-native; no display conversion here)."""
         device = self.device_data
         if not device:
-            return {}
-
-        attrs = {
-            "device_id": device.get("id"),
-            "device_name": device.get("device_name"),
-            "iot_id": device.get("iotid"),
-            "product_name": device.get("product_name"),
-            "product_id": device.get("product_id"),
-            "platform": "AWS" if device.get("platform") == 2 else "Other",
-        }
-
-        if self._sensor_type == "status":
-            attrs.update({
-                "is_shared": device.get("is_share") == 1,
-                "is_disturb": device.get("is_disturb") == 1,
-                "icon_url": device.get("icon"),
-            })
-
-        return attrs
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        return self.device_data is not None
-
-
-class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Furbulous Cat property sensor."""
-
-    def __init__(
-        self,
-        coordinator: FurbulousCatDataUpdateCoordinator,
-        device_id: int,
-        property_key: str,
-        friendly_name: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._property_key = property_key
-        self._friendly_name = friendly_name
-        self._attr_unique_id = f"furbulous_{device_id}_{property_key}"
-        
-        # Set device info
-        device = self.device_data
-        if device:
-            self._attr_device_info = get_device_info(device)
-
-    @property
-    def device_data(self) -> dict | None:
-        """Get the device data from coordinator."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("id") == self._device_id:
-                return device
-        return None
-
-    @property
-    def property_data(self) -> dict | None:
-        """Get the property data."""
-        device = self.device_data
-        if device:
-            properties = device.get("properties", {})
-            return properties.get(self._property_key)
-        return None
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - {self._friendly_name}"
-        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
-
-    @property
-    def native_value(self) -> str | int | float | None:
-        """Return the state of the sensor."""
-        prop = self.property_data
-        if not prop:
             return None
-
-        # Handle both dict {"value": x} and direct value cases
-        if isinstance(prop, dict):
-            value = prop.get("value")
-        else:
-            value = prop
-        
-        # Handle specific properties with transformations
-        if self._property_key == "catWeight":
-            # Weight in grams
-            return int(value) if value is not None else None
-        
-        elif self._property_key == "workstatus":
-            # Work status mapping
-            return WORK_STATUS.get(value, f"Unknown ({value})")
-        
-        elif self._property_key == "catLitterType":
-            # Litter type mapping
-            return LITTER_TYPE.get(value, f"Unknown ({value})")
-        
-        elif self._property_key == "errorReportEvent":
-            # Error code mapping
-            return ERROR_CODES.get(value, f"Error {value}")
-        
-        elif self._property_key in ["FullAutoModeSwitch", "catCleanOnOff", "childLockOnOff", 
-                                     "masterSleepOnOff", "DisplaySwitch", "handMode", 
-                                     "completionStatus"]:
-            # Boolean switches
-            return "On" if value == 1 else "Off"
-        
-        elif self._property_key == "mcuversion":
-            # MCU version (might be hex encoded)
-            return str(value)
-        
-        elif self._property_key == "wifivertion":
-            # WiFi version
-            return str(value)
-        
-        elif self._property_key in ["excreteTimesEveryday", "excreteTimerEveryday"]:
-            # Usage statistics
-            return int(value) if value is not None else None
-        
-        return value
-
-    @property
-    def native_unit_of_measurement(self) -> str | None:
-        """Return the unit of measurement (API-native)."""
-        if self._property_key == "catWeight":
-            # API reports grams; HA converts to lb when user profile is US
-            return UnitOfMass.GRAMS
-        elif self._property_key == "excreteTimerEveryday":
-            return UnitOfTime.SECONDS
-        elif self._property_key == "excreteTimesEveryday":
-            return None  # dimensionless count
-        return None
-
-    @property
-    def device_class(self) -> SensorDeviceClass | None:
-        """Return the device class."""
-        if self._property_key == "catWeight":
-            return SensorDeviceClass.WEIGHT
-        elif self._property_key == "excreteTimerEveryday":
-            return SensorDeviceClass.DURATION
-        return None
-
-    @property
-    def state_class(self) -> SensorStateClass | None:
-        """Return the state class for statistics."""
-        if self._property_key == "catWeight":
-            return SensorStateClass.MEASUREMENT
-        elif self._property_key in ("excreteTimesEveryday", "excreteTimerEveryday"):
-            return SensorStateClass.MEASUREMENT
-        return None
-
-    @property
-    def icon(self) -> str:
-        """Return the icon."""
-        icons = {
-            "catWeight": "mdi:weight",
-            "excreteTimesEveryday": "mdi:counter",
-            "excreteTimerEveryday": "mdi:timer-outline",
-            "workstatus": "mdi:state-machine",
-            "errorReportEvent": "mdi:alert-circle",
-            "completionStatus": "mdi:check-circle",
-            "catLitterType": "mdi:grid",
-            "FullAutoModeSwitch": "mdi:robot",
-            "catCleanOnOff": "mdi:broom",
-            "childLockOnOff": "mdi:lock",
-            "masterSleepOnOff": "mdi:sleep",
-            "DisplaySwitch": "mdi:monitor",
-            "handMode": "mdi:hand-back-right",
-            "mcuversion": "mdi:chip",
-            "wifivertion": "mdi:wifi",
-            "trdversion": "mdi:information",
-        }
-        return icons.get(self._property_key, "mdi:information-outline")
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional attributes."""
-        prop = self.property_data
-        if not prop:
-            return {}
-
-        # Handle both dict {"value": x} and direct value cases
-        if isinstance(prop, dict):
-            value = prop.get("value")
-            time_ms = prop.get("time")
-        else:
-            value = prop
-            time_ms = None
-
-        attrs = {
-            "property_key": self._property_key,
-            "raw_value": value,
-        }
-        
-        # Add timestamp if available
-        if time_ms:
-            attrs["last_updated"] = datetime.fromtimestamp(time_ms / 1000).strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Add error details for errorReportEvent
-        if self._property_key == "errorReportEvent":
-            error_code = value
-            attrs["error_code"] = error_code
-            attrs["error_message"] = ERROR_CODES.get(error_code, f"Unknown error {error_code}")
-            attrs["error_severity"] = self._get_error_severity(error_code)
-        
-        return attrs
-    
-    def _get_error_severity(self, error_code: int) -> str:
-        """Get error severity level."""
-        from .const import ERROR_SEVERITY
-        return ERROR_SEVERITY.get(error_code, "unknown")
+        return resolve_cat_weight_grams(device.get("properties") or {})
 
     @property
     def available(self) -> bool:
-        """Return if entity is available."""
-        return self.property_data is not None
+        """Available when a weight can be resolved."""
+        device = self.device_data
+        if not device or not self.coordinator.last_update_success:
+            return False
+        return resolve_cat_weight_grams(device.get("properties") or {}) is not None
 
 
-class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Furbulous Cat daily statistics sensor."""
+class FurbulousDailyUsesSensor(FurbulousEntity, SensorEntity):
+    """Daily use count from wcheader stats."""
 
-    def __init__(
-        self,
-        coordinator: FurbulousCatDataUpdateCoordinator,
-        device_id: int,
-        stat_key: str,
-        friendly_name: str,
-    ) -> None:
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:counter"
+
+    def __init__(self, coordinator, device_id: int) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._stat_key = stat_key
-        self._friendly_name = friendly_name
-        self._attr_unique_id = f"furbulous_{device_id}_daily_{stat_key}"
-        
-        # Set device info
-        device = self.device_data
-        if device:
-            self._attr_device_info = get_device_info(device)
-
-    @property
-    def device_data(self) -> dict | None:
-        """Get the device data from coordinator."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("id") == self._device_id:
-                return device
-        return None
-
-    @property
-    def daily_stats_data(self) -> dict | None:
-        """Get the daily stats data from /wcheader endpoint."""
-        device = self.device_data
-        if device:
-            return device.get("daily_stats", {})
-        return None
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - {self._friendly_name}"
-        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="daily_uses",
+            unique_id=f"furbulous_{device_id}_daily_times",
+        )
 
     @property
     def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        stats = self.daily_stats_data
-        if not stats:
+        """Return daily use count."""
+        device = self.device_data
+        if not device:
             return None
-        
-        value = stats.get(self._stat_key)
+        stats = device.get("daily_stats") or {}
+        value = stats.get("times")
         return int(value) if value is not None else None
 
-    @property
-    def native_unit_of_measurement(self) -> str | None:
-        """Return the unit of measurement."""
-        if self._stat_key == "times":
-            return None  # dimensionless count of uses
-        elif self._stat_key == "avg_duration":
-            return UnitOfTime.SECONDS
-        return None
+
+class FurbulousAverageDurationSensor(FurbulousEntity, SensorEntity):
+    """Average daily duration in seconds."""
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:timer-outline"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="average_daily_duration",
+            unique_id=f"furbulous_{device_id}_daily_avg_duration",
+        )
 
     @property
-    def device_class(self) -> SensorDeviceClass | None:
-        """Return the device class."""
-        if self._stat_key == "avg_duration":
-            return SensorDeviceClass.DURATION
-        return None
+    def native_value(self) -> int | None:
+        """Return average duration in seconds."""
+        device = self.device_data
+        if not device:
+            return None
+        stats = device.get("daily_stats") or {}
+        value = stats.get("avg_duration")
+        return int(value) if value is not None else None
+
+
+class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
+    """Human-readable error report from device."""
+
+    _attr_icon = "mdi:alert-circle"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="error",
+            unique_id=f"furbulous_{device_id}_errorReportEvent",
+        )
 
     @property
-    def state_class(self) -> SensorStateClass | None:
-        """Return the state class for statistics."""
-        if self._stat_key in ("times", "avg_duration"):
-            return SensorStateClass.MEASUREMENT
-        return None
+    def native_value(self) -> str | None:
+        """Return mapped error description."""
+        device = self.device_data
+        if not device:
+            return None
+        value = extract_prop_value(
+            device.get("properties", {}).get("errorReportEvent")
+        )
+        if value is None:
+            return None
+        return ERROR_CODES.get(value, f"Error {value}")
 
-    @property
-    def icon(self) -> str:
-        """Return the icon."""
-        if self._stat_key == "times":
-            return "mdi:counter"
-        elif self._stat_key == "avg_duration":
-            return "mdi:timer-outline"
-        return "mdi:information-outline"
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional attributes."""
-        stats = self.daily_stats_data
-        if not stats:
-            return {}
-
-        attrs = {
-            "stat_key": self._stat_key,
-        }
-        
-        # Add diff values if available
-        if self._stat_key == "times" and "times_diff" in stats:
-            attrs["difference_from_yesterday"] = stats["times_diff"]
-        elif self._stat_key == "avg_duration" and "avg_diff" in stats:
-            attrs["difference_from_yesterday"] = stats["avg_diff"]
-        
-        return attrs
+    def _entity_fingerprint(self) -> object:
+        """Fingerprint on raw error code (not translated string only)."""
+        device = self.device_data
+        raw = None
+        if device:
+            raw = extract_prop_value(
+                device.get("properties", {}).get("errorReportEvent")
+            )
+        return ("err", raw, self.available)
 
     @property
     def available(self) -> bool:
-        """Return if entity is available."""
-        return self.daily_stats_data is not None
+        """Available when property exists."""
+        device = self.device_data
+        if not device or not self.coordinator.last_update_success:
+            return False
+        return device.get("properties", {}).get("errorReportEvent") is not None

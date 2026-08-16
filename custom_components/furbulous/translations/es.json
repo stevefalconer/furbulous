@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Inicie sesión con la misma cuenta de la app Furbulous. La región debe coincidir con el país elegido al registrarse. Las regiones fuera de EE. UU. son experimentales.",
+        "data": {
+          "email": "Correo electrónico",
+          "password": "Contraseña",
+          "region": "Región de la cuenta"
+        },
+        "data_description": {
+          "email": "Correo usado en la app Furbulous",
+          "password": "Contraseña de su cuenta Furbulous",
+          "region": "Debe coincidir con la región de la app. Una región incorrecta provoca credenciales no válidas. Solo EE. UU./Canadá está soportado por el mantenedor."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Volver a autenticar Furbulous",
+        "description": "Las credenciales o la región ya no son válidas. Actualícelas para continuar. Una región incorrecta a menudo parece credenciales no válidas.",
+        "data": {
+          "email": "Correo electrónico",
+          "password": "Contraseña",
+          "region": "Región de la cuenta"
+        },
+        "data_description": {
+          "email": "Correo usado en la app Furbulous",
+          "password": "Contraseña de su cuenta Furbulous",
+          "region": "Región en la nube de esta cuenta (EE. UU. compatible; UE y Asia experimentales)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar Furbulous",
+        "description": "Actualice el correo, la contraseña o la región en la nube. La región debe coincidir con la cuenta de la app Furbulous.",
+        "data": {
+          "email": "Correo electrónico",
+          "password": "Contraseña",
+          "region": "Región de la cuenta"
+        },
+        "data_description": {
+          "email": "Correo usado en la app Furbulous",
+          "password": "Contraseña de su cuenta Furbulous",
+          "region": "Región en la nube de esta cuenta (EE. UU. compatible; UE y Asia experimentales)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Credenciales no válidas o región incorrecta (o el endpoint experimental no funciona)",
+      "cannot_connect": "No se puede alcanzar la nube de Furbulous para la región seleccionada",
+      "unknown": "Error inesperado"
+    },
+    "abort": {
+      "already_configured": "Esta cuenta ya está configurada para esta región",
+      "reauth_successful": "Reautenticación correcta",
+      "reconfigure_successful": "Reconfiguración correcta",
+      "wrong_account": "La cuenta no coincide con la configuración existente"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "No se pudo actualizar el dispositivo Furbulous. Compruebe la conexión a la nube e inténtelo de nuevo."
+    },
+    "invalid_auth": {
+      "message": "Credenciales no válidas o región Furbulous incorrecta"
+    },
+    "cannot_connect": {
+      "message": "No se puede alcanzar la nube de Furbulous"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "Estados Unidos / Canadá (Compatible)",
+        "eu": "Europa / Reino Unido (Experimental)",
+        "asia": "Asia (Experimental)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "Última actividad"
+      },
+      "cat_weight": {
+        "name": "Peso del gato"
+      },
+      "daily_uses": {
+        "name": "Usos diarios"
+      },
+      "average_daily_duration": {
+        "name": "Duración media diaria"
+      },
+      "error": {
+        "name": "Error"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Conectado"
+      },
+      "cat_in_litter_box": {
+        "name": "Gato en el arenero"
+      },
+      "waste_bin_full": {
+        "name": "Cubo de residuos lleno"
+      },
+      "child_lock": {
+        "name": "Bloqueo infantil"
+      },
+      "sleep_mode": {
+        "name": "Modo reposo"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "Modo automático total"
+      },
+      "do_not_disturb": {
+        "name": "No molestar"
+      },
+      "child_lock": {
+        "name": "Bloqueo infantil"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "Limpieza manual"
+      },
+      "pause_cleaning": {
+        "name": "Pausar limpieza"
+      },
+      "resume_cleaning": {
+        "name": "Reanudar limpieza"
+      },
+      "empty": {
+        "name": "Vaciar"
+      },
+      "pack": {
+        "name": "Empaquetar"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "Retraso de limpieza"
+      }
+    }
+  }
+}

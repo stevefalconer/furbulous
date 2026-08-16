@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Furbulousアプリと同じアカウントでサインインしてください。地域は登録時に選んだ国と一致させてください。米国以外は試験的です。",
+        "data": {
+          "email": "メール",
+          "password": "パスワード",
+          "region": "アカウントの地域"
+        },
+        "data_description": {
+          "email": "Furbulousアプリで使用しているメールアドレス",
+          "password": "Furbulousアカウントのパスワード",
+          "region": "アプリのアカウント地域と一致させてください。地域が違うと認証に失敗します。メンテナーがサポートするのは米国/カナダのみです。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Furbulousの再認証",
+        "description": "認証情報または地域が無効です。続行するには更新してください。地域の誤りは無効な認証情報のように見えることがあります。",
+        "data": {
+          "email": "メール",
+          "password": "パスワード",
+          "region": "アカウントの地域"
+        },
+        "data_description": {
+          "email": "Furbulousアプリで使用しているメールアドレス",
+          "password": "Furbulousアカウントのパスワード",
+          "region": "このアカウントのクラウド地域（米国はサポート、EU/アジアは試験的）"
+        }
+      },
+      "reconfigure": {
+        "title": "Furbulousの再設定",
+        "description": "メール、パスワード、またはクラウド地域を更新します。地域はFurbulousアプリのアカウントと一致させてください。",
+        "data": {
+          "email": "メール",
+          "password": "パスワード",
+          "region": "アカウントの地域"
+        },
+        "data_description": {
+          "email": "Furbulousアプリで使用しているメールアドレス",
+          "password": "Furbulousアカウントのパスワード",
+          "region": "このアカウントのクラウド地域（米国はサポート、EU/アジアは試験的）"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "認証情報が無効、または地域が違います（試験的エンドポイントが動作しない場合も含む）",
+      "cannot_connect": "選択した地域のFurbulousクラウドに接続できません",
+      "unknown": "予期しないエラー"
+    },
+    "abort": {
+      "already_configured": "このアカウントはこの地域ですでに設定されています",
+      "reauth_successful": "再認証に成功しました",
+      "reconfigure_successful": "再設定に成功しました",
+      "wrong_account": "アカウントが既存の設定と一致しません"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Furbulousデバイスを更新できませんでした。クラウド接続を確認して再試行してください。"
+    },
+    "invalid_auth": {
+      "message": "認証情報が無効、またはFurbulousの地域が違います"
+    },
+    "cannot_connect": {
+      "message": "Furbulousクラウドに接続できません"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "アメリカ / カナダ（サポート対象）",
+        "eu": "ヨーロッパ / 英国（試験的）",
+        "asia": "アジア（試験的）"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "最終アクティビティ"
+      },
+      "cat_weight": {
+        "name": "猫の体重"
+      },
+      "daily_uses": {
+        "name": "本日の利用回数"
+      },
+      "average_daily_duration": {
+        "name": "平均利用時間"
+      },
+      "error": {
+        "name": "エラー"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "接続"
+      },
+      "cat_in_litter_box": {
+        "name": "トイレ内の猫"
+      },
+      "waste_bin_full": {
+        "name": "ゴミ満杯"
+      },
+      "child_lock": {
+        "name": "チャイルドロック"
+      },
+      "sleep_mode": {
+        "name": "スリープモード"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "フルオートモード"
+      },
+      "do_not_disturb": {
+        "name": "おやすみモード"
+      },
+      "child_lock": {
+        "name": "チャイルドロック"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "手動清掃"
+      },
+      "pause_cleaning": {
+        "name": "清掃を一時停止"
+      },
+      "resume_cleaning": {
+        "name": "清掃を再開"
+      },
+      "empty": {
+        "name": "排出"
+      },
+      "pack": {
+        "name": "パック"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "清掃遅延"
+      }
+    }
+  }
+}

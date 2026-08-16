@@ -1,0 +1,74 @@
+name: Configuration / setup failure
+description: Cannot add, reauth, or reconfigure the integration
+title: "[Config]: "
+labels: ["configuration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for setup, reauth, or reconfigure failures. **Never paste passwords.**
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Furbulous integration version
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: step
+    attributes:
+      label: Where it fails
+      options:
+        - Add integration (first setup)
+        - Reauthentication
+        - Reconfigure
+        - Reload / startup after install
+    validations:
+      required: true
+  - type: dropdown
+    id: region
+    attributes:
+      label: Region selected
+      options:
+        - United States / Canada (us)
+        - Europe / UK (eu) — experimental
+        - Asia (asia) — experimental
+    validations:
+      required: true
+  - type: dropdown
+    id: error_type
+    attributes:
+      label: Error shown (if any)
+      options:
+        - invalid_auth / Invalid credentials
+        - cannot_connect / Cannot reach cloud
+        - unknown / Unexpected error
+        - Entry setup error / retry
+        - Other / none shown
+    validations:
+      required: true
+  - type: input
+    id: app_country
+    attributes:
+      label: Country in Furbulous app at account registration
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Already tried
+      options:
+        - label: Password works in the official Furbulous app
+        - label: Tried the region that matches app registration
+        - label: Restarted Home Assistant after install/update
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Redacted logs only. No passwords.
