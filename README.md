@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.0 |
+| **Version** | 1.3.2 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -97,7 +97,8 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 - New litter boxes appear after the next normal poll **without** reloading the integration. Devices that disappear are pruned from the device registry (pet devices are kept while still on the account).  
 - **Analytics** run from coordinator deltas + Empty/Pack/litter-reset buttons (no extra cloud history API).
 
-**Load (1 device, idle):** ~157 cloud HTTP calls/hour (120 presence + 36 full + ~1 pet list on full cycles).
+**Load (1 device, idle):** ~**180** cloud HTTP calls/hour  
+(~120 presence property polls + ~60 pet-list/hour at 1 min + ~36 full-path calls for list/stats/pets).
 
 ---
 
@@ -107,11 +108,11 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Platform | Entities |
 |----------|----------|
-| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Sleep mode* |
+| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Energy saving active* |
 | Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; Hand mode*; Completion status*; Uses/duration vs yesterday‡ |
-| Sensor (analytics) | Occupying pet; Last visitor; Visits 7d/30d; Avg visit duration 30d; Time full (current); Last/avg/max‡ time-to-clear; Full episodes 30d; Last pack; Hours since pack; Avg hours between packs; Packs 30d; Visits since pack; Bag replaced / lifetime / averages; Litter reset intervals |
-| Switch | Full auto mode; Do not disturb; Child lock† |
-| Button | Manual clean; Pause; Resume; Empty; Pack; **Mark litter reset** |
+| Sensor (analytics) | **Last visitor**; **Last visit time** (local in UI); **Last visit weight** (lb/kg); Occupying pet; Visits 7d/30d; Time full; bag/litter/pack metrics |
+| Switch | Full auto mode; **Do not disturb** (on/off; schedule in app); **Energy saving** (display dim on standby; on/off); Child lock† |
+| Button | Manual clean; Pause; Resume; Empty; Pack; **Mark litter reset**; **Screen off** / **Screen on** (blank display for automations) |
 | Select | Cleaning delay† |
 
 ### Pets (per cat from account roster)
@@ -126,12 +127,13 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 ### Cat-lover tips (get great analytics from day one)
 
-1. **Empty from HA** when you take out a full bag — that closes the **bag lifetime** cycle (Empty from the phone only is not always visible to the integration).  
-2. After adding litter, press **Mark litter reset** once — that starts the **litter interval** clock (vendor reset API is not confirmed yet).  
-3. **Pack** from HA when you seal a bag so pack frequency and “visits since pack” stay accurate.  
-4. Multi-cat names need the Furbulous pet roster + (when the API provides it) identity during a visit; otherwise visitors show as **Unknown** but still count on the box.  
-5. **7d/30d stats start empty** after install and grow from local events (90-day retention) — the cloud does not give month history.  
-6. After upgrade, **restart HA once** so weight shows **lb** (US) or **kg** (metric), not leftover grams.
+1. Prefer **Last visitor**, **Last visit time**, and **Last visit weight** — filled after each detected use (name/weight from API when present). Empty values show as **`-`**.  
+2. **Occupying pet** is only set while a cat is in the box; otherwise **`-`** (never the previous visitor).  
+3. **Properties** (occupancy, weight, pet name fields, full/errors, display mode) refresh about every **30 seconds**. The **pet roster** (`pet/list`) refreshes at most every **1 minute**. Daily stats and device discovery stay on the **5‑minute** poll.  
+4. **Screen off** / **Screen on** buttons blank or restore the display (same API as Energy saving) so automations can keep the screen off unless bag full / errors.  
+5. **Empty from HA** for bag lifetime; **Mark litter reset** after adding litter.  
+6. **Do not disturb** = stop cleaning (on/off in HA; schedule times in the app).  
+7. After upgrade, **restart HA** so weight shows **lb** / **kg**.
 
 ---
 

@@ -80,3 +80,5 @@ ERROR_SEVERITY = {
 # Polling
 UPDATE_INTERVAL_NORMAL_MINUTES = 5
 UPDATE_INTERVAL_FAST_SECONDS = 30
+# Pet roster (account-scoped): slower than presence; properties stay at 30s
+PET_LIST_MIN_INTERVAL_SECONDS = 60

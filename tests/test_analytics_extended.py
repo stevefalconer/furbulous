@@ -81,7 +81,9 @@ def test_engine_visit_flap_ignored():
     assert eng.store.events_for_device(3, event_types={"visit_ended"}) == []
 
 
-def test_occupying_pet_unknown_when_idle():
+def test_occupying_pet_blank_when_idle():
+    from custom_components.furbulous.analytics.metrics import EMPTY_LABEL
+
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "e-occ")
     eng.store._loaded = True
@@ -95,7 +97,8 @@ def test_occupying_pet_unknown_when_idle():
             }
         ]
     )
-    assert eng.occupying_pet(5) == UNKNOWN_LABEL
+    assert eng.occupying_pet(5) == EMPTY_LABEL
+    assert eng.last_visitor(5) == EMPTY_LABEL
 
 
 def test_occupying_pet_name_from_property():
@@ -117,6 +120,24 @@ def test_occupying_pet_name_from_property():
         ]
     )
     assert eng.occupying_pet(5) == "Mochi"
+    # After leave, occupying is blank; last visitor keeps name
+    eng._device_state["5"]["occupy_since"] = time.time() - 40
+    eng.process_snapshot(
+        [
+            {
+                "id": 5,
+                "iotid": "i",
+                "name": "B",
+                "properties": {
+                    "workstatus": 0,
+                    "errorReportEvent": 0,
+                    "catWeight": 4500,
+                },
+            }
+        ]
+    )
+    assert eng.occupying_pet(5) == "-"
+    assert eng.last_visitor(5) == "Mochi"
 
 
 def test_full_recompute_flag_refreshes_without_dirty_when_idle():
@@ -143,6 +164,49 @@ def test_diagnostics_summary_shape():
     assert "event_count" in summary
     assert "pet_count" in summary
     assert summary["event_count"] == 0
+
+
+def test_last_visit_captures_weight_and_time():
+    """Short-visit friendly: last cat, weight_g, and end time after visit."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "e-visit")
+    eng.store._loaded = True
+    # Start visit with weight
+    eng.process_snapshot(
+        [
+            {
+                "id": 11,
+                "iotid": "iot-11",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 1,
+                    "errorReportEvent": 0,
+                    "petName": "Mochi",
+                    "catWeight": 4500,
+                },
+            }
+        ]
+    )
+    eng._device_state["11"]["occupy_since"] = time.time() - 45
+    eng.process_snapshot(
+        [
+            {
+                "id": 11,
+                "iotid": "iot-11",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 0,
+                    "errorReportEvent": 0,
+                    "catWeight": 4500,
+                },
+            }
+        ]
+    )
+    assert eng.last_visitor(11) == "Mochi"
+    assert eng.last_visit_weight_g(11) == pytest.approx(4500.0)
+    assert eng.last_visit_ts(11) is not None
+    ended = eng.store.events_for_device(11, event_types={"visit_ended"})
+    assert ended and ended[-1]["payload"].get("weight_g") == pytest.approx(4500.0)
 
 
 def test_restore_open_full_and_bag_markers():

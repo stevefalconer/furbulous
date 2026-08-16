@@ -4,10 +4,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
-NONE_LABEL = "none"
-NEVER_LABEL = "never"
-UNKNOWN_LABEL = "Unknown"
-NOT_ENOUGH_DATA = "Not enough data"
+# Text/enum empty display for cat lovers (numeric sensors use None, not "-")
+EMPTY_LABEL = "-"
+NONE_LABEL = EMPTY_LABEL  # averages / missing text metrics
+NEVER_LABEL = EMPTY_LABEL
+UNKNOWN_LABEL = EMPTY_LABEL  # unidentified visitor (not the word "Unknown")
+NOT_ENOUGH_DATA = EMPTY_LABEL
 
 WINDOW_7D = 7 * 24 * 3600
 WINDOW_30D = 30 * 24 * 3600

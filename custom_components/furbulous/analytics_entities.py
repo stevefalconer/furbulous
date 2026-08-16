@@ -15,9 +15,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .analytics.metrics import NONE_LABEL, UNKNOWN_LABEL
+from .analytics.metrics import EMPTY_LABEL, NONE_LABEL
 from .const import DOMAIN
 from .device import get_device_info
+from .weight import (
+    convert_grams_to_unit,
+    preferred_display_mass_unit,
+)
 
 
 def _ts_to_dt(ts: float | None) -> datetime | None:
@@ -99,13 +103,14 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> Any:
         raw = self._raw()
         if raw is None:
-            # Duration/timestamp must stay None (not a text "none") for device classes.
+            # Duration/timestamp/weight must stay None (not "-") for device classes.
             if (
                 self._none_when_missing
                 and self._attr_device_class is None
                 and not self._as_timestamp
+                and not self._as_hours
             ):
-                return NONE_LABEL
+                return EMPTY_LABEL
             return None
         if self._as_timestamp:
             return _ts_to_dt(float(raw))
@@ -133,7 +138,11 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
 
 
 class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
-    """Who is in the box now (name or Unknown)."""
+    """Who is in the box **right now** only.
+
+    Blank (``-``) when unoccupied. Does not show the last visitor after they leave
+    — use **Last visitor** for that (better fit for 30s polls).
+    """
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -153,6 +162,10 @@ class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
         self.async_on_remove(
             self._analytics.async_add_listener(self._handle_analytics)
         )
+        # Also refresh on presence coordinator (occupancy changes)
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_analytics)
+        )
 
     @callback
     def _handle_analytics(self) -> None:
@@ -164,11 +177,12 @@ class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
+        # Empty when no cat in box; name or "-" if occupied but unidentified
         return self._analytics.occupying_pet(self._device_id)
 
 
 class LastVisitorSensor(CoordinatorEntity, SensorEntity):
-    """Last visitor name or Unknown."""
+    """Last visitor name after a use (``-`` if none yet)."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -199,7 +213,95 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        return self._analytics.last_visitor(self._device_id)
+        name = self._analytics.last_visitor(self._device_id)
+        return name if name else EMPTY_LABEL
+
+
+class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
+    """When the last visit ended (UTC native; HA UI shows local time)."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-outline"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "last_visit_time"
+        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_time"
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> datetime | None:
+        ts = self._analytics.last_visit_ts(self._device_id)
+        return _ts_to_dt(ts)
+
+
+class LastVisitWeightSensor(CoordinatorEntity, SensorEntity):
+    """Weight from the last completed visit (lb/kg from HA unit system)."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_device_class = SensorDeviceClass.WEIGHT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+    _attr_icon = "mdi:weight-kilogram"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "last_visit_weight"
+        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_weight"
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (
+            self.native_value,
+            self.native_unit_of_measurement,
+            self.available,
+        )
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        return preferred_display_mass_unit(self.hass)
+
+    @property
+    def native_value(self) -> float | None:
+        grams = self._analytics.last_visit_weight_g(self._device_id)
+        if grams is None:
+            return None
+        unit = preferred_display_mass_unit(self.hass)
+        return convert_grams_to_unit(grams, unit)
 
 
 class PetDeviceSensor(CoordinatorEntity, SensorEntity):
@@ -233,7 +335,7 @@ class PetDeviceSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"furbulous_pet_{self._pet_key}_{unique_suffix}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"pet_{self._pet_key}")},
-            name=pet.get("name") or UNKNOWN_LABEL,
+            name=pet.get("name") or EMPTY_LABEL,
             manufacturer="Furbulous",
             model="Pet",
             configuration_url="https://app.furbulouspet.com",
@@ -285,8 +387,11 @@ def box_analytics_entities(
         return AnalyticsBoxSensor(coordinator, analytics, device, **kwargs)
 
     entities: list[Entity] = [
+        # Last-visit trio is primary UX (30s polls can miss live occupancy)
         OccupyingPetSensor(presence, analytics, device),
         LastVisitorSensor(coordinator, analytics, device),
+        LastVisitTimeSensor(coordinator, analytics, device),
+        LastVisitWeightSensor(coordinator, analytics, device),
         # Primary cat-lover set (enabled). Secondary gauges disabled-by-default
         # to keep first-run UX calm and recorder load low (HA Gold).
         _s(

@@ -19,6 +19,7 @@ from .const import (
     API_DEVICE_LIST_ENDPOINT,
     API_USER_AGENT,
     API_VERSION,
+    PET_LIST_MIN_INTERVAL_SECONDS,
 )
 from .regions import FurbulousRegion, get_region
 
@@ -63,6 +64,9 @@ class FurbulousCatAPI:
         self.identity_id: str | None = None
         # Last known device ids for presence polls (bounded: one list snapshot)
         self._known_devices: list[dict[str, Any]] = []
+        # Pet roster cache (1 min cadence — roster changes rarely)
+        self._cached_pets: list[dict[str, Any]] = []
+        self._last_pets_fetch_mono: float = 0.0
 
         self._session = session
         self._owns_session = session is None
@@ -407,31 +411,46 @@ class FurbulousCatAPI:
             _LOGGER.warning("Error setting DND iotid=%s: %s", iotid, err)
             return False
 
-    async def get_pets(self) -> list[dict[str, Any]]:
-        """Fetch pet roster (full poll only — never on presence path)."""
+    async def get_pets(self, *, force: bool = False) -> list[dict[str, Any]]:
+        """Fetch pet roster with a 1-minute minimum interval (unless force).
+
+        Roster names change rarely. Visit identity/weight come from
+        ``properties/get`` on the 30s path — do not require pet/list that often.
+        """
+        now = time.monotonic()
+        if (
+            not force
+            and self._cached_pets is not None
+            and (now - self._last_pets_fetch_mono) < PET_LIST_MIN_INTERVAL_SECONDS
+            and self._last_pets_fetch_mono > 0
+        ):
+            return list(self._cached_pets)
+
         try:
             result = await self._make_authenticated_request("/app/v1/pet/list")
             if result.get("code") != 0:
-                return []
+                return list(self._cached_pets)
             data = result.get("data")
+            pets: list[dict[str, Any]] = []
             if isinstance(data, list):
-                return data
-            if isinstance(data, dict):
-                pets = data.get("list") or data.get("pets") or data.get("data")
-                if isinstance(pets, list):
-                    return pets
-            return []
+                pets = data
+            elif isinstance(data, dict):
+                raw = data.get("list") or data.get("pets") or data.get("data")
+                if isinstance(raw, list):
+                    pets = raw
+            self._cached_pets = pets
+            self._last_pets_fetch_mono = now
+            return list(pets)
         except (FurbulousCatAuthError, FurbulousCatConnectionError):
             raise
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Pet list error: %s", err)
-            return []
+            return list(self._cached_pets)
 
     async def async_get_full_snapshot(self) -> dict[str, Any]:
         """Full poll: device list + properties + daily stats + pets.
 
-        Pets are fetched here only (not on the 30s presence path). Snapshot is
-        current state only — history lives in the local analytics store.
+        Snapshot is current state only — history lives in the local analytics store.
         """
         start = time.monotonic()
         devices = await self.get_devices()
@@ -444,7 +463,7 @@ class FurbulousCatAPI:
                 device["daily_stats"] = await self.get_device_daily_stats(iotid)
             enriched.append(device)
 
-        pets = await self.get_pets()
+        pets = await self.get_pets(force=True)
 
         elapsed_ms = (time.monotonic() - start) * 1000
         _LOGGER.debug(
@@ -462,10 +481,13 @@ class FurbulousCatAPI:
         }
 
     async def async_get_presence_snapshot(self) -> dict[str, Any]:
-        """Light poll: properties only for known iotids (cat occupancy).
+        """Light poll (~30s): properties for known devices; pets ≤1/min.
 
-        Skips device list, daily stats, and pets. Vendor properties/get still
-        returns the full property map in one call per device — no lighter API.
+        Properties include occupancy, weight, errors, and pet-identity fields —
+        that single call is the high-value fast path.
+
+        Pet roster is throttled to ``PET_LIST_MIN_INTERVAL_SECONDS`` (60s).
+        Skips device list and daily stats (5 min full poll only).
         """
         start = time.monotonic()
         devices_out: list[dict[str, Any]] = []
@@ -483,10 +505,14 @@ class FurbulousCatAPI:
                 }
             )
 
+        # Cached if fetched within the last minute (no extra HTTP)
+        pets = await self.get_pets(force=False)
+
         elapsed_ms = (time.monotonic() - start) * 1000
         _LOGGER.debug(
-            "Presence snapshot devices=%s elapsed_ms=%.0f",
+            "Presence snapshot devices=%s pets=%s elapsed_ms=%.0f",
             len(devices_out),
+            len(pets),
             elapsed_ms,
         )
-        return {"devices": devices_out}
+        return {"devices": devices_out, "pets": pets}
