@@ -1,31 +1,37 @@
-"""Constants for the Furbulous Cat integration (US edition)."""
+"""Constants for the Furbulous integration."""
 
 DOMAIN = "furbulous"
 
-# API Constants - US (Virginia) server
-# Original EU endpoint was: https://app.api.fr.furbulouspet.com:1443
-API_BASE_URL = "https://app.api.us.furbulouspet.com:1443"
+# Config entry keys
+CONF_REGION = "region"
+CONF_ACCOUNT_TYPE = "account_type"
+CONF_TOKEN = "token"
+# One-shot: weight unit overrides cleared after upgrade (sticky g/kg/lb)
+CONF_DISPLAY_RESET_DONE = "display_reset_done"
+
+# Config entry version (v2 adds region)
+CONFIG_VERSION = 2
+
+# API path constants (host comes from regions.py)
 API_AUTH_ENDPOINT = "/app/v1/auth/login"
 API_DEVICE_LIST_ENDPOINT = "/app/v1/device/list"
 API_DEVICE_PROPERTIES_ENDPOINT = "/app/v1/device/properties/get"
 
-# API Headers
+# API client identity (from decompiled app / reverse engineering)
 API_APPID = "a0baae0630f444b0811ea3c2eb212179"
 API_VERSION = "1.0.0"
 API_PLATFORM = "ios"
-API_USER_AGENT = "Furbulous/2.0.1 (com.furbulous.pet; build:202507031750; iOS 26.0.1) Alamofire/4.9.1"
+API_USER_AGENT = (
+    "Furbulous/2.0.1 (com.furbulous.pet; build:202507031750; iOS 26.0.1) "
+    "Alamofire/4.9.1"
+)
 
-# Configuration
-CONF_ACCOUNT_TYPE = "account_type"
-CONF_TOKEN = "token"
-
-# Default values
 DEFAULT_ACCOUNT_TYPE = 1
 
-# Device Types
+# Device types
 PRODUCT_FURBULOUS_BOX = 1
 
-# Work Status
+# Work status codes (raw values; entity names use translations)
 WORK_STATUS = {
     0: "Idle",
     1: "Working",
@@ -34,15 +40,13 @@ WORK_STATUS = {
     4: "Error",
 }
 
-# Litter Type
 LITTER_TYPE = {
     0: "Bentonite",
     1: "Tofu",
     2: "Mixed",
 }
 
-# Error Codes (errorReportEvent values)
-# Based on analysis of app code and common IoT error patterns
+# errorReportEvent values (shown as state/attributes; English baseline)
 ERROR_CODES = {
     0: "No error",
     1: "Sensor error - Weight sensor",
@@ -50,14 +54,13 @@ ERROR_CODES = {
     4: "Motor error - Rotation blocked",
     8: "Motor error - Overload",
     16: "Litter full - Need to empty",
-    32: "Normal operation",  # Default value when no error
+    32: "Normal operation",
     64: "Drawer not in place",
     128: "Cover open",
     256: "Temperature error",
     512: "Communication error",
 }
 
-# Error severity levels
 ERROR_SEVERITY = {
     0: "info",
     1: "warning",
@@ -72,8 +75,6 @@ ERROR_SEVERITY = {
     512: "error",
 }
 
-# Native units from the Furbulous API
-# Weight is reported in grams. With SensorDeviceClass.WEIGHT, Home Assistant
-# will automatically convert to the user's preferred unit (lb for US, kg/g otherwise).
-UNIT_GRAMS = "g"
-UNIT_SECONDS = "s"
+# Polling
+UPDATE_INTERVAL_NORMAL_MINUTES = 5
+UPDATE_INTERVAL_FAST_SECONDS = 30

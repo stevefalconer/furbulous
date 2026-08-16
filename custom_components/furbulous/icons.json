@@ -1,0 +1,42 @@
+{
+  "entity": {
+    "sensor": {
+      "cat_weight": { "default": "mdi:weight" },
+      "daily_uses": { "default": "mdi:counter" },
+      "average_daily_duration": { "default": "mdi:timer-outline" },
+      "error": { "default": "mdi:alert-circle" }
+    },
+    "binary_sensor": {
+      "waste_bin_full": {
+        "default": "mdi:delete-empty",
+        "state": {
+          "on": "mdi:delete-alert",
+          "off": "mdi:delete-empty"
+        }
+      },
+      "child_lock": {
+        "default": "mdi:lock-open",
+        "state": {
+          "on": "mdi:lock",
+          "off": "mdi:lock-open"
+        }
+      },
+      "sleep_mode": { "default": "mdi:sleep" }
+    },
+    "switch": {
+      "full_auto_mode": { "default": "mdi:auto-mode" },
+      "do_not_disturb": { "default": "mdi:moon-waning-crescent" },
+      "child_lock": { "default": "mdi:lock" }
+    },
+    "button": {
+      "manual_clean": { "default": "mdi:broom" },
+      "pause_cleaning": { "default": "mdi:pause" },
+      "resume_cleaning": { "default": "mdi:play" },
+      "empty": { "default": "mdi:delete-empty" },
+      "pack": { "default": "mdi:package" }
+    },
+    "select": {
+      "cleaning_delay": { "default": "mdi:timer-outline" }
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Melden Sie sich mit demselben Konto wie in der Furbulous-App an. Die Region muss dem bei der Registrierung gewählten Land entsprechen. Nicht-US-Regionen sind experimentell.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort",
+          "region": "Kontoregion"
+        },
+        "data_description": {
+          "email": "E-Mail-Adresse aus der Furbulous-App",
+          "password": "Passwort Ihres Furbulous-Kontos",
+          "region": "Muss zur App-Kontoregion passen. Falsche Region führt zu ungültigen Anmeldedaten. Nur USA/Kanada wird vom Maintainer unterstützt."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Furbulous erneut authentifizieren",
+        "description": "Anmeldedaten oder Region sind nicht mehr gültig. Bitte aktualisieren. Eine falsche Region wirkt oft wie ungültige Anmeldedaten.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort",
+          "region": "Kontoregion"
+        },
+        "data_description": {
+          "email": "E-Mail-Adresse aus der Furbulous-App",
+          "password": "Passwort Ihres Furbulous-Kontos",
+          "region": "Cloud-Region für dieses Konto (USA unterstützt; EU und Asien experimentell)"
+        }
+      },
+      "reconfigure": {
+        "title": "Furbulous neu konfigurieren",
+        "description": "E-Mail, Passwort oder Cloud-Region aktualisieren. Die Region muss zum Furbulous-App-Konto passen.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort",
+          "region": "Kontoregion"
+        },
+        "data_description": {
+          "email": "E-Mail-Adresse aus der Furbulous-App",
+          "password": "Passwort Ihres Furbulous-Kontos",
+          "region": "Cloud-Region für dieses Konto (USA unterstützt; EU und Asien experimentell)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Ungültige Anmeldedaten oder falsche Region (oder experimenteller Endpunkt funktioniert nicht)",
+      "cannot_connect": "Furbulous-Cloud für die gewählte Region nicht erreichbar",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist für diese Region bereits konfiguriert",
+      "reauth_successful": "Erneute Authentifizierung erfolgreich",
+      "reconfigure_successful": "Neukonfiguration erfolgreich",
+      "wrong_account": "Konto stimmt nicht mit der vorhandenen Konfiguration überein"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Furbulous-Gerät konnte nicht aktualisiert werden. Cloud-Verbindung prüfen und erneut versuchen."
+    },
+    "invalid_auth": {
+      "message": "Ungültige Anmeldedaten oder falsche Furbulous-Region"
+    },
+    "cannot_connect": {
+      "message": "Furbulous-Cloud nicht erreichbar"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "USA / Kanada (Unterstützt)",
+        "eu": "Europa / UK (Experimentell)",
+        "asia": "Asien (Experimentell)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "Letzte Aktivität"
+      },
+      "cat_weight": {
+        "name": "Katzengewicht"
+      },
+      "daily_uses": {
+        "name": "Tägliche Nutzungen"
+      },
+      "average_daily_duration": {
+        "name": "Durchschnittliche tägliche Dauer"
+      },
+      "error": {
+        "name": "Fehler"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Verbunden"
+      },
+      "cat_in_litter_box": {
+        "name": "Katze in der Toilette"
+      },
+      "waste_bin_full": {
+        "name": "Abfallbehälter voll"
+      },
+      "child_lock": {
+        "name": "Kindersicherung"
+      },
+      "sleep_mode": {
+        "name": "Schlafmodus"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "Vollautomatik"
+      },
+      "do_not_disturb": {
+        "name": "Nicht stören"
+      },
+      "child_lock": {
+        "name": "Kindersicherung"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "Manuelle Reinigung"
+      },
+      "pause_cleaning": {
+        "name": "Reinigung pausieren"
+      },
+      "resume_cleaning": {
+        "name": "Reinigung fortsetzen"
+      },
+      "empty": {
+        "name": "Leeren"
+      },
+      "pack": {
+        "name": "Verpacken"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "Reinigungsverzögerung"
+      }
+    }
+  }
+}

@@ -1,451 +1,468 @@
-"""API client for Furbulous Cat."""
+"""Async API client for Furbulous cloud (aiohttp, region-aware).
+
+Blocking: none. All I/O is await aiohttp. asyncio.sleep is used for backoff
+(yields the event loop). hashlib.md5 / time.time are O(1) CPU and safe inline.
+"""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import time
-import requests
 from typing import Any
 
+import aiohttp
+
 from .const import (
-    API_BASE_URL,
+    API_APPID,
     API_AUTH_ENDPOINT,
     API_DEVICE_LIST_ENDPOINT,
-    API_DEVICE_PROPERTIES_ENDPOINT,
-    API_APPID,
-    API_VERSION,
-    API_PLATFORM,
     API_USER_AGENT,
+    API_VERSION,
 )
+from .regions import FurbulousRegion, get_region
 
 _LOGGER = logging.getLogger(__name__)
 
+_DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=15)
+_AUTH_TIMEOUT = aiohttp.ClientTimeout(total=10)
+_MAX_RETRIES = 3
+
 
 class FurbulousCatAuthError(Exception):
-    """Exception raised for authentication errors."""
+    """Authentication failed (bad credentials or wrong region)."""
+
+
+class FurbulousCatConnectionError(Exception):
+    """Network or transport failure reaching the Furbulous cloud."""
 
 
 class FurbulousCatAPI:
-    """API client for Furbulous Cat."""
+    """One shared async client per config entry (session injected by HA)."""
 
-    def __init__(self, email: str, password: str, account_type: int = 1, token: str = None) -> None:
-        """Initialize the API client."""
+    def __init__(
+        self,
+        email: str,
+        password: str,
+        region_id: str = "us",
+        account_type: int = 1,
+        token: str | None = None,
+        session: aiohttp.ClientSession | None = None,
+    ) -> None:
+        """Initialize for one cloud region.
+
+        Prefer ``async_get_clientsession(hass)`` so the session is shared and
+        not closed by this integration.
+        """
         self.email = email
         self.password = password
         self.account_type = account_type
-        self.token = token  # Allow pre-set token
-        self.identity_id = None
-        self.session = requests.Session()
-        self.devices = []
+        self.region_id = region_id
+        self.region: FurbulousRegion = get_region(region_id)
+        self.token = token
+        self.identity_id: str | None = None
+        # Last known device ids for presence polls (bounded: one list snapshot)
+        self._known_devices: list[dict[str, Any]] = []
+
+        self._session = session
+        self._owns_session = session is None
+
+    @property
+    def base_url(self) -> str:
+        """Cloud base URL for the configured region."""
+        return self.region.base_url
+
+    @property
+    def known_devices(self) -> list[dict[str, Any]]:
+        """Shallow copy of last device identity list (id, iotid, name)."""
+        return list(self._known_devices)
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Return the active session, creating a private one only if needed."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+            self._owns_session = True
+        return self._session
+
+    async def async_close(self) -> None:
+        """Close a privately owned session (no-op for shared HA sessions)."""
+        if (
+            self._owns_session
+            and self._session is not None
+            and not self._session.closed
+        ):
+            await self._session.close()
+            self._session = None
 
     def _generate_sign(self, timestamp: int, path: str) -> str:
-        """Generate signature for API requests.
-        
-        Algorithm found in decompiled app:
-        MD5(appid + url_path + timestamp)
-        """
+        """MD5(appid + url_path + timestamp) — cheap, runs on the loop."""
         data = f"{API_APPID}{path}{timestamp}"
         return hashlib.md5(data.encode()).hexdigest()
 
-    def authenticate(self) -> bool:
-        """Authenticate with the Furbulous Cat API."""
-        url = f"{API_BASE_URL}{API_AUTH_ENDPOINT}"
-        
-        # Generate timestamp and signature for login request
+    def _auth_headers(self, path: str) -> dict[str, str]:
+        """Headers for login (no authorization token)."""
         timestamp = int(time.time())
-        sign = self._generate_sign(timestamp, API_AUTH_ENDPOINT)
-        
+        return {
+            "Content-Type": "application/json",
+            "appid": API_APPID,
+            "version": API_VERSION,
+            "accept": "*/*",
+            "accept-language": self.region.accept_language,
+            "platform": "ios",
+            "user-agent": API_USER_AGENT,
+            "ts": str(timestamp),
+            "sign": self._generate_sign(timestamp, path),
+        }
+
+    def _request_headers(self, path: str) -> dict[str, str]:
+        """Headers for authenticated requests."""
+        timestamp = int(time.time())
+        return {
+            "Content-Type": "application/json",
+            "appid": API_APPID,
+            "accept": "*/*",
+            "version": API_VERSION,
+            "authorization": self.token or "",
+            "accept-language": self.region.accept_language,
+            "platform": "ios",
+            "user-agent": API_USER_AGENT,
+            "ts": str(timestamp),
+            "sign": self._generate_sign(timestamp, path),
+        }
+
+    async def authenticate(self) -> bool:
+        """Authenticate with the Furbulous API for this region."""
+        url = f"{self.base_url}{API_AUTH_ENDPOINT}"
         payload = {
-            "iso": "US",
-            "area": "US",
+            "iso": self.region.iso,
+            "area": self.region.area,
             "account_type": self.account_type,
-            "clientid": "65l32f6ql1qehx6",  # From decompiled app
+            "clientid": "65l32f6ql1qehx6",
             "brand": "HomeAssistant",
             "client_token": "",
             "password": self.password,
             "AppVersion": "HomeAssistant_1.0.0",
-            "account": self.email
+            "account": self.email,
         }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "appid": API_APPID,
-            "version": API_VERSION,
-            "accept": "*/*",
-            "accept-language": "en",
-            "platform": "ios",  # Use ios like in captured request
-            "user-agent": API_USER_AGENT,
-            "ts": str(timestamp),
-            "sign": sign,
-        }
+        headers = self._auth_headers(API_AUTH_ENDPOINT)
+        session = await self._get_session()
+
+        _LOGGER.debug(
+            "Auth start region=%s host=%s experimental=%s",
+            self.region_id,
+            self.region.base_url,
+            self.region.experimental,
+        )
 
         try:
-            _LOGGER.debug("Attempting authentication for account: %s", self.email)
-            _LOGGER.debug("Timestamp: %s, Sign: %s", timestamp, sign)
-            response = self.session.post(url, json=payload, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            _LOGGER.debug("Authentication response code: %s, message: %s", 
-                         data.get("code"), data.get("message"))
-            
-            if data.get("code") != 0:
-                raise FurbulousCatAuthError(f"Authentication failed: {data.get('message')}")
-            
-            auth_data = data.get("data", {})
-            self.token = auth_data.get("token")  # Field name is 'token' not 'authorization'
-            self.identity_id = auth_data.get("identityid")
-            
-            if not self.token:
-                raise FurbulousCatAuthError("No token received from API")
-            
-            _LOGGER.info("Successfully authenticated with Furbulous Cat API")
-            _LOGGER.debug("Token: %s..., Identity ID: %s", self.token[:10] if self.token else None, self.identity_id)
-            return True
-            
-        except requests.exceptions.RequestException as err:
-            _LOGGER.error("Error during authentication: %s", err)
-            if hasattr(err, 'response') and err.response is not None:
-                _LOGGER.error("Response status: %s, body: %s", 
-                            err.response.status_code, err.response.text)
-            raise FurbulousCatAuthError(f"Authentication request failed: {err}") from err
+            async with session.post(
+                url, json=payload, headers=headers, timeout=_AUTH_TIMEOUT
+            ) as response:
+                if response.status >= 500:
+                    text = await response.text()
+                    raise FurbulousCatConnectionError(
+                        f"Server error {response.status}: {text[:200]}"
+                    )
 
-    def _get_headers(self, endpoint: str) -> dict:
-        """Generate headers for authenticated requests."""
-        timestamp = int(time.time())
-        sign = self._generate_sign(timestamp, endpoint)
-        
-        return {
-            "Content-Type": "application/json",
-            "appid": API_APPID,
-            "accept": "*/*",
-            "version": API_VERSION,
-            "authorization": self.token,
-            "accept-language": "en",
-            "platform": "ios",  # Use ios instead of android
-            "user-agent": API_USER_AGENT,
-            "ts": str(timestamp),
-            "sign": sign,
-        }
+                try:
+                    data = await response.json(content_type=None)
+                except (aiohttp.ContentTypeError, ValueError) as err:
+                    text = await response.text()
+                    if response.status == 401:
+                        raise FurbulousCatAuthError(
+                            "Authentication failed: HTTP 401"
+                        ) from err
+                    raise FurbulousCatConnectionError(
+                        f"Invalid auth response: {text[:200]}"
+                    ) from err
 
-    def _make_authenticated_request(self, endpoint: str, method: str = "GET", data: dict = None, retry_count: int = 0) -> dict:
-        """Make an authenticated request to the API with improved retry logic.
-        
-        Args:
-            endpoint: Full endpoint URL including query parameters
-            method: HTTP method (GET or POST)
-            data: JSON data for POST requests
-            retry_count: Internal counter for retry attempts
-        """
-        if not self.token:
-            self.authenticate()
-        
-        url = f"{API_BASE_URL}{endpoint}"
-        # Extract path without query parameters for signature
-        base_endpoint = endpoint.split('?')[0]
-        headers = self._get_headers(base_endpoint)
-        
-        max_retries = 3
-        
-        try:
-            if method == "GET":
-                response = self.session.get(url, headers=headers, timeout=15)
-            elif method == "POST":
-                response = self.session.post(url, headers=headers, json=data or {}, timeout=15)
-            elif method == "PUT":
-                response = self.session.put(url, headers=headers, json=data or {}, timeout=15)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+                if data.get("code") != 0:
+                    raise FurbulousCatAuthError(
+                        f"Authentication failed: {data.get('message')}"
+                    )
 
-            response.raise_for_status()
-            result = response.json()
-            
-            # Check if the response indicates success
-            if result.get("code") != 0:
-                error_message = result.get("message", "")
-                error_code = result.get("code")
-                _LOGGER.warning("API returned error code %s: %s", error_code, error_message)
-                
-                # IMPROVEMENT: Robust token error detection
-                # Code 10403 = Invalid Token
-                is_token_error = (
-                    error_code in [401, 403, 10401, 10402, 10403] or  # Auth error codes
-                    "token" in error_message.lower() or 
-                    "无效的" in error_message or  # Invalid in Chinese
-                    "Token" in error_message or
-                    "expired" in error_message.lower() or
-                    "unauthor" in error_message.lower()
+                auth_data = data.get("data", {}) or {}
+                self.token = auth_data.get("token")
+                self.identity_id = auth_data.get("identityid")
+
+                if not self.token:
+                    raise FurbulousCatAuthError("No token received from API")
+
+                # One INFO on successful login — not every poll
+                _LOGGER.info(
+                    "Authenticated with Furbulous (region=%s)", self.region_id
                 )
-                
-                if is_token_error and retry_count < max_retries:
-                    _LOGGER.info("Token expired or invalid (code: %s), re-authenticating... (attempt %d/%d)", 
-                                error_code, retry_count + 1, max_retries)
-                    # Force new authentication
-                    self.token = None
-                    self.authenticate()
-                    # Retry with exponential backoff
-                    wait_time = 2 ** retry_count
-                    _LOGGER.debug("Waiting %d seconds before retry...", wait_time)
-                    time.sleep(wait_time)
-                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
-            
-            return result
+                return True
 
-        except requests.exceptions.Timeout as err:
-            _LOGGER.warning("Request timeout for %s (attempt %d/%d): %s", endpoint, retry_count + 1, max_retries, err)
-            if retry_count < max_retries:
-                wait_time = 2 ** retry_count
-                _LOGGER.debug("Retrying after %d seconds...", wait_time)
-                time.sleep(wait_time)
-                return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
+        except FurbulousCatAuthError:
             raise
-            
-        except requests.exceptions.RequestException as err:
-            _LOGGER.error("Error making authenticated request to %s (attempt %d/%d): %s", endpoint, retry_count + 1, max_retries, err)
-            
-            # Retry authentication if we get a 401
-            if hasattr(err, 'response') and err.response is not None and err.response.status_code == 401:
-                if retry_count < max_retries:
-                    _LOGGER.info("Got 401 error, re-authenticating... (attempt %d/%d)", retry_count + 1, max_retries)
-                    self.token = None
-                    self.authenticate()
-                    wait_time = 2 ** retry_count
-                    time.sleep(wait_time)
-                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
-            
-            # Retry on network errors
-            if retry_count < max_retries and isinstance(err, (requests.exceptions.ConnectionError, requests.exceptions.HTTPError)):
-                wait_time = 2 ** retry_count
-                _LOGGER.info("Network error, retrying after %d seconds... (attempt %d/%d)", wait_time, retry_count + 1, max_retries)
-                time.sleep(wait_time)
-                return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
-            
+        except FurbulousCatConnectionError:
             raise
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            _LOGGER.debug(
+                "Auth connection error region=%s: %s", self.region_id, err
+            )
+            raise FurbulousCatConnectionError(
+                f"Authentication request failed: {err}"
+            ) from err
 
-    def get_devices(self) -> list[dict[str, Any]]:
-        """Get list of Furbulous devices."""
+    def _is_token_error(self, error_code: Any, error_message: str) -> bool:
+        """Return True if the API response indicates an expired/invalid token."""
+        return (
+            error_code in [401, 403, 10401, 10402, 10403]
+            or "token" in error_message.lower()
+            or "无效的" in error_message
+            or "Token" in error_message
+            or "expired" in error_message.lower()
+            or "unauthor" in error_message.lower()
+        )
+
+    async def _make_authenticated_request(
+        self,
+        endpoint: str,
+        method: str = "GET",
+        data: dict | None = None,
+        retry_count: int = 0,
+    ) -> dict[str, Any]:
+        """Authenticated request with timeout and exponential backoff."""
+        if not self.token:
+            await self.authenticate()
+
+        url = f"{self.base_url}{endpoint}"
+        base_endpoint = endpoint.split("?")[0]
+        headers = self._request_headers(base_endpoint)
+        session = await self._get_session()
+
         try:
-            result = self._make_authenticated_request(API_DEVICE_LIST_ENDPOINT)
-            
-            if result.get("code") == 0:
-                # data is already a list, not a dict with "list" key
-                devices_data = result.get("data", [])
-                self.devices = devices_data if isinstance(devices_data, list) else []
-                _LOGGER.info("Retrieved %d Furbulous devices", len(self.devices))
-                return self.devices
+            async with session.request(
+                method,
+                url,
+                headers=headers,
+                json=data if method in ("POST", "PUT") else None,
+                timeout=_DEFAULT_TIMEOUT,
+            ) as response:
+                if response.status == 401 and retry_count < _MAX_RETRIES:
+                    self.token = None
+                    await self.authenticate()
+                    await asyncio.sleep(2**retry_count)
+                    return await self._make_authenticated_request(
+                        endpoint, method, data, retry_count + 1
+                    )
+
+                try:
+                    result = await response.json(content_type=None)
+                except aiohttp.ContentTypeError:
+                    text = await response.text()
+                    if response.status >= 400:
+                        raise FurbulousCatConnectionError(
+                            f"HTTP {response.status}: {text[:200]}"
+                        )
+                    raise FurbulousCatConnectionError(
+                        f"Invalid JSON response: {text[:200]}"
+                    )
+
+                if result.get("code") != 0:
+                    error_message = str(result.get("message", ""))
+                    error_code = result.get("code")
+                    _LOGGER.debug(
+                        "API code=%s message=%s endpoint=%s",
+                        error_code,
+                        error_message,
+                        base_endpoint,
+                    )
+                    if (
+                        self._is_token_error(error_code, error_message)
+                        and retry_count < _MAX_RETRIES
+                    ):
+                        self.token = None
+                        await self.authenticate()
+                        await asyncio.sleep(2**retry_count)
+                        return await self._make_authenticated_request(
+                            endpoint, method, data, retry_count + 1
+                        )
+
+                return result
+
+        except FurbulousCatAuthError:
+            raise
+        except FurbulousCatConnectionError:
+            raise
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            if retry_count < _MAX_RETRIES:
+                await asyncio.sleep(2**retry_count)
+                return await self._make_authenticated_request(
+                    endpoint, method, data, retry_count + 1
+                )
+            raise FurbulousCatConnectionError(str(err)) from err
+
+    @staticmethod
+    def _extract_properties(raw: dict[str, Any]) -> dict[str, Any]:
+        """Flatten {key: {value, time}} → {key: value}."""
+        extracted: dict[str, Any] = {}
+        for key, prop_data in raw.items():
+            if isinstance(prop_data, dict) and "value" in prop_data:
+                extracted[key] = prop_data["value"]
             else:
-                _LOGGER.error("Failed to get devices: %s", result.get("message"))
-                return []
-                
-        except Exception as err:
-            _LOGGER.error("Error getting devices: %s", err)
-            raise
+                extracted[key] = prop_data
+        return extracted
 
-    def get_device_properties(self, iotid: str) -> dict[str, Any]:
-        """Get properties for a specific device.
-        
-        Uses the properties/get endpoint which returns all device properties.
-        Each property has a 'value' and 'time' field.
-        """
+    async def get_devices(self) -> list[dict[str, Any]]:
+        """Get list of Furbulous devices (identity metadata only)."""
+        result = await self._make_authenticated_request(API_DEVICE_LIST_ENDPOINT)
+        if result.get("code") == 0:
+            devices_data = result.get("data", [])
+            devices = devices_data if isinstance(devices_data, list) else []
+            # Bounded identity cache for presence polls
+            self._known_devices = [
+                {
+                    "id": d.get("id"),
+                    "iotid": d.get("iotid"),
+                    "name": d.get("name"),
+                    "device_online": d.get("device_online"),
+                    "product_name": d.get("product_name"),
+                    "active_time": d.get("active_time"),
+                    "is_disturb": d.get("is_disturb"),
+                    "version": d.get("version"),
+                }
+                for d in devices
+                if d.get("iotid")
+            ]
+            _LOGGER.debug("Device list count=%s", len(self._known_devices))
+            return devices
+        _LOGGER.debug("Device list failed: %s", result.get("message"))
+        return []
+
+    async def get_device_properties(self, iotid: str) -> dict[str, Any]:
+        """Get properties for one device (single HTTP call; vendor returns all)."""
         try:
-            # Use the properties/get endpoint
             endpoint = f"/app/v1/device/properties/get?iotid={iotid}"
-            result = self._make_authenticated_request(endpoint)
-            
+            result = await self._make_authenticated_request(endpoint)
             if result.get("code") == 0:
-                properties = result.get("data", {})
-                # Extract just the values from the properties
-                # Each property is a dict with 'value' and 'time'
-                extracted_props = {}
-                for key, prop_data in properties.items():
-                    if isinstance(prop_data, dict) and 'value' in prop_data:
-                        extracted_props[key] = prop_data['value']
-                    else:
-                        extracted_props[key] = prop_data
-                
-                _LOGGER.debug("Retrieved %d properties for device %s", len(extracted_props), iotid)
-                return extracted_props
-            else:
-                _LOGGER.warning("Failed to get properties for device %s: %s (code: %s)", 
-                              iotid, result.get("message"), result.get("code"))
-                return {}
-                
-        except Exception as err:
-            _LOGGER.warning("Error getting properties for device %s: %s", iotid, err)
-            # Return empty dict instead of raising - properties are optional
+                return self._extract_properties(result.get("data", {}) or {})
+            _LOGGER.debug(
+                "Properties failed iotid=%s: %s", iotid, result.get("message")
+            )
+            return {}
+        except (FurbulousCatAuthError, FurbulousCatConnectionError):
+            raise
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("Properties error iotid=%s: %s", iotid, err)
             return {}
 
-    def get_device_daily_stats(self, iotid: str) -> dict[str, Any]:
-        """Get daily statistics for a specific device.
-        
-        Returns data from /app/v1/device/data/wcheader endpoint:
-        - times: Number of times used today
-        - avg_duration: Average duration in seconds
-        - times_diff: Difference from previous day
-        - avg_diff: Average duration difference from previous day
-        """
+    async def get_device_daily_stats(self, iotid: str) -> dict[str, Any]:
+        """Get daily statistics (wcheader) for one device."""
         try:
             endpoint = f"/app/v1/device/data/wcheader?iotid={iotid}"
-            result = self._make_authenticated_request(endpoint)
-            
+            result = await self._make_authenticated_request(endpoint)
             if result.get("code") == 0:
-                stats = result.get("data", {})
-                _LOGGER.debug("Retrieved daily stats for device %s: %s", iotid, stats)
-                return stats
-            else:
-                _LOGGER.warning("Failed to get daily stats for device %s: %s (code: %s)", 
-                              iotid, result.get("message"), result.get("code"))
-                return {}
-                
-        except Exception as err:
-            _LOGGER.warning("Error getting daily stats for device %s: %s", iotid, err)
+                return result.get("data", {}) or {}
+            return {}
+        except (FurbulousCatAuthError, FurbulousCatConnectionError):
+            raise
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("Daily stats error iotid=%s: %s", iotid, err)
             return {}
 
-    def set_device_property(self, iotid: str, properties: dict[str, Any]) -> bool:
-        """Set device properties.
-        
-        Args:
-            iotid: Device IoT ID
-            properties: Dict of property_name: value to set
-            
-        Returns:
-            True if successful
-            
-        Example:
-            api.set_device_property("873Ef2f3f34l", {"childLockOnOff": 1})
-        """
+    async def set_device_property(
+        self, iotid: str, properties: dict[str, Any]
+    ) -> bool:
+        """Set device properties via properties/set (user action, not poll)."""
         try:
             endpoint = "/app/v1/device/properties/set"
-            # FIX: Properties must be inside an "items" object
-            payload = {
-                "iotid": iotid,
-                "items": properties
-            }
-            
-            result = self._make_authenticated_request(endpoint, method="POST", data=payload)
-            
+            payload = {"iotid": iotid, "items": properties}
+            result = await self._make_authenticated_request(
+                endpoint, method="POST", data=payload
+            )
             if result.get("code") == 0:
-                success_msg = result.get("message", "Success")
-                _LOGGER.info("✅ Successfully set properties for %s: %s (API response: %s)", 
-                           iotid, properties, success_msg)
+                _LOGGER.debug(
+                    "Set properties iotid=%s keys=%s",
+                    iotid,
+                    list(properties.keys()),
+                )
                 return True
-            else:
-                _LOGGER.error("❌ Failed to set properties for %s: code=%s, message=%s", 
-                            iotid, result.get("code"), result.get("message"))
-                return False
-                
-        except Exception as err:
-            _LOGGER.error("Error setting properties for %s: %s", iotid, err)
+            _LOGGER.warning(
+                "Failed to set properties iotid=%s code=%s",
+                iotid,
+                result.get("code"),
+            )
+            return False
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.warning("Error setting properties iotid=%s: %s", iotid, err)
             return False
 
-    def set_device_disturb(self, iotid: str, is_disturb: bool) -> bool:
-        """Set device Do Not Disturb mode.
-        
-        Args:
-            iotid: Device IoT ID
-            is_disturb: True to enable DND, False to disable
-            
-        Returns:
-            True if successful
-        """
+    async def set_device_disturb(self, iotid: str, is_disturb: bool) -> bool:
+        """Set Do Not Disturb mode (user action)."""
         try:
             endpoint = "/app/v1/device/disturb"
-            payload = {
-                "iotid": iotid,
-                "is_disturb": 1 if is_disturb else 0
-            }
-            
-            result = self._make_authenticated_request(endpoint, method="PUT", data=payload)
-            
+            payload = {"iotid": iotid, "is_disturb": 1 if is_disturb else 0}
+            result = await self._make_authenticated_request(
+                endpoint, method="PUT", data=payload
+            )
             if result.get("code") == 0:
-                _LOGGER.info("Successfully set DND mode for %s: %s", iotid, is_disturb)
+                _LOGGER.debug("Set DND iotid=%s value=%s", iotid, is_disturb)
                 return True
-            else:
-                _LOGGER.error("Failed to set DND mode for %s: %s", iotid, result.get("message"))
-                return False
-                
-        except Exception as err:
-            _LOGGER.error("Error setting DND mode for %s: %s", iotid, err)
+            _LOGGER.warning("Failed to set DND iotid=%s", iotid)
+            return False
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.warning("Error setting DND iotid=%s: %s", iotid, err)
             return False
 
-    def get_pets(self) -> list[dict[str, Any]]:
-        """Get list of all pets.
-        
-        Returns:
-            List of pet dictionaries
-        """
-        try:
-            endpoint = "/app/v1/pet/list"
-            result = self._make_authenticated_request(endpoint)
-            
-            if result.get("code") == 0:
-                pets_data = result.get("data", {})
-                # The API returns {data: {list: [...]}}
-                if isinstance(pets_data, dict):
-                    pets = pets_data.get("list", [])
-                else:
-                    pets = []
-                _LOGGER.info("Retrieved %d pets", len(pets))
-                return pets
-            else:
-                _LOGGER.error("Failed to get pets: %s", result.get("message"))
-                return []
-                
-        except Exception as err:
-            _LOGGER.error("Error getting pets: %s", err)
-            return []
+    async def async_get_full_snapshot(self) -> dict[str, Any]:
+        """Full poll: device list + properties + daily stats per device.
 
-    def get_pet_info(self, pet_id: int) -> dict[str, Any]:
-        """Get detailed information for a specific pet.
-        
-        Args:
-            pet_id: Pet ID
-            
-        Returns:
-            Dict with pet information
+        Intentionally omits pets (no entities consume them — saves 1 call/poll).
+        Returns a single current snapshot only (no history cache).
         """
-        try:
-            endpoint = f"/app/v1/pet/info?petid={pet_id}"
-            result = self._make_authenticated_request(endpoint)
-            
-            if result.get("code") == 0:
-                pet_info = result.get("data", {})
-                _LOGGER.debug("Retrieved info for pet %s", pet_id)
-                return pet_info if isinstance(pet_info, dict) else {}
-            else:
-                _LOGGER.warning("Failed to get info for pet %s: %s", pet_id, result.get("message"))
-                return {}
-                
-        except Exception as err:
-            _LOGGER.warning("Error getting info for pet %s: %s", pet_id, err)
-            return {}
-
-    def get_data(self) -> dict[str, Any]:
-        """Get data from the Furbulous Cat API."""
-        devices = self.get_devices()
-        
-        # Get properties and daily stats for each device
-        devices_with_properties = []
+        start = time.monotonic()
+        devices = await self.get_devices()
+        enriched: list[dict[str, Any]] = []
         for device in devices:
             iotid = device.get("iotid")
             if iotid:
-                properties = self.get_device_properties(iotid)
-                device["properties"] = properties
-                # Get daily stats from wcheader endpoint
-                daily_stats = self.get_device_daily_stats(iotid)
-                device["daily_stats"] = daily_stats
-            devices_with_properties.append(device)
-        
-        # Get pets information
-        pets = self.get_pets()
-        
-        # No need to get detailed info, /pet/list already returns everything
-        
+                device = dict(device)
+                device["properties"] = await self.get_device_properties(iotid)
+                device["daily_stats"] = await self.get_device_daily_stats(iotid)
+            enriched.append(device)
+
+        elapsed_ms = (time.monotonic() - start) * 1000
+        _LOGGER.debug(
+            "Full snapshot devices=%s elapsed_ms=%.0f",
+            len(enriched),
+            elapsed_ms,
+        )
         return {
             "authenticated": True,
-            "token": self.token,
             "identity_id": self.identity_id,
-            "devices": devices_with_properties,
-            "pets": pets,
+            "region": self.region_id,
+            "devices": enriched,
         }
+
+    async def async_get_presence_snapshot(self) -> dict[str, Any]:
+        """Light poll: properties only for known iotids (cat occupancy).
+
+        Skips device list, daily stats, and pets. Vendor properties/get still
+        returns the full property map in one call per device — no lighter API.
+        """
+        start = time.monotonic()
+        devices_out: list[dict[str, Any]] = []
+        for meta in self._known_devices:
+            iotid = meta.get("iotid")
+            if not iotid:
+                continue
+            props = await self.get_device_properties(iotid)
+            devices_out.append(
+                {
+                    "id": meta.get("id"),
+                    "iotid": iotid,
+                    "name": meta.get("name"),
+                    "properties": props,
+                }
+            )
+
+        elapsed_ms = (time.monotonic() - start) * 1000
+        _LOGGER.debug(
+            "Presence snapshot devices=%s elapsed_ms=%.0f",
+            len(devices_out),
+            elapsed_ms,
+        )
+        return {"devices": devices_out}

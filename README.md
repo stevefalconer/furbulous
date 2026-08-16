@@ -3,97 +3,234 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Home Assistant integration for **Furbulous** smart litter boxes, with HomeKit support.
-
-## Attribution
-
-| Role | Credit |
-|------|--------|
-| **Original author & core integration** | [Fabien Bounoir](https://github.com/fabienbounoir) ([original repo](https://github.com/FabienBounoir/furbulous-litterbox-home-assistant)) |
-| **Localization, HA unit classes, region work** | [stevenfalconer](https://github.com/stevenfalconer) (this fork) |
-
-This is a **modified fork** of the original project. Original copyright remains with Fabien Bounoir under the MIT License.
+| | |
+|--|--|
+| **Domain** | `furbulous` |
+| **Version** | 1.2.0 |
+| **IoT class** | `cloud_polling` |
+| **Min HA** | 2024.4.0 |
+| **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
 
 ---
 
-## Why this fork exists
+## 1. What it is
 
-The original integration hard-codes the **European** API endpoint and login region (`app.api.fr...`, `iso`/`area` EU). Furbulous accounts are region-scoped (US/Canada → Virginia, EU/UK → Frankfurt, etc.), so non-EU accounts get `invalid_auth` with correct credentials.
+Home Assistant **custom** (HACS) integration for **Furbulous** smart litter boxes. It polls the Furbulous **cloud** API so you can monitor and control devices from HA.
 
-This fork currently defaults to the **US/Canada (Virginia)** endpoint and English UI so those accounts work. Multi-region selection at setup is the intended next step so one integration can serve all regions.
-
----
-
-## Changes
-
-### 1.1.2
-- Removed remaining French entity names and state strings
-- Daily uses: dimensionless count (no French `fois` unit)
-- Weight: `SensorDeviceClass.WEIGHT` + grams (HA auto-converts to lb for US unit profiles)
-- Duration: `SensorDeviceClass.DURATION` + seconds
-- `SensorStateClass.MEASUREMENT` for weight, uses, and duration
-- Neutral packaging (name **Furbulous**, not a US-only product name)
-- French code comments → English
-
-### 1.1.1
-- API base URL → US (Virginia) endpoint as default
-- Login `iso` / `area` → `"US"`
-- `accept-language` → `"en"`
-- UI strings and entity names → English
+This is **not** an official Furbulous product and is **not** affiliated with or endorsed by Furbulous / the device vendor.
 
 ---
 
-## Installation
+## 2. How it works
+
+1. You sign in with the **same email and password** as the Furbulous mobile app.
+2. You select the **account region** (must match the country chosen when you created the app account). Wrong region usually returns **invalid credentials**.
+3. The integration authenticates to that region’s cloud host, lists devices, and stores a single API client on the config entry.
+4. Two coordinators refresh data (entities never call the API themselves):
+   - **~5 minutes:** device list, full properties, daily stats  
+   - **~30 seconds:** properties only for known devices (cat-in-box occupancy)
+5. Entities expose presence, weight, usage, errors, and controls (clean / empty / pack, modes, delay) as supported by the cloud API.
+
+---
+
+## 3. Supported regions
+
+| Region in setup | Typical countries | Cloud | Verification |
+|-----------------|-------------------|-------|----------------|
+| **United States / Canada** | US, CA | Virginia (`app.api.us…`) | **Verified** (maintainer) |
+| **Europe / UK** | EU countries, GB | Frankfurt-style (`app.api.fr…`) | **Experimental** (upstream endpoint; not re-tested by this fork) |
+| **Asia** | SG, JP, AU, TW, HK, KR, CN, … | Singapore family (`app.api.sg…`) | **Experimental** (host / login fields best-effort) |
+
+Sharing and control only work **within the same cloud region**. There is no cross-region account use.
+
+---
+
+## 4. Installation
 
 ### HACS (recommended)
 
-1. HACS → Integrations → ⋮ → **Custom repositories**
-2. URL: `https://github.com/stevenfalconer/furbulous`
-3. Category: **Integration**
-4. Download → Restart Home Assistant
-5. **Settings → Devices & Services → Add Integration → Furbulous**
+1. HACS → Integrations → ⋮ → **Custom repositories**  
+2. URL: `https://github.com/stevefalconer/furbulous`  
+3. Category: **Integration**  
+4. Download → **Restart Home Assistant**  
+5. Settings → Devices & Services → **Add Integration** → **Furbulous**
 
 ### Manual
 
-Copy `custom_components/furbulous/` into your HA `config/custom_components/`, then restart.
+1. Copy `custom_components/furbulous/` into `config/custom_components/`  
+2. Restart Home Assistant  
+3. Add the **Furbulous** integration  
+
+### Prerequisites
+
+- Home Assistant **2024.4** or newer  
+- Furbulous app account and at least one litter box online  
+- Device Wi‑Fi bind is typically **2.4 GHz only** (app / hardware limit)
 
 ---
 
-## Configuration
+## 5. Configuration parameters
 
-Enter the same email and password used in the official Furbulous app.
+| Field | Required | Stored in | Description |
+|-------|----------|-----------|-------------|
+| **Email** | Yes | Config entry **data** | Same as Furbulous app |
+| **Password** | Yes | Config entry **data** | Same as Furbulous app |
+| **Account region** | Yes | Config entry **data** | `us` / `eu` / `asia` |
 
-**Region note:** Default cloud endpoint is US/Canada. If login fails and your account is EU (or another region), the base URL in `const.py` / login `iso`/`area` must match your account region. A setup-time region dropdown is planned.
+There is **no options flow** for connection identity. Use **Reconfigure** or **Reauthenticate** to change email, password, or region.
 
-If US login still fails, try alternate base URLs in `custom_components/furbulous/const.py`, then restart:
+Region default may be pre-selected from Home Assistant’s country setting when it maps cleanly; otherwise choose explicitly.
 
-```python
-API_BASE_URL = "https://app.api.furbulouspet.com:1443"
-# or
-API_BASE_URL = "https://api.us.furbulouspet.com"
+---
+
+## 6. Data update
+
+| Coordinator | Interval | What it refreshes |
+|-------------|----------|-------------------|
+| **Normal** | 5 minutes | Device list, full properties, daily stats |
+| **Presence** | 30 seconds | Properties for known devices only (occupancy) |
+
+- Requires internet and Furbulous cloud availability.  
+- On failure, entities go **unavailable**; the integration logs once when down and once when restored.  
+- Failed requests use short exponential backoff (no request storms).  
+- New litter boxes appear after the next normal poll **without** reloading the integration. Devices that disappear are pruned from the device registry.
+
+**Load (1 device, idle):** ~156 cloud HTTP calls/hour (120 presence + 36 full).
+
+---
+
+## 7. Entities / functions
+
+| Platform | Entities |
+|----------|----------|
+| Binary sensor | Cat in litter box; Connected*; Waste bin full; Child lock*; Sleep mode* |
+| Sensor | Cat weight; Daily uses; Average daily duration; Last activity*; Error* |
+| Switch | Full auto mode; Do not disturb; Child lock† |
+| Button | Manual clean; Pause cleaning; Resume cleaning; Empty; Pack |
+| Select | Cleaning delay† |
+
+\* Diagnostic category · † Config category  
+
+Switches are suitable for HomeKit / dashboards when exposed by HA. Buttons and selects map to cloud property commands.
+
+---
+
+## 8. Units
+
+- **Weight:** API native **grams** + `SensorDeviceClass.WEIGHT`. Home Assistant converts for your unit system (e.g. **lb** for US Customary, **kg** for Metric). Suggested display precision is one decimal for converted units.  
+- **Duration:** native **seconds** + `SensorDeviceClass.DURATION`.  
+- No login-time unit picker and no parallel unit system in this integration.
+
+If weight stays on **g** after upgrade: first 1.2.0 load clears sticky weight unit locks once. **Reconfigure** / **Reauthenticate** also clear unit locks and old custom names so HA language + unit system apply.
+
+---
+
+## 9. Internationalization
+
+- **UI language** follows **Home Assistant** (Settings → System → General → Language). Entity and setup strings use `translation_key` / translation files.  
+- **Account region** is independent of UI language (e.g. EU region + English HA is valid).  
+- Starting packs: en, fr, de, es, it, pt-BR, ja, ko, zh-Hans, zh-Hant, ru.
+
+**Adding a translation (contributors):** copy `custom_components/furbulous/translations/en.json` to a new locale file (e.g. `nl.json`), translate values only, keep keys identical to `strings.json`, open a PR.
+
+---
+
+## 10. Resets, reauth, and recovery
+
+| Action | When to use | How |
+|--------|-------------|-----|
+| **Reauthentication** | Password changed, token fails, or HA prompts reauth | Complete the reauth form (email / password / region). Devices are retained when possible. Clears sticky unit/name overrides. |
+| **Reconfigure** | Change region or account without deleting the integration | Devices & Services → Furbulous → **Reconfigure**. Clears sticky unit/name overrides, then reloads. |
+| **Reload** | Soft refresh after a transient glitch | Devices & Services → Furbulous → ⋮ → **Reload** |
+| **Remove & re-add** | Corrupt entry, unique_id/region confusion, or last resort | Delete integration, then add again. Unique id is `email_region`—same email on two regions can be two entries. |
+| **Failed setup** | Cannot finish add / setup error | **invalid_auth:** check password **and region** first. **cannot_connect:** network/DNS/TLS or cloud down. |
+| **Entity unavailable** | Coordinator/API failure or offline device | Not necessarily a cat/litter problem—check internet, cloud, reauth if prompted. |
+
+---
+
+## 11. Known limitations
+
+- Region-locked accounts; no cross-region sharing or control.  
+- EU / Asia are **experimental** in this fork.  
+- Vendor API is reverse-engineered and can change without notice.  
+- Cloud only—no local/LAN control in this integration.  
+- App Wi‑Fi provisioning is typically 2.4 GHz only.  
+- Password is stored in the config entry (protect HA backups).  
+
+---
+
+## 12. Troubleshooting
+
+| Symptom | What to try |
+|---------|-------------|
+| Invalid credentials | Confirm app password; **select the correct region** |
+| Experimental region fails | Open an issue with app registration country + error text (no passwords) |
+| No devices | Confirm boxes online in the app; wait for a full poll |
+| Stale data | Wait for next poll interval; Reload; check cloud status |
+| Weight stuck on grams | Reconfigure once, or set entity unit to lb/kg; set HA unit system |
+| Rate limit / flaky cloud | Integration backs off automatically; avoid rapid re-add loops |
+
+---
+
+## 13. Diagnostics and bug reports
+
+**Defect channel:** [GitHub Issues](https://github.com/stevefalconer/furbulous/issues)
+
+**Include:**
+
+- Home Assistant version  
+- Integration version (1.2.0)  
+- Account **region** selected  
+- Steps to reproduce  
+- Symptom (auth, no devices, unavailable entities, wrong units)  
+- Redacted logs or **Download diagnostics** from the device/integration (secrets are redacted—still do not paste passwords)
+
+**Never** post passwords, tokens, or full auth headers.
+
+---
+
+## 14. Development / tests
+
+```bash
+cd furbulous
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest -v
 ```
 
----
-
-## Entities (overview)
-
-**Switches (HomeKit):** Full auto mode, Do not disturb, Child lock  
-**Binary sensors:** Cat in litter box (30s), Connected, Error, Waste bin full  
-**Sensors:** Cat weight, Daily uses, Average duration, Error code, Pet info  
-**Buttons:** Manual clean, Empty, Pack  
+- Unit tests mock HTTP (no live Furbulous credentials).  
+- Full HA tests use `pytest-homeassistant-custom-component` (listed in `requirements-dev.txt`).  
+- Quality checklist: [quality_scale.md](quality_scale.md)
 
 ---
 
-## Roadmap
+## 15. Attribution and license
 
-- Region selector on the same setup screen as email/password
-- HA translation files for UI languages (not hardcoded English)
-- Keep API-native units + device classes (HA handles lb vs kg)
+| Role | Credit |
+|------|--------|
+| Original author & core integration | [Fabien Bounoir](https://github.com/fabienbounoir) ([original repo](https://github.com/FabienBounoir/furbulous-litterbox-home-assistant)) |
+| Multi-region, i18n, async client, quality work | [stevefalconer](https://github.com/stevefalconer) (this fork) |
+
+MIT License — see [LICENSE](LICENSE). Original copyright remains with Fabien Bounoir.
 
 ---
 
-## License
+## 16. Support policy
 
-MIT License — Copyright (c) 2025 Fabien Bounoir  
+| Supported | Best-effort / experimental |
+|-----------|----------------------------|
+| US/Canada cloud path | EU / Asia cloud paths |
+| Documented install, config, recovery | Community translations |
+| Issues with required bug details | Feature requests without API evidence |
 
-See [LICENSE](LICENSE). Original copyright and permission notice are retained in full.
+Maintenance is **community / best-effort**. There is no SLA. Prefer issues with diagnostics over private messages. Do not request the maintainer to obtain foreign-region accounts for free multi-region QA.
+
+---
+
+## Upgrading from 1.1.2
+
+1. Install 1.2.0 → restart HA.  
+2. Entries migrate to **region = us** automatically.  
+3. Confirm devices and weight unit; use **Reconfigure** for non-US accounts.  
+
+See [CHANGELOG.md](CHANGELOG.md) and [DEPLOYMENT_NOTES_1.2.0.md](DEPLOYMENT_NOTES_1.2.0.md).

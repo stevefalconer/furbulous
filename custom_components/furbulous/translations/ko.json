@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Furbulous 앱과 동일한 계정으로 로그인하세요. 지역은 가입 시 선택한 국가와 일치해야 합니다. 미국 외 지역은 실험적입니다.",
+        "data": {
+          "email": "이메일",
+          "password": "비밀번호",
+          "region": "계정 지역"
+        },
+        "data_description": {
+          "email": "Furbulous 앱에서 사용하는 이메일",
+          "password": "Furbulous 계정 비밀번호",
+          "region": "앱 계정 지역과 일치해야 합니다. 잘못된 지역은 인증 실패를 유발합니다. 유지관리자가 지원하는 지역은 미국/캐나다뿐입니다."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Furbulous 재인증",
+        "description": "자격 증명 또는 지역이 더 이상 유효하지 않습니다. 계속하려면 업데이트하세요. 잘못된 지역은 잘못된 자격 증명처럼 보일 수 있습니다.",
+        "data": {
+          "email": "이메일",
+          "password": "비밀번호",
+          "region": "계정 지역"
+        },
+        "data_description": {
+          "email": "Furbulous 앱에서 사용하는 이메일",
+          "password": "Furbulous 계정 비밀번호",
+          "region": "이 계정의 클라우드 지역(미국 지원, EU/아시아는 실험적)"
+        }
+      },
+      "reconfigure": {
+        "title": "Furbulous 재구성",
+        "description": "이메일, 비밀번호 또는 클라우드 지역을 업데이트합니다. 지역은 Furbulous 앱 계정과 일치해야 합니다.",
+        "data": {
+          "email": "이메일",
+          "password": "비밀번호",
+          "region": "계정 지역"
+        },
+        "data_description": {
+          "email": "Furbulous 앱에서 사용하는 이메일",
+          "password": "Furbulous 계정 비밀번호",
+          "region": "이 계정의 클라우드 지역(미국 지원, EU/아시아는 실험적)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "잘못된 자격 증명 또는 지역(또는 실험적 엔드포인트 미작동)",
+      "cannot_connect": "선택한 지역의 Furbulous 클라우드에 연결할 수 없음",
+      "unknown": "예기치 않은 오류"
+    },
+    "abort": {
+      "already_configured": "이 계정은 이 지역에 이미 구성되어 있습니다",
+      "reauth_successful": "재인증 성공",
+      "reconfigure_successful": "재구성 성공",
+      "wrong_account": "계정이 기존 구성과 일치하지 않습니다"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Furbulous 기기를 업데이트할 수 없습니다. 클라우드 연결을 확인하고 다시 시도하세요."
+    },
+    "invalid_auth": {
+      "message": "잘못된 자격 증명 또는 Furbulous 지역"
+    },
+    "cannot_connect": {
+      "message": "Furbulous 클라우드에 연결할 수 없습니다"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "미국 / 캐나다 (지원됨)",
+        "eu": "유럽 / 영국 (실험적)",
+        "asia": "아시아 (실험적)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "마지막 활동"
+      },
+      "cat_weight": {
+        "name": "고양이 체중"
+      },
+      "daily_uses": {
+        "name": "일일 사용 횟수"
+      },
+      "average_daily_duration": {
+        "name": "평균 일일 지속 시간"
+      },
+      "error": {
+        "name": "오류"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "연결됨"
+      },
+      "cat_in_litter_box": {
+        "name": "화장실 내 고양이"
+      },
+      "waste_bin_full": {
+        "name": "쓰레기통 가득 참"
+      },
+      "child_lock": {
+        "name": "어린이 잠금"
+      },
+      "sleep_mode": {
+        "name": "수면 모드"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "전체 자동 모드"
+      },
+      "do_not_disturb": {
+        "name": "방해 금지"
+      },
+      "child_lock": {
+        "name": "어린이 잠금"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "수동 청소"
+      },
+      "pause_cleaning": {
+        "name": "청소 일시 중지"
+      },
+      "resume_cleaning": {
+        "name": "청소 재개"
+      },
+      "empty": {
+        "name": "비우기"
+      },
+      "pack": {
+        "name": "포장"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "청소 지연"
+      }
+    }
+  }
+}

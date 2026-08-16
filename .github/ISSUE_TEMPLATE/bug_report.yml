@@ -1,0 +1,72 @@
+name: Bug report
+description: Something broke or behaves incorrectly
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste passwords, tokens, or full auth headers.**
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2024.12.0"
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Furbulous integration version
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: region
+    attributes:
+      label: Account region selected in the integration
+      options:
+        - United States / Canada (us)
+        - Europe / UK (eu) — experimental
+        - Asia (asia) — experimental
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: app_country
+    attributes:
+      label: Country chosen in the Furbulous app at registration (if known)
+      placeholder: "US, DE, JP, …"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostics (redacted)
+      description: Prefer Download diagnostics from HA. Remove secrets before pasting.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I confirmed region matches the Furbulous app account
+        - label: I did not include passwords or tokens

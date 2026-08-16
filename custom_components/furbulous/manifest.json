@@ -1,17 +1,15 @@
 {
-    "domain": "furbulous",
-    "name": "Furbulous",
-    "codeowners": [
-        "@fabienbounoir",
-        "@stevenfalconer"
-    ],
-    "config_flow": true,
-    "documentation": "https://github.com/stevenfalconer/furbulous",
-    "issue_tracker": "https://github.com/stevenfalconer/furbulous/issues",
-    "integration_type": "device",
-    "iot_class": "cloud_polling",
-    "requirements": [
-        "requests>=2.31.0"
-    ],
-    "version": "1.1.2"
+  "domain": "furbulous",
+  "name": "Furbulous",
+  "codeowners": [
+    "@fabienbounoir",
+    "@stevefalconer"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/stevefalconer/furbulous",
+  "issue_tracker": "https://github.com/stevefalconer/furbulous/issues",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "1.2.0"
 }

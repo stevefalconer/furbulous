@@ -1,108 +1,138 @@
-"""The Furbulous Cat integration."""
+"""The Furbulous integration (cloud polling, Pi-friendly)."""
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN
-from .furbulous_api import FurbulousCatAPI, FurbulousCatAuthError
+from .const import (
+    CONF_ACCOUNT_TYPE,
+    CONF_DISPLAY_RESET_DONE,
+    CONF_REGION,
+    CONFIG_VERSION,
+    DEFAULT_ACCOUNT_TYPE,
+    DOMAIN,
+)
+from .coordinator import FurbulousDataUpdateCoordinator, FurbulousPresenceCoordinator
+from .furbulous_api import (
+    FurbulousCatAPI,
+    FurbulousCatAuthError,
+    FurbulousCatConnectionError,
+)
+from .models import FurbulousRuntimeData
+from .registry import async_clear_display_overrides
+
+if TYPE_CHECKING:
+    FurbulousConfigEntry = ConfigEntry[FurbulousRuntimeData]
+else:
+    FurbulousConfigEntry = ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SWITCH, Platform.SELECT]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SWITCH,
+    Platform.SELECT,
+]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Furbulous Cat from a config entry."""
-    # Use email/password authentication with account_type = 1
+async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -> bool:
+    """Set up Furbulous from a config entry."""
+    region = entry.data.get(CONF_REGION, "us")
+    session = async_get_clientsession(hass)
     api = FurbulousCatAPI(
-        email=entry.data.get("email"),
-        password=entry.data.get("password"),
-        account_type=entry.data.get("account_type", 1)
+        email=entry.data[CONF_EMAIL],
+        password=entry.data[CONF_PASSWORD],
+        region_id=region,
+        account_type=entry.data.get(CONF_ACCOUNT_TYPE, DEFAULT_ACCOUNT_TYPE),
+        session=session,
     )
-    
+
     try:
-        await hass.async_add_executor_job(api.authenticate)
+        await api.authenticate()
     except FurbulousCatAuthError as err:
-        raise ConfigEntryAuthFailed from err
+        raise ConfigEntryAuthFailed(
+            "Invalid credentials or wrong Furbulous region"
+        ) from err
+    except FurbulousCatConnectionError as err:
+        raise ConfigEntryNotReady(
+            f"Cannot reach Furbulous cloud: {err}"
+        ) from err
 
-    # Normal coordinator (5 minutes) for general data
-    coordinator = FurbulousCatDataUpdateCoordinator(hass, api)
+    coordinator = FurbulousDataUpdateCoordinator(hass, api, entry)
+    presence_coordinator = FurbulousPresenceCoordinator(hass, api, entry)
+
     await coordinator.async_config_entry_first_refresh()
-    
-    # Fast coordinator (30 seconds) for cat-in-litter-box detection
-    fast_coordinator = FurbulousCatFastUpdateCoordinator(hass, api)
-    await fast_coordinator.async_config_entry_first_refresh()
+    await presence_coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {
-        "coordinator": coordinator,
-        "fast_coordinator": fast_coordinator,
-    }
+    entry.runtime_data = FurbulousRuntimeData(
+        api=api,
+        coordinator=coordinator,
+        presence_coordinator=presence_coordinator,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # One-shot after upgrade from 1.1.x: drop sticky weight unit locks only
+    # (does not wipe custom entity names the user intentionally set).
+    if not entry.data.get(CONF_DISPLAY_RESET_DONE):
+        await async_clear_display_overrides(
+            hass,
+            entry,
+            clear_custom_names=False,
+            weight_units_only=True,
+        )
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_DISPLAY_RESET_DONE: True},
+        )
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok
+async def async_unload_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -> bool:
+    """Unload a config entry (shared aiohttp session is not closed)."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-class FurbulousCatDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching Furbulous Cat data."""
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate older config entries to the current version."""
+    _LOGGER.debug(
+        "Migrating Furbulous entry from version %s", config_entry.version
+    )
 
-    def __init__(self, hass: HomeAssistant, api: FurbulousCatAPI) -> None:
-        """Initialize."""
-        self.api = api
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=5),
+    if config_entry.version > CONFIG_VERSION:
+        _LOGGER.error(
+            "Config entry version %s is newer than supported %s",
+            config_entry.version,
+            CONFIG_VERSION,
+        )
+        return False
+
+    data = {**config_entry.data}
+
+    if config_entry.version < 2:
+        region = data.get(CONF_REGION, "us")
+        data[CONF_REGION] = region
+        email = data.get(CONF_EMAIL, "")
+        unique_id = (
+            f"{str(email).lower()}_{region}" if email else config_entry.unique_id
+        )
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data=data,
+            unique_id=unique_id,
+            version=2,
+        )
+        _LOGGER.info(
+            "Migrated Furbulous config entry to version 2 (region=%s)", region
         )
 
-    async def _async_update_data(self):
-        """Update data via library."""
-        try:
-            return await self.hass.async_add_executor_job(self.api.get_data)
-        except FurbulousCatAuthError as err:
-            raise ConfigEntryAuthFailed from err
-        except Exception as err:
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
-
-
-class FurbulousCatFastUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fast fetching of cat presence data (30 seconds)."""
-
-    def __init__(self, hass: HomeAssistant, api: FurbulousCatAPI) -> None:
-        """Initialize fast coordinator for cat detection."""
-        self.api = api
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=f"{DOMAIN}_fast",
-            update_interval=timedelta(seconds=30),  # Fast update every 30 seconds
-        )
-
-    async def _async_update_data(self):
-        """Update cat presence data via library."""
-        try:
-            return await self.hass.async_add_executor_job(self.api.get_data)
-        except FurbulousCatAuthError as err:
-            raise ConfigEntryAuthFailed from err
-        except Exception as err:
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+    return True

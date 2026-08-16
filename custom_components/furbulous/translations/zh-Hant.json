@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "請使用與 Furbulous 應用程式相同的帳戶登入。地區必須與註冊時選擇的國家一致。美國以外地區為實驗性支援。",
+        "data": {
+          "email": "電子郵件",
+          "password": "密碼",
+          "region": "帳戶地區"
+        },
+        "data_description": {
+          "email": "Furbulous 應用中使用的電子郵件",
+          "password": "Furbulous 帳戶密碼",
+          "region": "必須與應用帳戶地區一致。錯誤地區會導致驗證失敗。維護者僅支援美國/加拿大。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新驗證 Furbulous",
+        "description": "憑證或地區已失效。請更新後繼續。錯誤地區常表現為憑證無效。",
+        "data": {
+          "email": "電子郵件",
+          "password": "密碼",
+          "region": "帳戶地區"
+        },
+        "data_description": {
+          "email": "Furbulous 應用中使用的電子郵件",
+          "password": "Furbulous 帳戶密碼",
+          "region": "此帳戶的雲端地區（美國受支援；歐盟與亞洲為實驗性）"
+        }
+      },
+      "reconfigure": {
+        "title": "重新設定 Furbulous",
+        "description": "更新電子郵件、密碼或雲端地區。地區必須與 Furbulous 應用帳戶一致。",
+        "data": {
+          "email": "電子郵件",
+          "password": "密碼",
+          "region": "帳戶地區"
+        },
+        "data_description": {
+          "email": "Furbulous 應用中使用的電子郵件",
+          "password": "Furbulous 帳戶密碼",
+          "region": "此帳戶的雲端地區（美國受支援；歐盟與亞洲為實驗性）"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "憑證無效或地區錯誤（或實驗性端點無法使用）",
+      "cannot_connect": "無法連線至所選地區的 Furbulous 雲端",
+      "unknown": "未預期的錯誤"
+    },
+    "abort": {
+      "already_configured": "此帳戶已在此地區設定",
+      "reauth_successful": "重新驗證成功",
+      "reconfigure_successful": "重新設定成功",
+      "wrong_account": "帳戶與現有設定不符"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "無法更新 Furbulous 裝置。請檢查雲端連線後重試。"
+    },
+    "invalid_auth": {
+      "message": "憑證無效或 Furbulous 地區錯誤"
+    },
+    "cannot_connect": {
+      "message": "無法連線至 Furbulous 雲端"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "美國 / 加拿大（支援）",
+        "eu": "歐洲 / 英國（實驗性）",
+        "asia": "亞洲（實驗性）"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "上次活動"
+      },
+      "cat_weight": {
+        "name": "貓咪體重"
+      },
+      "daily_uses": {
+        "name": "每日使用次數"
+      },
+      "average_daily_duration": {
+        "name": "每日平均時長"
+      },
+      "error": {
+        "name": "錯誤"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "已連線"
+      },
+      "cat_in_litter_box": {
+        "name": "貓在貓砂盆中"
+      },
+      "waste_bin_full": {
+        "name": "集便倉已滿"
+      },
+      "child_lock": {
+        "name": "童鎖"
+      },
+      "sleep_mode": {
+        "name": "睡眠模式"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "全自動模式"
+      },
+      "do_not_disturb": {
+        "name": "勿擾模式"
+      },
+      "child_lock": {
+        "name": "童鎖"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "手動清理"
+      },
+      "pause_cleaning": {
+        "name": "暫停清理"
+      },
+      "resume_cleaning": {
+        "name": "繼續清理"
+      },
+      "empty": {
+        "name": "清空"
+      },
+      "pack": {
+        "name": "打包"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "清理延遲"
+      }
+    }
+  }
+}

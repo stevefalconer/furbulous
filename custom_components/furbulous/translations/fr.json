@@ -1,0 +1,148 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Furbulous",
+        "description": "Connectez-vous avec le même compte que l'application Furbulous. La région doit correspondre au pays choisi à l'inscription. Les régions hors États-Unis sont expérimentales.",
+        "data": {
+          "email": "E-mail",
+          "password": "Mot de passe",
+          "region": "Région du compte"
+        },
+        "data_description": {
+          "email": "Adresse e-mail utilisée dans l'application Furbulous",
+          "password": "Mot de passe de votre compte Furbulous",
+          "region": "Doit correspondre à la région du compte de l'application. Une mauvaise région provoque des identifiants invalides. Seuls les États-Unis / le Canada sont pris en charge par le mainteneur."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Réauthentifier Furbulous",
+        "description": "Les identifiants ou la région ne sont plus valides. Mettez-les à jour pour continuer. Une mauvaise région ressemble souvent à des identifiants invalides.",
+        "data": {
+          "email": "E-mail",
+          "password": "Mot de passe",
+          "region": "Région du compte"
+        },
+        "data_description": {
+          "email": "Adresse e-mail utilisée dans l'application Furbulous",
+          "password": "Mot de passe de votre compte Furbulous",
+          "region": "Région cloud de ce compte (États-Unis pris en charge ; UE et Asie expérimentales)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Furbulous",
+        "description": "Mettez à jour l'e-mail, le mot de passe ou la région cloud. La région doit correspondre au compte de l'application Furbulous.",
+        "data": {
+          "email": "E-mail",
+          "password": "Mot de passe",
+          "region": "Région du compte"
+        },
+        "data_description": {
+          "email": "Adresse e-mail utilisée dans l'application Furbulous",
+          "password": "Mot de passe de votre compte Furbulous",
+          "region": "Région cloud de ce compte (États-Unis pris en charge ; UE et Asie expérimentales)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Identifiants invalides ou mauvaise région (ou point de terminaison expérimental non fonctionnel)",
+      "cannot_connect": "Impossible de joindre le cloud Furbulous pour la région sélectionnée",
+      "unknown": "Erreur inattendue"
+    },
+    "abort": {
+      "already_configured": "Ce compte est déjà configuré pour cette région",
+      "reauth_successful": "Réauthentification réussie",
+      "reconfigure_successful": "Reconfiguration réussie",
+      "wrong_account": "Le compte ne correspond pas à la configuration existante"
+    }
+  },
+  "exceptions": {
+    "set_property_failed": {
+      "message": "Impossible de mettre à jour l'appareil Furbulous. Vérifiez la connexion cloud et réessayez."
+    },
+    "invalid_auth": {
+      "message": "Identifiants invalides ou mauvaise région Furbulous"
+    },
+    "cannot_connect": {
+      "message": "Impossible de joindre le cloud Furbulous"
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "us": "États-Unis / Canada (Pris en charge)",
+        "eu": "Europe / Royaume-Uni (Expérimental)",
+        "asia": "Asie (Expérimental)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_activity": {
+        "name": "Dernière activité"
+      },
+      "cat_weight": {
+        "name": "Poids du chat"
+      },
+      "daily_uses": {
+        "name": "Utilisations quotidiennes"
+      },
+      "average_daily_duration": {
+        "name": "Durée moyenne quotidienne"
+      },
+      "error": {
+        "name": "Erreur"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Connecté"
+      },
+      "cat_in_litter_box": {
+        "name": "Chat dans le bac"
+      },
+      "waste_bin_full": {
+        "name": "Bac à déchets plein"
+      },
+      "child_lock": {
+        "name": "Sécurité enfants"
+      },
+      "sleep_mode": {
+        "name": "Mode veille"
+      }
+    },
+    "switch": {
+      "full_auto_mode": {
+        "name": "Mode entièrement automatique"
+      },
+      "do_not_disturb": {
+        "name": "Ne pas déranger"
+      },
+      "child_lock": {
+        "name": "Sécurité enfants"
+      }
+    },
+    "button": {
+      "manual_clean": {
+        "name": "Nettoyage manuel"
+      },
+      "pause_cleaning": {
+        "name": "Pause nettoyage"
+      },
+      "resume_cleaning": {
+        "name": "Reprendre le nettoyage"
+      },
+      "empty": {
+        "name": "Vider"
+      },
+      "pack": {
+        "name": "Emballer"
+      }
+    },
+    "select": {
+      "cleaning_delay": {
+        "name": "Délai de nettoyage"
+      }
+    }
+  }
+}

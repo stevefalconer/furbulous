@@ -1,18 +1,19 @@
-"""Device handling for Furbulous Cat integration."""
+"""Device registry helpers for Furbulous."""
 from __future__ import annotations
 
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
 
 
 def get_device_info(device_data: dict) -> DeviceInfo:
-    """Return device info for a Furbulous device."""
+    """Return DeviceInfo for a Furbulous litter box."""
+    device_id = str(device_data.get("id"))
     return DeviceInfo(
-        identifiers={(DOMAIN, str(device_data.get("id")))},
-        name=device_data.get("name", "Furbulous Device"),
+        identifiers={(DOMAIN, device_id)},
+        name=device_data.get("name") or f"Furbulous {device_id}",
         manufacturer="Furbulous",
-        model=device_data.get("product_name", "Furbulous Box"),
+        model=device_data.get("product_name") or "Furbulous Box",
         sw_version=device_data.get("version"),
         configuration_url="https://app.furbulouspet.com",
     )
