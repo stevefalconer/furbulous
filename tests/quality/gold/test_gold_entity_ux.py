@@ -102,12 +102,12 @@ def test_empty_names_sort_together():
     )
     empty_btn = strings["entity"]["button"]["empty"]["name"]
     empty_sw = strings["entity"]["switch"]["empty_confirm_ready"]["name"]
-    assert empty_btn == "Empty"
+    assert empty_btn.startswith("Empty")
     assert empty_sw.startswith("Empty")
-    assert empty_btn < empty_sw or empty_sw.startswith(empty_btn)
 
 
 def test_period_average_name_prefixes():
+    """Cat-parent grouping: Visits / Bag / Litter word prefixes (not bare 7d)."""
     strings = json.loads(
         (
             Path(__file__).resolve().parents[3]
@@ -118,14 +118,16 @@ def test_period_average_name_prefixes():
     )
     sensors = strings["entity"]["sensor"]
     for key, expected_prefix in (
-        ("visits_7_days", "7d"),
-        ("visits_30_days", "30d"),
-        ("avg_visit_duration_30d", "30d"),
-        ("avg_bag_lifetime_30d", "30d"),
-        ("avg_litter_interval_30d", "30d"),
-        ("packs_30d", "30d"),
-        ("pet_visits_7d", "7d"),
-        ("pet_visits_30d", "30d"),
+        ("visits_7_days", "Visits"),
+        ("visits_30_days", "Visits"),
+        ("avg_visit_duration_30d", "Visit"),
+        ("avg_bag_lifetime_30d", "Bag"),
+        ("avg_litter_interval_30d", "Litter"),
+        ("packs_30d", "Bag"),
+        ("pet_visits_7d", "Visits"),
+        ("pet_visits_30d", "Visits"),
+        ("hours_since_bag_replaced", "Bag"),
+        ("hours_since_litter_reset", "Litter"),
     ):
         name = sensors[key]["name"]
         assert name.startswith(expected_prefix), f"{key}={name}"

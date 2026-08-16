@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.5 |
+| **Version** | 1.3.6 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -105,90 +105,90 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 ## 7. Entities / functions
 
-### Litter box (per device)
+**Start here if you care for cats, not code:** [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md)  
+**Automations / events / raw fields:** [docs/POWER_USER.md](docs/POWER_USER.md)  
+**UX review (personas + experts):** [docs/UX_REVIEW_1.3.6.md](docs/UX_REVIEW_1.3.6.md)
+
+### Litter box (per device) — friendly names
 
 | Platform | Entities | Device page section |
 |----------|----------|---------------------|
-| Binary sensor | Cat in litter box; **Waste bin status** / **Cover status** / **Drawer status** (PROBLEM → **OK** or **Problem**); Connected*; Child lock*; Screen off active*‡ | Sensors / Diagnostic |
-| Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; **Box action***; **Cycle completion***; Uses/duration vs yesterday‡ | Sensors / Diagnostic |
-| Sensor (schedule) | **Eco mode start** / **Eco mode stop** (read when API exposes times); DND start/stop‡ | **Configuration** |
-| Sensor (analytics) | **Last visitor**; **Last visit activity** (pet · time for Activity/Logbook); Last visit time/weight; Occupying pet; **7d/30d** prefixed rollups; bag / litter / pack metrics | Sensors |
-| Switch | **Screen off** (ON = blank/dim); Full auto mode; Do not disturb; Child lock | **Configuration** |
-| Switch | **Empty confirm ready** (chore safety) | **Controls** |
-| Button | Manual clean; Pause cleaning; Resume cleaning; **Empty** (requires confirm arm); Pack; Mark litter reset | **Controls** |
-| Select | Cleaning delay | **Configuration** |
+| Binary sensor | **Cat inside**; **Needs emptying** / **Cover open** / **Drawer out of place** (OK or Problem); Online*; Child lock on*; Screen is off*‡ | Sensors / Diagnostic |
+| Sensor (live) | Cat weight; **Uses today**; Average visit today; Error message*; Firmware*; **What the box is doing***; **Clean cycle status***; day-over-day‡ | Sensors / Diagnostic |
+| Sensor (schedule) | **Screen-off schedule starts/ends**; Quiet hours start/end‡ | **Configuration** |
+| Sensor (analytics) | **Last cat**; **Last visit** (`Name · time`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
+| Switch | **Screen off**; **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
+| Switch | **Empty — confirm ready** (safety) | **Controls** |
+| Button | **Clean now**; Pause / Resume cleaning; **Empty waste** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
+| Select | **Minutes before auto-clean** | **Configuration** |
 
 ### Pets (per cat from account roster)
 
 | Platform | Entities |
 |----------|----------|
-| Sensor | **7d visits** / **30d visits**; **30d avg visit duration**; Favorite litter box; Last seen |
+| Sensor | Visits (7 / 30 days); Visit length average (30 days); Favorite litter box; Last seen |
 
 \* Diagnostic · ‡ Disabled by default  
 
-**Controls** = chores (Empty + Empty confirm ready + clean/pack buttons).  
-**Configuration** = settings (Screen off, Full auto, DND, Child lock, Cleaning delay, Eco times).
+**Controls** = chores. **Configuration** = preferences. Display names can change for clarity; **entity unique_ids stay stable** for automations.
 
-### Full auto mode vs Pause / Resume
+### Auto-clean vs Pause / Resume
 
 | Control | What it does |
 |---------|----------------|
-| **Full auto mode** | Policy: after a visit, the box **starts cleaning by itself**. Off = you clean manually (or via **Manual clean**). |
+| **Auto-clean after visits** | After a visit, the box **starts cleaning by itself**. Off = only when you press **Clean now**. |
 | **Pause cleaning** | Stops a cycle that is **already running**. |
 | **Resume cleaning** | Continues a **paused** cycle. |
 
-They are not interchangeable: Full auto is “auto after visits”; Pause/Resume only affect an in-progress cycle.
-
 ### Empty safety
 
-1. Turn **ON** **Empty confirm ready** (drum/globe closed; you accept dumping litter).  
-2. Within **90 seconds**, press **Empty**.  
-3. Without that arm, Empty is blocked with a clear error.  
-
-Names both start with **Empty** so they sort next to each other when HA lists alphabetically.
+1. Turn **ON** **Empty — confirm ready** (drum closed).  
+2. Within **90 seconds**, press **Empty waste**.  
+3. Without that arm, Empty waste is blocked.  
 
 ### Status sensors (OK / Problem)
 
-These use Home Assistant’s **PROBLEM** device class:
+| Entity | **OK** | **Problem** | Code |
+|--------|--------|-------------|------|
+| Needs emptying | Bag has room | Empty / seal soon | 16 |
+| Cover open | Cover closed | Close the cover | 128 |
+| Drawer out of place | Drawer seated | Push drawer in | 64 |
 
-| Entity | **OK** means | **Problem** means | Vendor code |
-|--------|--------------|-------------------|-------------|
-| Waste bin status | Bin has room | Litter full — empty/pack | 16 |
-| Cover status | Cover closed | Cover open | 128 |
-| Drawer status | Drawer seated | Drawer not in place | 64 |
+### What the box is doing
 
-### Box action (was “Hand mode”)
+**Idle**, **Cleaning**, **Emptying**, **Packing bag**, **Paused**, **Resuming** (vendor `handMode`; raw code in attributes for power users).
 
-What the box is doing now: **Idle**, **Cleaning**, **Emptying**, **Packing bag**, **Paused**, **Resuming**.
+### Clean cycle status
 
-### Cycle completion
+Vendor `completionStatus` — friendly labels + **raw** attribute. Confirm on your unit via diagnostics if automating.
 
-Vendor field `completionStatus` (not fully documented). HA shows best-effort labels (**Complete**, **Not complete**, …) plus a **raw** attribute for automations. Confirm values on your unit via **Download diagnostics** after a clean cycle.
+### Empty states: `-` vs unknown
 
-### Empty states: `-` vs Unknown
+| Kind | Display |
+|------|---------|
+| Text | **`-`** |
+| Counts | **0** |
+| Weight / duration / timestamp | HA **unknown** until first real value |
 
-| Kind | Empty display | Why |
-|------|---------------|-----|
-| Text / enum sensors | **`-`** | Friendly blank for cat parents |
-| Count metrics (visits, packs, …) | **0** | Valid “no events yet” |
-| WEIGHT / DURATION / TIMESTAMP | **unknown** | HA forbids fake strings for device classes until a real value exists |
+### Disabled-by-default sensors
 
-### Why ~11 sensors are disabled
+**Expected.** Secondary analytics, day-over-day, quiet-hours times, screen mirror — enable when needed (keeps Pi recorder calm).
 
-**Expected.** Secondary analytics (7d, max clear, hours-since, day-over-day, …), DND time sensors, and the read-only Screen off mirror start **disabled** so first-run UX stays calm and the recorder stays light on a Pi. Enable any entity under the device page when you need it.
+### Power-user events (capabilities kept)
 
-### Eco mode start / stop
+Bus events for automations (do not depend on display names):  
+`furbulous_visit_ended`, `furbulous_waste_full`, `furbulous_waste_cleared`, `furbulous_bag_replaced`, `furbulous_pack`, `furbulous_litter_reset` — details in [POWER_USER.md](docs/POWER_USER.md).
 
-Read-only **Eco mode start** and **Eco mode stop** under Configuration. When the cloud returns schedule properties they show as `HH:MM`; otherwise **`-`**. **Writing** daily eco/DND windows is still done in the **Furbulous app** until property keys are confirmed from field diagnostics (we do not invent write APIs).
+### Screen-off schedule
+
+Read-only start/end when the API exposes times; **set schedule in the Furbulous app** if blank.
 
 ### Cat-lover tips
 
-1. **Which cat used which box (multi-cat):** measure visit weight, compare to roster/learned weights, assign the **closest** cat. See **Last visitor** and **Last visit activity** (pet name appears in Activity/Logbook).  
-2. Set accurate **weights for every cat in the Furbulous app**.  
-3. **Occupying pet** is only while a cat is inside; otherwise **`-`**.  
-4. Properties ~**30s**; pet roster ≤**1 min**; daily stats **5 min**.  
-5. **Screen off** (Configuration): ON blanks the display; OFF = screen normal. Legacy Screen on/off **buttons** are removed on upgrade.  
-6. **Mark litter reset** after adding litter.
+1. Set accurate **pet weights in the Furbulous app** (multi-cat closest-weight match).  
+2. Prefer **Last cat** / **Last visit** after a use; **Who is inside** only while occupied.  
+3. **Bag age** and **Litter age** are your “is it overdue?” gauges — press **I refilled the litter** after topping up.  
+4. Properties ~**30s**; pets ≤**1 min**; full stats **5 min**.
 
 ---
 
@@ -259,7 +259,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.5**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.6**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  
@@ -315,7 +315,8 @@ Maintenance is **community / best-effort**. There is no SLA. Prefer issues with 
 1. Update via HACS (or replace `custom_components/furbulous/`) → **restart HA**.  
 2. Confirm **unit system** (US → weight in **lb**; Metric → **kg**).  
 3. Set accurate **pet weights in the Furbulous app** for multi-cat matching.  
-4. For Empty: use **Empty confirm ready**, then **Empty** within 90 seconds.  
-5. After 1.3.5: restart once so orphan Screen on/off buttons are removed and names refresh.
+4. For Empty: use **Empty — confirm ready**, then **Empty waste** within 90 seconds.  
+5. After upgrade: **restart once** so names refresh and orphan Screen buttons are removed.  
+6. New here? Read [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for full history. Notes for the 1.1.x→1.2.0 migration: [DEPLOYMENT_NOTES_1.2.0.md](DEPLOYMENT_NOTES_1.2.0.md).

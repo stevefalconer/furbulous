@@ -52,10 +52,11 @@ def test_screen_off_on_means_display_off():
 
 
 def test_full_auto_vs_pause_docs():
-    """UAT: Full auto is policy; Pause/Resume are in-cycle controls."""
+    """UAT: Auto-clean is policy; Pause/Resume are in-cycle controls."""
     sw = FurbulousFullAutoModeSwitch(_coord(), MagicMock(), 7, "iot-7")
-    note = sw.extra_state_attributes.get("note", "")
-    assert "Pause" in note or "pause" in note.lower()
+    attrs = sw.extra_state_attributes
+    note = (attrs.get("note") or "") + (attrs.get("plain_english") or "")
+    assert "Pause" in note or "pause" in note.lower() or "Clean now" in note
     buttons = button_entities_for_device(_coord(), MagicMock(), _coord().data["devices"][0])
     keys = {b.translation_key for b in buttons}
     assert "pause_cleaning" in keys

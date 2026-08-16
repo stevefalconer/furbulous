@@ -2,6 +2,17 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.6 — 2026-08-16
+
+### Cat-parent usability (names) without removing power features
+
+- **Plain-language entity names** for non-technical multi-cat homes, e.g. **Last cat**, **Last visit**, **Who is inside**, **Needs emptying**, **Clean now**, **Empty waste**, **Empty — confirm ready**, **Seal waste bag**, **I refilled the litter**, **Auto-clean after visits**, **Quiet hours**, **Bag age**, **Litter age**, **Visits (7/30 days)**.
+- **unique_ids unchanged** — automations keep working when labels improve.
+- **Power-user bus events:** `furbulous_visit_ended`, `furbulous_waste_full`, `furbulous_waste_cleared`, `furbulous_bag_replaced`, `furbulous_pack`, `furbulous_litter_reset`.
+- Attributes: `audience`, `automation_hint`, `vendor_property`, `metric_key`, raw codes.
+- Adoption docs: [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md), [docs/POWER_USER.md](docs/POWER_USER.md), [docs/UX_REVIEW_1.3.6.md](docs/UX_REVIEW_1.3.6.md).
+- Quality UAT for naming + events + doc presence (`tests/quality/uat/`).
+
 ## 1.3.5 — 2026-08-16
 
 ### Controls / Configuration UX (user feedback)

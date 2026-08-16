@@ -110,12 +110,18 @@ class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify vs pause/resume."""
+        """Clarify vs pause/resume for cat parents + power users."""
         return {
+            "plain_english": (
+                "ON = box cleans itself after each visit. "
+                "OFF = only cleans when you press Clean now."
+            ),
             "note": (
                 "ON: box starts cleaning after visits automatically. "
                 "Pause/Resume only stop or continue a cycle already running."
             ),
+            "audience": "setting",
+            "vendor_property": "FullAutoModeSwitch",
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -342,10 +348,15 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
     def extra_state_attributes(self) -> dict[str, str]:
         """Safety copy for the UI."""
         return {
-            "warning": (
-                "Empty dumps all litter. The litter drum/globe must be closed. "
-                "Turn this ON only when ready, then press Empty within 90 seconds."
+            "plain_english": (
+                "Safety switch. Turn ON only when the drum is closed and you "
+                "are ready to dump the litter, then press Empty waste within 90s."
             ),
+            "warning": (
+                "Empty waste dumps all litter. The litter drum/globe must be closed. "
+                "Turn this ON only when ready, then press Empty waste within 90 seconds."
+            ),
+            "audience": "chore",
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:

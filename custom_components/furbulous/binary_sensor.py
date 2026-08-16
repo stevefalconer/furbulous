@@ -138,11 +138,15 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Explain OK vs Problem for cat parents."""
+        """Explain OK vs Problem for cat parents + power users."""
         return {
-            "when_ok": "Waste bin has room",
-            "when_problem": "Litter full — empty / pack",
+            "when_ok": "Bag has room — nothing to do",
+            "when_problem": "Time to empty / seal the bag",
+            "plain_english": "OK = fine. Problem = needs emptying.",
             "error_code": "16",
+            "vendor_property": "errorReportEvent",
+            "audience": "primary",
+            "automation_hint": "Also fires furbulous_waste_full / furbulous_waste_cleared",
         }
 
 
@@ -259,9 +263,12 @@ class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         return {
-            "when_ok": "Cover closed",
-            "when_problem": "Cover open",
+            "when_ok": "Cover closed — fine",
+            "when_problem": "Close the cover",
+            "plain_english": "OK = closed. Problem = cover is open.",
             "error_code": "128",
+            "vendor_property": "errorReportEvent",
+            "audience": "primary",
         }
 
 
@@ -294,7 +301,10 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         return {
-            "when_ok": "Drawer seated / in place",
-            "when_problem": "Drawer not in place",
+            "when_ok": "Drawer seated — fine",
+            "when_problem": "Push the drawer fully in",
+            "plain_english": "OK = drawer in place. Problem = drawer out.",
             "error_code": "64",
+            "vendor_property": "errorReportEvent",
+            "audience": "primary",
         }
