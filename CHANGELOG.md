@@ -2,6 +2,12 @@
 
 All notable changes to this fork are documented here.
 
+## 1.2.1 — 2026-08-16
+
+### Fixed
+
+- **Cat weight in pounds:** Home Assistant does not auto-convert weight `g`→`lb` from the unit system (unlike temperature). The weight sensor now **suggests** `hass.config.units.mass_unit` (lb under US Customary). Reconfigure/reauth and the upgrade path force a registry refresh of that suggested unit so existing installs pick up lb without a manual entity edit (manual entity unit → lb still works anytime).
+
 ## 1.2.0 — 2026-08-15
 
 ### Breaking / behavior

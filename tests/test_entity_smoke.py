@@ -33,6 +33,19 @@ def test_weight_sensor_unique_id_and_naming():
     assert sensor.native_value == 4000.0
 
 
+def test_weight_suggested_unit_follows_mass_unit():
+    """US mass unit (lb) is suggested; metric grams leaves suggestion unset."""
+    from homeassistant.const import UnitOfMass
+
+    sensor = FurbulousCatWeightSensor(_coord(), 7)
+    sensor.hass = MagicMock()
+    sensor.hass.config.units.mass_unit = UnitOfMass.POUNDS
+    assert sensor.suggested_unit_of_measurement == UnitOfMass.POUNDS
+
+    sensor.hass.config.units.mass_unit = UnitOfMass.GRAMS
+    assert sensor.suggested_unit_of_measurement is None
+
+
 def test_presence_sensor_unique_id():
     """Occupancy entity unique_id is stable."""
     sensor = FurbulousCatInBoxSensor(_coord(), 7)

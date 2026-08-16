@@ -91,6 +91,12 @@ async def test_clear_display_overrides_clears_unit_and_name(monkeypatch):
         "sensor",
         {},
     )
+    # Weight sensors force private refresh so suggested unit (lb) re-applies
+    mock_registry.async_update_entity_options.assert_any_call(
+        "sensor.box_cat_weight",
+        "sensor.private",
+        {"refresh_initial_entity_options": True},
+    )
 
 
 @pytest.mark.asyncio
@@ -131,8 +137,9 @@ async def test_clear_weight_units_only_skips_names(monkeypatch):
     # Name must NOT be cleared on upgrade path
     for call in mock_registry.async_update_entity.call_args_list:
         assert "name" not in (call.kwargs or {})
-    mock_registry.async_update_entity_options.assert_called_with(
+    # Must request refresh of initial suggested unit (lb under US customary)
+    mock_registry.async_update_entity_options.assert_any_call(
         "sensor.box_cat_weight",
-        "sensor",
-        {},
+        "sensor.private",
+        {"refresh_initial_entity_options": True},
     )
