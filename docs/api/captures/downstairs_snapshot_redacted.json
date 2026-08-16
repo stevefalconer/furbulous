@@ -1,0 +1,126 @@
+{
+  "captured_at_la": "2026-08-15T23:56:38.431908-07:00",
+  "device_name": "Downstairs",
+  "device_online": 1,
+  "is_disturb": 0,
+  "properties": {
+    "ConnectType": "online",
+    "DisplaySwitch": 0,
+    "FullAutoModeSwitch": 1,
+    "LocalTime": 252189185,
+    "catBathroomTimeStart": 1239,
+    "catBathroomTimeStop": 1239,
+    "catCleanOnOff": 4,
+    "catLitterType": 0,
+    "catWeight": 10805,
+    "childLockOnOff": 0,
+    "completionStatus": 1,
+    "displayEndTime": 420,
+    "displayStartTime": 1380,
+    "errorReportEvent": 0,
+    "excreteTimerEveryday": 28,
+    "excreteTimesEveryday": 1,
+    "handMode": 5,
+    "masterSleepOnOff": 0,
+    "mcu_version": "7A78632D313131",
+    "mcuversion": "zxc-111",
+    "otastatus": 0,
+    "sleepTimeStart": 720,
+    "sleepTimeStop": 360,
+    "timingShoveledShit": "0700010007050100",
+    "trdversion": "0.0.1",
+    "unitSwitch": 1,
+    "wifivertion": 134,
+    "workstatus": 0
+  },
+  "pets": [
+    {
+      "pet_id": 9433,
+      "nickname": "Vinnie",
+      "weight": 7,
+      "unit": 1,
+      "gender": 2,
+      "sterilization": 1
+    },
+    {
+      "pet_id": 10381,
+      "nickname": "Paulie",
+      "weight": 10,
+      "unit": 1,
+      "gender": 2,
+      "sterilization": 0
+    },
+    {
+      "pet_id": 10973,
+      "nickname": "Jet",
+      "weight": 17,
+      "unit": 1,
+      "gender": 0,
+      "sterilization": 0
+    },
+    {
+      "pet_id": 10974,
+      "nickname": "Tigger",
+      "weight": 24,
+      "unit": 1,
+      "gender": 0,
+      "sterilization": 0
+    },
+    {
+      "pet_id": 10975,
+      "nickname": "Cleo",
+      "weight": 14,
+      "unit": 1,
+      "gender": 0,
+      "sterilization": 0
+    }
+  ],
+  "wc_visits": [
+    {
+      "start_time": 1786778231,
+      "weight_g": 7882,
+      "duration": "0\u520645\u79d2"
+    },
+    {
+      "start_time": 1786804513,
+      "weight_g": 10482,
+      "duration": "0\u520632\u79d2"
+    },
+    {
+      "start_time": 1786851449,
+      "weight_g": 10805,
+      "duration": "0\u520628\u79d2"
+    }
+  ],
+  "daily_stats": {
+    "times": 3,
+    "avg_duration": 35,
+    "times_diff": 0,
+    "avg_diff": -78
+  },
+  "physical_checks_summary": [
+    {
+      "DisplaySwitch": 0,
+      "result": "lit"
+    },
+    {
+      "DisplaySwitch": 1,
+      "in_window_23_07": true,
+      "result": "dark"
+    },
+    {
+      "masterSleepOnOff": 1,
+      "DisplaySwitch": 1,
+      "result": "dark"
+    },
+    {
+      "masterSleepOnOff": 0,
+      "DisplaySwitch": 1,
+      "result": "dark"
+    },
+    {
+      "DisplaySwitch": 0,
+      "result": "lit"
+    }
+  ]
+}

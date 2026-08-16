@@ -58,16 +58,16 @@
   },
   "exceptions": {
     "set_property_failed": {
-      "message": "No se pudo actualizar el dispositivo Furbulous. Compruebe la conexión a la nube e inténtelo de nuevo."
-    },
-    "invalid_auth": {
-      "message": "Credenciales no válidas o región Furbulous incorrecta"
-    },
-    "cannot_connect": {
-      "message": "No se puede alcanzar la nube de Furbulous"
+      "message": "Could not update the Furbulous device. Check the cloud connection and try again."
     },
     "empty_not_confirmed": {
-      "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty waste within 90 seconds."
+      "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty all litter within 90 seconds."
+    },
+    "invalid_auth": {
+      "message": "Invalid credentials or wrong Furbulous region"
+    },
+    "cannot_connect": {
+      "message": "Cannot reach the Furbulous cloud"
     }
   },
   "selector": {
@@ -249,10 +249,10 @@
         "name": "Child lock on"
       },
       "sleep_mode": {
-        "name": "Screen is off"
+        "name": "Screen blank now"
       },
       "energy_saving_active": {
-        "name": "Screen is off"
+        "name": "Screen blank now"
       }
     },
     "switch": {
@@ -289,7 +289,7 @@
         "name": "Resume cleaning"
       },
       "empty": {
-        "name": "Empty waste"
+        "name": "Empty all litter"
       },
       "pack": {
         "name": "Seal waste bag"
@@ -301,14 +301,23 @@
     "select": {
       "cleaning_delay": {
         "name": "Auto-clean minutes before"
+      },
+      "screen_mode": {
+        "name": "Screen mode"
       }
     },
     "time": {
       "screen_off_start": {
-        "name": "Screen off start"
+        "name": "Screen schedule start"
       },
       "screen_off_end": {
-        "name": "Screen off end"
+        "name": "Screen schedule end"
+      },
+      "screen_schedule_start": {
+        "name": "Screen schedule start"
+      },
+      "screen_schedule_end": {
+        "name": "Screen schedule end"
       },
       "quiet_hours_start": {
         "name": "Quiet hours start"

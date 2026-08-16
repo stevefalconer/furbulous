@@ -38,11 +38,11 @@ if TYPE_CHECKING:
 
 PARALLEL_UPDATES = 0
 
-# Default window when the cloud has never returned a schedule value yet
-_DEFAULT_SCREEN_OFF_START = time(22, 0)
+# Defaults only if cloud never returned times (prefer real device values)
+_DEFAULT_SCREEN_OFF_START = time(23, 0)
 _DEFAULT_SCREEN_OFF_END = time(7, 0)
-_DEFAULT_QUIET_START = time(22, 0)
-_DEFAULT_QUIET_END = time(8, 0)
+_DEFAULT_QUIET_START = time(12, 0)
+_DEFAULT_QUIET_END = time(6, 0)
 
 
 async def async_setup_entry(
@@ -149,7 +149,7 @@ def schedule_time_entities(
             api,
             device_id,
             iotid,
-            translation_key="screen_off_start",
+            translation_key="screen_schedule_start",
             unique_slug=UID_SCREEN_OFF_SCHEDULE_START,
             keys=ECO_START_KEYS,
             default_key=DEFAULT_ECO_START_KEY,
@@ -161,7 +161,7 @@ def schedule_time_entities(
             api,
             device_id,
             iotid,
-            translation_key="screen_off_end",
+            translation_key="screen_schedule_end",
             unique_slug=UID_SCREEN_OFF_SCHEDULE_END,
             keys=ECO_STOP_KEYS,
             default_key=DEFAULT_ECO_STOP_KEY,

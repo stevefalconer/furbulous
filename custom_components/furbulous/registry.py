@@ -27,7 +27,7 @@ _SENSOR_OPTION_KEYS = (
 # Unique-id fragments for weight entities (display lb/kg from API grams)
 _WEIGHT_UNIQUE_MARKERS = ("cat_weight", "catWeight")
 
-# Removed in 1.3.4+ (replaced by Screen off switch); prune so UI has no dupes
+# Removed controls: screen buttons (1.3.4) and Screen off switch (1.3.9 DisplaySwitch mode)
 _ORPHAN_UNIQUE_SUFFIXES = (
     "_screen_on",
     "_screen_off",
@@ -42,9 +42,9 @@ def _is_weight_entity(entry: er.RegistryEntry) -> bool:
     return any(marker in uid for marker in _WEIGHT_UNIQUE_MARKERS)
 
 
-def _is_orphan_screen_button(entry: er.RegistryEntry) -> bool:
-    """True for legacy Screen on/off *buttons* removed in 1.3.4+."""
-    if entry.domain != "button":
+def _is_orphan_screen_control(entry: er.RegistryEntry) -> bool:
+    """True for removed Screen on/off buttons or Screen off switch."""
+    if entry.domain not in ("button", "switch"):
         return False
     uid = entry.unique_id or ""
     return any(uid.endswith(suffix) for suffix in _ORPHAN_UNIQUE_SUFFIXES)
@@ -63,7 +63,7 @@ async def async_remove_orphan_entities(
     for entity_entry in list(
         er.async_entries_for_config_entry(registry, config_entry.entry_id)
     ):
-        if not _is_orphan_screen_button(entity_entry):
+        if not _is_orphan_screen_control(entity_entry):
             continue
         registry.async_remove(entity_entry.entity_id)
         removed += 1

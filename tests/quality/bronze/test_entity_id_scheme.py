@@ -67,6 +67,7 @@ def test_all_box_unique_ids_use_cat_parent_scheme():
     entities += switch_entities_for_device(coord, MagicMock(), device)
     entities += button_entities_for_device(coord, MagicMock(), device, analytics)
     entities += select_entities_for_device(coord, MagicMock(), device)
+    # screen_mode is a select entity
 
     expected_slugs = {
         "last_cat",
@@ -78,7 +79,7 @@ def test_all_box_unique_ids_use_cat_parent_scheme():
         "empty_confirm_ready",
         "auto_clean_after_visits",
         "quiet_hours",
-        "screen_off",
+        "screen_mode",
         "bag_age_hours",
         "litter_age_hours",
         "what_box_doing",

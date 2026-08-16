@@ -66,11 +66,23 @@ def _is_occupied(props: dict[str, Any]) -> bool:
         return False
 
 
+def _normalize_pet(pet: dict[str, Any]) -> dict[str, Any]:
+    """Map API fields (nickname, pet_id) onto id/name used by matching + HA pets."""
+    out = dict(pet)
+    if out.get("id") is None and out.get("pet_id") is not None:
+        out["id"] = out["pet_id"]
+    if not out.get("name"):
+        out["name"] = out.get("nickname") or out.get("pet_name") or ""
+    return out
+
+
 def _pet_roster_signature(pets: list[dict[str, Any]]) -> tuple[tuple[Any, str], ...]:
     """Stable signature so unchanged pet lists do not force recompute."""
     items: list[tuple[Any, str]] = []
     for pet in pets:
-        items.append((pet.get("id"), str(pet.get("name") or "")))
+        pid = pet.get("id") if pet.get("id") is not None else pet.get("pet_id")
+        name = pet.get("name") or pet.get("nickname") or ""
+        items.append((pid, str(name)))
     return tuple(sorted(items, key=lambda x: (str(x[0]), x[1])))
 
 
@@ -317,9 +329,11 @@ class AnalyticsEngine:
         # 0 = idle, 1 = new events (needs rollup + persist), 2 = soft UI-only change
         rank = 0
         if pets is not None:
-            sig = _pet_roster_signature(pets)
+            # Normalize API roster (nickname/pet_id) for matching + pet devices
+            normalized = [_normalize_pet(p) for p in pets]
+            sig = _pet_roster_signature(normalized)
             if sig != self._pets_sig:
-                self.pets = list(pets)
+                self.pets = normalized
                 self._pets_sig = sig
                 rank = 1
 
@@ -327,6 +341,10 @@ class AnalyticsEngine:
             if device.get("id") is None:
                 continue
             rank = max(rank, self._process_device(device))
+            # Hydrate Last cat from cloud visit history (full poll only)
+            if full_recompute and device.get("wc_history") is not None:
+                if self.ingest_wc_history(device):
+                    rank = 1
 
         if rank == 1 or full_recompute:
             self.recompute_all()
@@ -710,6 +728,146 @@ class AnalyticsEngine:
         self._dirty = True
         self.recompute_all()
         self._notify()
+
+    def ingest_wc_history(self, device: dict[str, Any]) -> bool:
+        """Import /device/data/wc visits into analytics (weight + time, match cat).
+
+        Cloud records have no pet name — closest roster weight (lb unit fixed).
+        Incremental: only rows with start_time > wc_ingested_through.
+        """
+        did = str(device.get("id"))
+        iotid = device.get("iotid")
+        rows = device.get("wc_history") or []
+        if not rows:
+            return False
+        st = self._device_state.setdefault(did, {})
+        # Resume watermark from prior WC events so HA restart does not re-append
+        through = float(st.get("wc_ingested_through") or 0)
+        if through <= 0:
+            for ev in self.store.events_for_device(did, event_types={"visit_ended"}):
+                if (ev.get("source") or "") != "wc_history":
+                    continue
+                try:
+                    through = max(through, float(ev.get("ts") or 0))
+                except (TypeError, ValueError):
+                    continue
+            # Also treat presence visits as known times to avoid double-count
+            for ev in self.store.events_for_device(did, event_types={"visit_ended"}):
+                try:
+                    through = max(through, float(ev.get("ts") or 0) - 1)
+                except (TypeError, ValueError):
+                    continue
+        known_ts = {
+            round(float(ev.get("ts") or 0), 0)
+            for ev in self.store.events_for_device(did, event_types={"visit_ended"})
+        }
+        # Sort ascending so through advances correctly
+        ordered = sorted(
+            (r for r in rows if isinstance(r, dict) and r.get("start_time")),
+            key=lambda r: float(r["start_time"]),
+        )
+        added = 0
+        latest_row: dict[str, Any] | None = None
+        for row in ordered:
+            try:
+                ts = float(row["start_time"])
+            except (TypeError, ValueError):
+                continue
+            latest_row = row
+            if ts <= through or round(ts, 0) in known_ts:
+                # Still allow Last cat refresh from latest row without re-append
+                continue
+            weight_g = row.get("weight")
+            try:
+                weight_f = float(weight_g) if weight_g is not None else None
+            except (TypeError, ValueError):
+                weight_f = None
+            duration_s = None
+            if row.get("minute") is not None or row.get("second") is not None:
+                try:
+                    duration_s = int(row.get("minute") or 0) * 60 + int(
+                        row.get("second") or 0
+                    )
+                except (TypeError, ValueError):
+                    duration_s = None
+            match = resolve_visit_identity(
+                {}, weight_f, self.pets, self._learned_weights
+            )
+            self.store.append(
+                "visit_ended",
+                device_id=did,
+                iotid=iotid,
+                source="wc_history",
+                payload={
+                    "duration_s": duration_s,
+                    "pet_id": match.pet_id,
+                    "pet_name": match.display_name,
+                    "weight_g": weight_f,
+                    "weight_match_delta_g": match.delta_g,
+                    "identity_method": match.method,
+                    "identity_confidence": match.confidence,
+                    "second_pet": match.second_pet_name,
+                    "second_delta_g": match.second_delta_g,
+                },
+                ts=ts,
+            )
+            known_ts.add(round(ts, 0))
+            st["last_visit_ts"] = ts
+            st["last_visit_weight_g"] = weight_f
+            st["last_visitor_id"] = match.pet_id
+            st["last_visitor_name"] = match.display_name
+            st["last_match_method"] = match.method
+            st["last_match_confidence"] = match.confidence
+            st["last_match_delta_g"] = match.delta_g
+            if weight_f is not None and match.display_name not in (
+                None,
+                UNKNOWN_LABEL,
+                "",
+                "-",
+            ):
+                update_learned_weight(
+                    self._learned_weights,
+                    match.pet_id,
+                    match.display_name,
+                    float(weight_f),
+                )
+            through = ts
+            added += 1
+        # If no new rows but WC has data, still refresh Last cat from latest
+        if added == 0 and latest_row is not None and st.get("last_visit_ts") is None:
+            try:
+                ts = float(latest_row["start_time"])
+                weight_f = (
+                    float(latest_row["weight"])
+                    if latest_row.get("weight") is not None
+                    else None
+                )
+            except (TypeError, ValueError):
+                ts, weight_f = None, None
+            if ts is not None:
+                match = resolve_visit_identity(
+                    {}, weight_f, self.pets, self._learned_weights
+                )
+                st["last_visit_ts"] = ts
+                st["last_visit_weight_g"] = weight_f
+                st["last_visitor_id"] = match.pet_id
+                st["last_visitor_name"] = match.display_name
+                st["last_match_method"] = match.method or "wc_history"
+                st["last_match_confidence"] = match.confidence
+                st["last_match_delta_g"] = match.delta_g
+                self._notify()
+                return False
+        if added:
+            st["wc_ingested_through"] = through
+            self._dirty = True
+            _LOGGER.debug(
+                "Ingested %s WC visits for device %s (through=%s)",
+                added,
+                did,
+                through,
+            )
+            return True
+        return False
 
     def is_occupied(self, device_id: str | int) -> bool:
         """True while the presence edge says a cat is in the box."""

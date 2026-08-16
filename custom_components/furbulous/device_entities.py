@@ -23,7 +23,7 @@ from .live_extra_sensors import (
     FurbulousHandModeSensor,
     FurbulousUsesVsYesterdaySensor,
 )
-from .select import FurbulousCleanDelaySelect
+from .select import FurbulousCleanDelaySelect, FurbulousScreenModeSelect
 from .sensor import (
     FurbulousAverageDurationSensor,
     FurbulousCatWeightSensor,
@@ -35,7 +35,6 @@ from .switch import (
     FurbulousChildLockSwitch,
     FurbulousDNDSwitch,
     FurbulousEmptyConfirmSwitch,
-    FurbulousEnergySavingSwitch,
     FurbulousFullAutoModeSwitch,
 )
 
@@ -104,7 +103,7 @@ def switch_entities_for_device(
     return [
         FurbulousFullAutoModeSwitch(coordinator, api, device_id, iotid),
         FurbulousDNDSwitch(coordinator, api, device_id, iotid),
-        FurbulousEnergySavingSwitch(coordinator, api, device_id, iotid),
+        # Screen: use Screen mode select (DisplaySwitch), not masterSleepOnOff
         FurbulousChildLockSwitch(coordinator, api, device_id, iotid),
         FurbulousEmptyConfirmSwitch(coordinator, api, device_id, iotid),
     ]
@@ -163,7 +162,10 @@ def select_entities_for_device(
     iotid = device.get("iotid")
     if device_id is None or not iotid:
         return []
-    return [FurbulousCleanDelaySelect(coordinator, api, device_id, iotid)]
+    return [
+        FurbulousScreenModeSelect(coordinator, api, device_id, iotid),
+        FurbulousCleanDelaySelect(coordinator, api, device_id, iotid),
+    ]
 
 
 def time_entities_for_device(

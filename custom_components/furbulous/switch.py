@@ -363,11 +363,11 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
         return {
             "plain_english": (
                 "Safety switch. Turn ON only when the drum is closed and you "
-                "are ready to dump the litter, then press Empty waste within 90s."
+                "are ready to dump the litter, then press Empty all litter within 90s."
             ),
             "warning": (
-                "Empty waste dumps all litter. The litter drum/globe must be closed. "
-                "Turn this ON only when ready, then press Empty waste within 90 seconds."
+                "Empty all litter dumps everything. The litter drum/globe must be closed. "
+                "Turn this ON only when ready, then press Empty all litter within 90 seconds."
             ),
             "audience": "chore",
         }

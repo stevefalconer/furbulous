@@ -2,6 +2,25 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.9 — 2026-08-16
+
+### Display (physically verified API model)
+
+- **Screen mode** select: **Always on** (`DisplaySwitch=0`) or **Scheduled** (`DisplaySwitch=1`).
+- **Screen schedule start/end** write `displayStartTime` / `displayEndTime` (minutes).
+- Removed misleading **Screen off** switch (`masterSleepOnOff` alone does not drive the panel).
+- **Screen blank now** binary uses DisplaySwitch + schedule window.
+
+### Quiet hours / pets / activity
+
+- Quiet hours start/end map to **`sleepTimeStart` / `sleepTimeStop`**.
+- Pet roster: `unit=1` → **pounds**; normalize `nickname` / `pet_id`.
+- Ingest **`/device/data/wc`** visit history for Last cat (when the API returns rows for the current day).
+
+### Docs
+
+- [`docs/api/FURBULOUS_API_REFERENCE.md`](docs/api/FURBULOUS_API_REFERENCE.md) — empirical API + physical checks.
+
 ## 1.3.8 — 2026-08-16
 
 ### Screen off / Quiet hours schedules (writable)

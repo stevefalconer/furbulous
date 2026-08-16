@@ -367,6 +367,24 @@ class FurbulousCatAPI:
             _LOGGER.debug("Daily stats error iotid=%s: %s", iotid, err)
             return {}
 
+    async def get_device_wc_history(self, iotid: str) -> list[dict[str, Any]]:
+        """Visit activity list: start_time, weight (g), duration — no pet names.
+
+        Verified endpoint: GET /app/v1/device/data/wc?iotid=
+        """
+        try:
+            endpoint = f"/app/v1/device/data/wc?iotid={iotid}"
+            result = await self._make_authenticated_request(endpoint)
+            if result.get("code") != 0:
+                return []
+            data = result.get("data")
+            return data if isinstance(data, list) else []
+        except (FurbulousCatAuthError, FurbulousCatConnectionError):
+            raise
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("WC history error iotid=%s: %s", iotid, err)
+            return []
+
     async def set_device_property(
         self, iotid: str, properties: dict[str, Any]
     ) -> bool:
@@ -461,6 +479,8 @@ class FurbulousCatAPI:
                 device = dict(device)
                 device["properties"] = await self.get_device_properties(iotid)
                 device["daily_stats"] = await self.get_device_daily_stats(iotid)
+                # Activity for Last cat / analytics (no pet names on records)
+                device["wc_history"] = await self.get_device_wc_history(iotid)
             enriched.append(device)
 
         pets = await self.get_pets(force=True)

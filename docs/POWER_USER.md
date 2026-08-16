@@ -97,7 +97,7 @@ Many entities expose:
 | Auto-clean minutes before | catCleanOnOff (1–30) |
 | Screen off start/end | masterSleepStartTime / masterSleepEndTime (or aliases); writable time entities |
 | Quiet hours start/end | disturbStartTime / disturbEndTime (or aliases); writable time entities |
-| Empty waste | handMode 2 (requires Empty — confirm ready) |
+| Empty all litter | handMode 2 (requires Empty — confirm ready) |
 | Seal waste bag | handMode 3 |
 | Bag age (hours) | hours since bag_replaced |
 | Litter age (hours) | hours since litter_reset |

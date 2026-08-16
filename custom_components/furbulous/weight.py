@@ -127,8 +127,18 @@ def preferred_display_mass_unit(hass: Any | None) -> str:
         return UNIT_LB
 
     mass_str = _mass_unit_str(getattr(units, "mass_unit", None))
-    if mass_str in _US_MASS_UNITS or mass_str in ("pounds", "ounces"):
+    if mass_str in _US_MASS_UNITS or mass_str in ("pounds", "ounces", "lb", "oz"):
         return UNIT_LB
+
+    # Some HA builds expose unit_system as a mapping / as_dict
+    try:
+        as_dict = getattr(units, "as_dict", None)
+        if callable(as_dict):
+            mass_str = _mass_unit_str(as_dict().get("mass"))
+            if mass_str in _US_MASS_UNITS or mass_str in ("lb", "oz", "pounds"):
+                return UNIT_LB
+    except Exception:  # pylint: disable=broad-except
+        pass
 
     # Metric HA uses mass_unit=g — product still shows kg, not g
     return UNIT_KG

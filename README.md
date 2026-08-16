@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.8 |
+| **Version** | 1.3.9 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -119,7 +119,7 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 | Sensor (analytics) | **Last cat**; **Last visit** (`Name · time`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
 | Switch | **Screen off**; **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
 | Switch | **Empty — confirm ready** (safety) | **Controls** |
-| Button | **Clean now**; Pause / Resume cleaning; **Empty waste** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
+| Button | **Clean now**; Pause / Resume cleaning; **Empty all litter** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
 | Select | **Auto-clean minutes before** | **Configuration** |
 
 ### Pets (per cat from account roster)
@@ -147,8 +147,8 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 ### Empty safety
 
 1. Turn **ON** **Empty — confirm ready** (drum closed).  
-2. Within **90 seconds**, press **Empty waste**.  
-3. Without that arm, Empty waste is blocked.  
+2. Within **90 seconds**, press **Empty all litter**.  
+3. Without that arm, Empty all litter is blocked.  
 
 ### Status sensors (OK / Problem)
 
@@ -264,7 +264,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.8**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.9**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  
@@ -320,7 +320,7 @@ Maintenance is **community / best-effort**. There is no SLA. Prefer issues with 
 1. Update via HACS (or replace `custom_components/furbulous/`) → **restart HA**.  
 2. Confirm **unit system** (US → weight in **lb**; Metric → **kg**).  
 3. Set accurate **pet weights in the Furbulous app** for multi-cat matching.  
-4. For Empty: use **Empty — confirm ready**, then **Empty waste** within 90 seconds.  
+4. For Empty: use **Empty — confirm ready**, then **Empty all litter** within 90 seconds.  
 5. After upgrade: **restart once** so names refresh and orphan Screen buttons are removed.  
 6. New here? Read [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md).
 

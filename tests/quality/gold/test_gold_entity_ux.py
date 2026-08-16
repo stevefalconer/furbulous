@@ -36,9 +36,12 @@ _DEFAULT_PROPS = {
     "handMode": 1,
     "completionStatus": 1,
     "masterSleepOnOff": 0,
+    "DisplaySwitch": 1,
     "errorReportEvent": 0,
-    "masterSleepStartTime": "22:00",
-    "masterSleepEndTime": 630,  # 10:30 as minutes
+    "displayStartTime": 1380,  # 23:00
+    "displayEndTime": 420,  # 07:00
+    "sleepTimeStart": 720,  # 12:00
+    "sleepTimeStop": 360,  # 06:00
 }
 
 
@@ -92,10 +95,11 @@ def _analytics():
 def test_config_entity_categories():
     switches = switch_entities_for_device(_coord(), MagicMock(), _coord().data["devices"][0])
     by_key = {s.translation_key: s for s in switches}
-    for key in ("full_auto_mode", "do_not_disturb", "screen_off", "child_lock"):
+    for key in ("full_auto_mode", "do_not_disturb", "child_lock"):
         cat = by_key[key].entity_category
         assert cat is not None and "config" in str(cat).lower()
     assert by_key["empty_confirm_ready"].entity_category is None
+    assert "screen_off" not in by_key  # replaced by Screen mode select
 
 
 def test_empty_names_sort_together():
@@ -188,17 +192,17 @@ def test_screen_off_and_quiet_hours_time_entities_writable():
     entities = schedule_time_entities(coord, api, 1, "iot-1")
     by_key = {e.translation_key: e for e in entities}
     assert set(by_key) == {
-        "screen_off_start",
-        "screen_off_end",
+        "screen_schedule_start",
+        "screen_schedule_end",
         "quiet_hours_start",
         "quiet_hours_end",
     }
-    assert by_key["screen_off_start"].native_value == time(22, 0)
-    assert by_key["screen_off_end"].native_value == time(10, 30)
-    assert "config" in str(by_key["screen_off_start"].entity_category).lower()
-    # Defaults when properties empty
+    assert by_key["screen_schedule_start"].native_value == time(23, 0)
+    assert by_key["screen_schedule_end"].native_value == time(7, 0)
+    assert by_key["quiet_hours_start"].native_value == time(12, 0)
+    assert "config" in str(by_key["screen_schedule_start"].entity_category).lower()
     empty = schedule_time_entities(_coord({}), api, 1, "iot-1")
-    assert empty[0].native_value == time(22, 0)
+    assert empty[0].native_value == time(23, 0)
 
 
 def test_format_time_value_variants():
@@ -233,17 +237,15 @@ def test_all_entities_enabled_by_default():
     assert disabled == []
 
 
-def test_screen_off_single_control():
+def test_screen_mode_not_switch():
     switches = switch_entities_for_device(
         _coord(), MagicMock(), _coord().data["devices"][0]
     )
-    screen = [s for s in switches if s.translation_key == "screen_off"]
-    assert len(screen) == 1
+    assert not any(s.translation_key == "screen_off" for s in switches)
     buttons = button_entities_for_device(
         _coord(), MagicMock(), _coord().data["devices"][0]
     )
     assert not any(b.translation_key in ("screen_on", "screen_off") for b in buttons)
-    # Diagnostic mirror enabled
     mirror = FurbulousSleepModeSensor(_coord(), 1)
     assert mirror.entity_registry_enabled_default is True
 
