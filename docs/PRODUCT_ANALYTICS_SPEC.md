@@ -1,8 +1,8 @@
 # Furbulous HA — Cat-lover analytics product specification
 
 **Audience:** Product, implementers (HA integration), and reviewers  
-**Status:** Design only — **not implemented** in 1.2.x  
-**Integration baseline:** 1.2.x (live device snapshot + today’s wcheader stats; pets not polled)  
+**Status:** **Implemented in 1.3.x** (see README + CHANGELOG; this doc remains the design reference)  
+**Integration baseline:** **1.3.4** — dual poll, local analytics, multi-cat weight match, last-visit UX, empty safety  
 **Last updated:** 2026-08-16  
 
 ---
@@ -71,8 +71,8 @@ Those answers reduce smell, overflow, and household friction. They are first-cla
 | Term | Meaning | Code / signal notes (1.2.x) |
 |------|---------|------------------------------|
 | **Box / litter box** | One Furbulous device | `iotid` / device id |
-| **Pet / cat** | One animal on the account pet roster | `pet/list` (not polled today) |
-| **Unknown** | Visit/weight not linked to a known pet | Match app language when known; i18n key `unknown` |
+| **Pet / cat** | One animal on the account pet roster | `pet/list` (≤1 min cadence + full poll) |
+| **Empty / dash** | Visit or metric not linked / no data yet | UI **`-`** for text; numeric classes use empty/`None` |
 | **Visit** | One occupancy cycle: enter → leave | `workstatus` Working(1) → Idle |
 | **Pack** | Waste bag sealed/packed | Button → `handMode: 3` |
 | **Empty / dump** | Waste emptied / bag taken out (product sense TBD) | Button → `handMode: 2` (“dump” in code) |

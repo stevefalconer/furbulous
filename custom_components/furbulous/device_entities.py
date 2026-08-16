@@ -15,11 +15,7 @@ from .binary_sensor import (
     FurbulousSleepModeSensor,
     FurbulousWasteBinFullSensor,
 )
-from .button import (
-    FurbulousHandModeButton,
-    FurbulousLitterResetButton,
-    FurbulousScreenButton,
-)
+from .button import FurbulousHandModeButton, FurbulousLitterResetButton
 from .live_extra_sensors import (
     FurbulousCompletionStatusSensor,
     FurbulousDurationVsYesterdaySensor,
@@ -38,6 +34,7 @@ from .sensor import (
 from .switch import (
     FurbulousChildLockSwitch,
     FurbulousDNDSwitch,
+    FurbulousEmptyConfirmSwitch,
     FurbulousEnergySavingSwitch,
     FurbulousFullAutoModeSwitch,
 )
@@ -109,6 +106,7 @@ def switch_entities_for_device(
         FurbulousDNDSwitch(coordinator, api, device_id, iotid),
         FurbulousEnergySavingSwitch(coordinator, api, device_id, iotid),
         FurbulousChildLockSwitch(coordinator, api, device_id, iotid),
+        FurbulousEmptyConfirmSwitch(coordinator, api, device_id, iotid),
     ]
 
 
@@ -145,17 +143,6 @@ def button_entities_for_device(
         entities.append(
             FurbulousLitterResetButton(coordinator, device_id, iotid, analytics)
         )
-    # Screen blanking for automations (same API property as Energy saving)
-    entities.append(
-        FurbulousScreenButton(
-            coordinator, api, device_id, iotid, screen_on=False
-        )
-    )
-    entities.append(
-        FurbulousScreenButton(
-            coordinator, api, device_id, iotid, screen_on=True
-        )
-    )
     return entities
 
 

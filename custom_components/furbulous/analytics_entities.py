@@ -216,13 +216,32 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
         name = self._analytics.last_visitor(self._device_id)
         return name if name else EMPTY_LABEL
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """How identity was chosen (closest weight like the app)."""
+        st = self._analytics._device_state.get(str(self._device_id), {})  # noqa: SLF001
+        attrs: dict[str, Any] = {
+            "match_method": st.get("last_match_method") or "-",
+            "confidence": st.get("last_match_confidence") or "-",
+        }
+        if st.get("last_visit_weight_g") is not None:
+            attrs["visit_weight_g"] = st["last_visit_weight_g"]
+        if st.get("last_match_delta_g") is not None:
+            attrs["weight_delta_g"] = st["last_match_delta_g"]
+        if st.get("last_visitor_id") is not None:
+            attrs["pet_id"] = st["last_visitor_id"]
+        return attrs
+
 
 class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
-    """When the last visit ended (UTC native; HA UI shows local time)."""
+    """When the last visit ended, as HA local time string (or ``-``).
+
+    Uses a text state so the default can be ``-`` (TIMESTAMP would show
+    ``unknown`` before the first visit).
+    """
 
     _attr_has_entity_name = True
     _attr_should_poll = False
-    _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:clock-outline"
 
     def __init__(self, coordinator, analytics, device: dict) -> None:
@@ -249,9 +268,19 @@ class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
     @property
-    def native_value(self) -> datetime | None:
+    def native_value(self) -> str:
         ts = self._analytics.last_visit_ts(self._device_id)
-        return _ts_to_dt(ts)
+        dt_val = _ts_to_dt(ts)
+        if dt_val is None:
+            return EMPTY_LABEL
+        # Prefer HA local timezone when available
+        try:
+            from homeassistant.util import dt as dt_util
+
+            local = dt_util.as_local(dt_val)
+            return local.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:  # pylint: disable=broad-except
+            return dt_val.strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 class LastVisitWeightSensor(CoordinatorEntity, SensorEntity):

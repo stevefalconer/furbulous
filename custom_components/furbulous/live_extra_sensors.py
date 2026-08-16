@@ -33,11 +33,11 @@ class FurbulousFirmwareSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> str:
         device = self.device_data
         if not device:
-            return None
-        return device.get("version")
+            return "-"
+        return device.get("version") or "-"
 
 
 class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
@@ -55,25 +55,18 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> str:
         device = self.device_data
         if not device:
-            return None
+            return "-"
         raw = extract_prop_value((device.get("properties") or {}).get("handMode"))
         if raw is None:
-            return None
+            return "-"
         try:
             code = int(raw)
         except (TypeError, ValueError):
             return str(raw)
         return _HAND_MODE_LABELS.get(code, str(code))
-
-    @property
-    def available(self) -> bool:
-        device = self.device_data
-        if not device or not self.coordinator.last_update_success:
-            return False
-        return (device.get("properties") or {}).get("handMode") is not None
 
 
 class FurbulousCompletionStatusSensor(FurbulousEntity, SensorEntity):
@@ -94,17 +87,11 @@ class FurbulousCompletionStatusSensor(FurbulousEntity, SensorEntity):
     def native_value(self) -> Any:
         device = self.device_data
         if not device:
-            return None
-        return extract_prop_value(
+            return "-"
+        raw = extract_prop_value(
             (device.get("properties") or {}).get("completionStatus")
         )
-
-    @property
-    def available(self) -> bool:
-        device = self.device_data
-        if not device or not self.coordinator.last_update_success:
-            return False
-        return (device.get("properties") or {}).get("completionStatus") is not None
+        return "-" if raw is None else raw
 
 
 class FurbulousUsesVsYesterdaySensor(FurbulousEntity, SensorEntity):

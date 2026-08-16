@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -175,15 +174,17 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
 
 
 class FurbulousEnergySavingSwitch(_FurbulousSwitch):
-    """Energy saving — dims/turns off the display while the box is on standby.
+    """Screen off toggle (energy-saving display dim/blank in standby).
 
-    Maps to property ``masterSleepOnOff`` (read + write via properties/set).
-    No schedule start/stop fields are proven in the API; if the app uses a
-    timer, it is local to the vendor app. HA shows and toggles the active flag.
+    One switch replaces separate Screen on/off Press buttons.
+    - ON  = screen off / dimmed (masterSleepOnOff = 1)
+    - OFF = screen on / normal (masterSleepOnOff = 0)
+
+    Use in automations: turn ON when idle; turn OFF when bag full or errors.
     """
 
-    _attr_icon = "mdi:lightbulb-night"
-    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:monitor-off"
+    # Primary control — not CONFIG, so it sits with Controls in the UI
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""
@@ -192,13 +193,14 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
             api,
             device_id,
             iotid,
-            translation_key="energy_saving",
+            translation_key="screen_off",
+            # Keep stable unique_id so existing installs do not duplicate entities
             unique_id=f"{iotid}_energy_saving_switch",
         )
 
     @property
     def is_on(self) -> bool:
-        """Return True if energy-saving mode is on."""
+        """Return True when the display is in energy-saving / off mode."""
         device = self.device_data
         if not device:
             return False
@@ -219,14 +221,16 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify schedule limitations."""
+        """Clarify semantics for automations."""
         return {
             "effect": "display_dim_standby",
-            "note": "Dims/off display in standby. Schedule times (if any) are in the Furbulous app.",
+            "when_on": "screen_off_or_dimmed",
+            "when_off": "screen_on_normal",
+            "note": "Toggle blanking the display. Schedule times (if any) are in the Furbulous app.",
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Enable energy saving."""
+        """Turn screen off (energy saving on)."""
         if not await self._api.set_device_property(
             self._iotid, {"masterSleepOnOff": 1}
         ):
@@ -237,7 +241,7 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Disable energy saving."""
+        """Turn screen on (energy saving off)."""
         if not await self._api.set_device_property(
             self._iotid, {"masterSleepOnOff": 0}
         ):
@@ -248,11 +252,63 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
         await self.coordinator.async_request_refresh()
 
 
+class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
+    """Arm Empty for 90s after the user confirms the drum is closed.
+
+    Required before the Empty button will run (safety). Auto-clears after use
+    or timeout. Appears under Controls (not Configuration).
+    """
+
+    _attr_icon = "mdi:checkbox-marked-outline"
+
+    def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
+        """Initialize."""
+        super().__init__(
+            coordinator,
+            api,
+            device_id,
+            iotid,
+            translation_key="confirm_empty_ready",
+            unique_id=f"{iotid}_confirm_empty_ready",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """True while empty is armed."""
+        from .empty_safety import is_empty_armed
+
+        return is_empty_armed(self._device_id)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Safety copy for the UI."""
+        return {
+            "warning": (
+                "Empty dumps all litter. The litter drum/globe must be closed. "
+                "Turn this ON only when ready, then press Empty within 90 seconds."
+            ),
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Arm Empty for 90 seconds."""
+        from .empty_safety import arm_empty
+
+        arm_empty(self._device_id)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disarm Empty."""
+        from .empty_safety import disarm_empty
+
+        disarm_empty(self._device_id)
+        self.async_write_ha_state()
+
+
 class FurbulousChildLockSwitch(_FurbulousSwitch):
     """Child lock switch."""
 
     _attr_icon = "mdi:lock"
-    _attr_entity_category = EntityCategory.CONFIG
+    # Shown under Controls with other device switches
 
     def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
         """Initialize."""

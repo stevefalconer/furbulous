@@ -20,6 +20,13 @@ from homeassistant.core import HomeAssistant
 from ..entity import extract_prop_value
 from ..weight import resolve_cat_weight_grams
 from .metrics import UNKNOWN_LABEL, compute_device_metrics, compute_pet_metrics
+from .pet_match import (
+    is_plausible_cat_weight,
+    learn_from_visit_events,
+    resolve_visit_identity,
+    stable_visit_weight_g,
+    update_learned_weight,
+)
 from .store import EventStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,37 +57,6 @@ def _is_occupied(props: dict[str, Any]) -> bool:
         return False
 
 
-def _identity_from_props(props: dict[str, Any]) -> tuple[Any | None, str]:
-    """Best-effort pet identity from live properties (discovery-tolerant)."""
-    id_keys = ("petId", "pet_id", "currentPetId", "catId", "cat_id")
-    name_keys = (
-        "petName",
-        "pet_name",
-        "currentPetName",
-        "catName",
-        "cat_name",
-        "occupyingPet",
-        "currentPet",
-    )
-    pet_id = None
-    for key in id_keys:
-        if key in props:
-            val = extract_prop_value(props[key])
-            if val not in (None, "", 0, "0"):
-                pet_id = val
-                break
-    pet_name = None
-    for key in name_keys:
-        if key in props:
-            val = extract_prop_value(props[key])
-            if val not in (None, ""):
-                pet_name = str(val)
-                break
-    if not pet_name:
-        pet_name = UNKNOWN_LABEL
-    return pet_id, pet_name
-
-
 def _pet_roster_signature(pets: list[dict[str, Any]]) -> tuple[tuple[Any, str], ...]:
     """Stable signature so unchanged pet lists do not force recompute."""
     items: list[tuple[Any, str]] = []
@@ -102,6 +78,7 @@ class AnalyticsEngine:
         self.pet_metrics: dict[str, dict[str, Any]] = {}
         self.pets: list[dict[str, Any]] = []
         self._pets_sig: tuple[tuple[Any, str], ...] = ()
+        self._learned_weights: dict[str, float] = {}
         self._dirty = False
         self._last_save = 0.0
         self._flush_task: Any | None = None
@@ -110,6 +87,7 @@ class AnalyticsEngine:
     async def async_setup(self) -> None:
         """Load persisted events and restore open chore cycles."""
         await self.store.async_load()
+        self._learned_weights = learn_from_visit_events(self.store.events)
         self._restore_device_state_from_events()
         self.recompute_all()
 
@@ -362,7 +340,11 @@ class AnalyticsEngine:
         name = device.get("name")
         occupied = _is_occupied(props)
         full = _is_full(props)
-        pet_id, pet_name = _identity_from_props(props)
+        weight_now = resolve_cat_weight_grams(props)
+        live_match = resolve_visit_identity(
+            props, weight_now, self.pets, self._learned_weights
+        )
+        pet_id, pet_name = live_match.pet_id, live_match.display_name
         now = time.time()
 
         st = self._device_state.setdefault(
@@ -381,6 +363,10 @@ class AnalyticsEngine:
                 "last_pet_name": UNKNOWN_LABEL,
                 "last_visitor_name": UNKNOWN_LABEL,
                 "last_visitor_id": None,
+                "last_match_method": None,
+                "last_match_confidence": None,
+                "last_match_delta_g": None,
+                "visit_weight_samples": [],
                 "visit_weight_g": None,
                 "last_visit_ts": None,
                 "last_visit_weight_g": None,
@@ -391,32 +377,19 @@ class AnalyticsEngine:
         if iotid:
             st["iotid"] = iotid
 
-        # Sample weight while occupied (presence is ~30s; visits can be shorter)
-        weight_now = resolve_cat_weight_grams(props)
-        if occupied and weight_now is not None and weight_now > 0:
-            prev_w = st.get("visit_weight_g")
-            # Prefer latest non-zero sample during the visit
-            st["visit_weight_g"] = float(weight_now) if prev_w is None else float(
-                weight_now
-            )
-
-        # Identity updates while occupied should refresh live sensors without
-        # counting as a new visit event.
-        # Preserve known identity when a poll lacks pet fields (common on exit)
-        if pet_name == UNKNOWN_LABEL and st.get("last_pet_name") not in (
-            None,
-            UNKNOWN_LABEL,
-        ):
-            pet_name = st["last_pet_name"]
-            if pet_id is None:
-                pet_id = st.get("last_pet_id")
-        if pet_id is None and st.get("last_pet_id") is not None and occupied:
-            pet_id = st.get("last_pet_id")
+        # Collect weight samples while occupied; median at end resists noise
+        if occupied and is_plausible_cat_weight(weight_now):
+            samples = list(st.get("visit_weight_samples") or [])
+            samples.append(float(weight_now))
+            # Cap sample list (presence ~30s; long sits still bounded)
+            st["visit_weight_samples"] = samples[-40:]
+            st["visit_weight_g"] = stable_visit_weight_g(samples)
 
         identity_changed = (
             st.get("last_pet_id") != pet_id or st.get("last_pet_name") != pet_name
         )
-        if occupied or pet_name != UNKNOWN_LABEL:
+        # Live occupying name only while occupied
+        if occupied:
             st["last_pet_id"] = pet_id
             st["last_pet_name"] = pet_name
 
@@ -429,9 +402,11 @@ class AnalyticsEngine:
             st["occupy_since"] = now
             st["last_pet_id"] = pet_id
             st["last_pet_name"] = pet_name
-            st["visit_weight_g"] = (
-                float(weight_now) if weight_now and weight_now > 0 else None
+            samples = (
+                [float(weight_now)] if is_plausible_cat_weight(weight_now) else []
             )
+            st["visit_weight_samples"] = samples
+            st["visit_weight_g"] = stable_visit_weight_g(samples)
             self.store.append(
                 "visit_started",
                 device_id=did,
@@ -441,6 +416,8 @@ class AnalyticsEngine:
                     "pet_id": pet_id,
                     "pet_name": pet_name,
                     "weight_g": st.get("visit_weight_g"),
+                    "identity_method": live_match.method,
+                    "identity_confidence": live_match.confidence,
                 },
                 ts=now,
             )
@@ -448,14 +425,30 @@ class AnalyticsEngine:
         elif not occupied and was_occ:
             start = st.get("occupy_since") or now
             duration = max(0.0, now - float(start))
-            end_pet_id = st.get("last_pet_id") or pet_id
-            end_pet_name = st.get("last_pet_name") or pet_name
-            # Prefer weight sampled during visit; fall back to current reading
-            end_weight = st.get("visit_weight_g")
-            if end_weight is None and weight_now is not None and weight_now > 0:
-                end_weight = float(weight_now)
+            samples = list(st.get("visit_weight_samples") or [])
+            if is_plausible_cat_weight(weight_now):
+                samples.append(float(weight_now))
+            end_weight = stable_visit_weight_g(samples)
+            # Final identity: weight-first (app) using median visit weight
+            end_match = resolve_visit_identity(
+                props, end_weight, self.pets, self._learned_weights
+            )
+            end_pet_id = end_match.pet_id
+            end_pet_name = end_match.display_name
+            end_method = end_match.method
+            end_conf = end_match.confidence
+            end_delta = end_match.delta_g
+            # Exit poll often drops petName; keep best identity seen while occupied
+            if end_pet_name in (None, "", "-", UNKNOWN_LABEL):
+                prior = st.get("last_pet_name")
+                if prior and prior not in (None, "", "-", UNKNOWN_LABEL):
+                    end_pet_name = prior
+                    end_pet_id = st.get("last_pet_id") or end_pet_id
+                    end_method = end_method if end_method != "none" else "visit_carry"
+                    end_conf = end_conf if end_conf != "none" else "medium"
             st["occupied"] = False
             st["occupy_since"] = None
+            st["visit_weight_samples"] = []
             st["visit_weight_g"] = None
             if duration >= VISIT_DEBOUNCE_S:
                 self.store.append(
@@ -468,13 +461,33 @@ class AnalyticsEngine:
                         "pet_id": end_pet_id,
                         "pet_name": end_pet_name,
                         "weight_g": end_weight,
+                        "weight_match_delta_g": end_delta,
+                        "identity_method": end_method,
+                        "identity_confidence": end_conf,
+                        "second_pet": end_match.second_pet_name,
+                        "second_delta_g": end_match.second_delta_g,
                     },
                     ts=now,
                 )
                 st["last_visit_ts"] = now
                 st["last_visit_weight_g"] = end_weight
                 st["last_visitor_id"] = end_pet_id
-                st["last_visitor_name"] = end_pet_name or UNKNOWN_LABEL
+                st["last_visitor_name"] = end_pet_name
+                st["last_match_method"] = end_method
+                st["last_match_confidence"] = end_conf
+                st["last_match_delta_g"] = end_delta
+                if end_weight is not None and end_pet_name not in (
+                    None,
+                    UNKNOWN_LABEL,
+                    "",
+                    "-",
+                ):
+                    update_learned_weight(
+                        self._learned_weights,
+                        end_pet_id,
+                        end_pet_name,
+                        float(end_weight),
+                    )
                 rank = 1
 
         # --- waste full episodes ---

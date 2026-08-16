@@ -74,8 +74,31 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
         self._attr_icon = icon
         self._analytics = analytics
 
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """Warn on Empty about litter dump and closed drum."""
+        if self._hand_mode != 2:
+            return None
+        return {
+            "warning": (
+                "Empty dumps all litter from the globe. Confirm the litter drum "
+                "is closed, turn ON “Confirm empty ready”, then press Empty."
+            ),
+            "requires": "confirm_empty_ready",
+        }
+
     async def async_press(self) -> None:
         """Send handMode command (user action — not a poll)."""
+        # Empty (handMode 2): require “Confirm empty ready” switch armed
+        if self._hand_mode == 2:
+            from .empty_safety import consume_empty_arm
+
+            if not consume_empty_arm(self._device_id):
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="empty_not_confirmed",
+                )
+
         _LOGGER.debug(
             "handMode=%s iotid=%s", self._hand_mode, self._iotid
         )
@@ -125,44 +148,3 @@ class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
         self.async_write_ha_state()
 
 
-class FurbulousScreenButton(FurbulousEntity, ButtonEntity):
-    """Turn the box display off or on (energy-saving / standby screen).
-
-    Uses ``masterSleepOnOff`` (same property as Energy saving). Automations can
-    blank the screen except when bag full / errors need attention.
-    """
-
-    def __init__(
-        self,
-        coordinator,
-        api,
-        device_id: int,
-        iotid: str,
-        *,
-        screen_on: bool,
-    ) -> None:
-        """Initialize screen on or off button."""
-        key = "screen_on" if screen_on else "screen_off"
-        super().__init__(
-            coordinator,
-            device_id,
-            translation_key=key,
-            unique_id=f"{iotid}_{key}",
-        )
-        self._api = api
-        self._iotid = iotid
-        self._screen_on = screen_on
-        self._attr_icon = "mdi:monitor" if screen_on else "mdi:monitor-off"
-
-    async def async_press(self) -> None:
-        """Set display energy-saving off (screen on) or on (screen dim/off)."""
-        # masterSleepOnOff 1 = energy saving / display dim; 0 = display normal
-        value = 0 if self._screen_on else 1
-        if not await self._api.set_device_property(
-            self._iotid, {"masterSleepOnOff": value}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()

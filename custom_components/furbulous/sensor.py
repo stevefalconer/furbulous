@@ -180,14 +180,14 @@ class FurbulousDailyUsesSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
-    def native_value(self) -> int | None:
-        """Return daily use count."""
+    def native_value(self) -> int:
+        """Return daily use count (0 before first stats poll)."""
         device = self.device_data
         if not device:
-            return None
+            return 0
         stats = device.get("daily_stats") or {}
         value = stats.get("times")
-        return int(value) if value is not None else None
+        return int(value) if value is not None else 0
 
 
 class FurbulousAverageDurationSensor(FurbulousEntity, SensorEntity):
@@ -234,16 +234,16 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
-    def native_value(self) -> str | None:
-        """Return mapped error description."""
+    def native_value(self) -> str:
+        """Return mapped error description (``-`` / No error when clear)."""
         device = self.device_data
         if not device:
-            return None
+            return "-"
         value = extract_prop_value(
             device.get("properties", {}).get("errorReportEvent")
         )
         if value is None:
-            return None
+            return "-"
         return ERROR_CODES.get(value, f"Error {value}")
 
     def _entity_fingerprint(self) -> object:
@@ -255,11 +255,3 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
                 device.get("properties", {}).get("errorReportEvent")
             )
         return ("err", raw, self.available)
-
-    @property
-    def available(self) -> bool:
-        """Available when property exists."""
-        device = self.device_data
-        if not device or not self.coordinator.last_update_success:
-            return False
-        return device.get("properties", {}).get("errorReportEvent") is not None
