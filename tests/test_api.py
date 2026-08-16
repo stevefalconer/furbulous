@@ -276,9 +276,9 @@ async def test_presence_snapshot_skips_list_and_stats(
     session.add(
         "GET",
         f"{US_BASE}/app/v1/pet/list",
-        payload={"code": 0, "data": {"list": []}},
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
     )
-    # Presence-only properties fetch
+    # Presence within 1 min: properties only (pet/list throttled / cached)
     session.add(
         "GET",
         f"{US_BASE}/app/v1/device/properties/get?iotid={iotid}",
@@ -297,14 +297,68 @@ async def test_presence_snapshot_skips_list_and_stats(
     presence = await api.async_get_presence_snapshot()
     assert len(presence["devices"]) == 1
     assert presence["devices"][0]["properties"]["workstatus"] == 0
+    # Pets returned from 1-minute cache (no second pet/list HTTP)
+    assert presence["pets"][0]["name"] == "Mochi"
 
-    # Only one additional HTTP call (properties), not list/stats/pets
     new_calls = session.calls[calls_after_full:]
     assert len(new_calls) == 1
     assert "properties/get" in new_calls[0]["url"]
-    assert "wcheader" not in new_calls[0]["url"]
-    assert "device/list" not in new_calls[0]["url"]
-    assert "pet/list" not in new_calls[0]["url"]
+    assert all("pet/list" not in c["url"] for c in new_calls)
+    assert all("wcheader" not in c["url"] for c in new_calls)
+    assert all("device/list" not in c["url"] for c in new_calls)
+
+
+@pytest.mark.asyncio
+async def test_pet_list_refetches_after_minute(
+    sample_auth_success,
+    sample_device_list,
+    sample_properties_grams,
+    sample_daily_stats,
+):
+    """pet/list is allowed again after the 60s throttle window."""
+    iotid = "iot-device-001"
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/properties/get?iotid={iotid}",
+        payload=sample_properties_grams,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
+        payload=sample_daily_stats,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/properties/get?iotid={iotid}",
+        payload=sample_properties_grams,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi2"}]}},
+    )
+
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    await api.async_get_full_snapshot()
+    # Expire pet cache
+    api._last_pets_fetch_mono = 0.0
+    presence = await api.async_get_presence_snapshot()
+    assert presence["pets"][0]["name"] == "Mochi2"
 
 
 @pytest.mark.asyncio

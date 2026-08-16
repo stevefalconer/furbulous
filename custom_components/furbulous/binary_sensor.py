@@ -176,9 +176,13 @@ class FurbulousChildLockBinarySensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
-    """Sleep / master sleep mode."""
+    """Energy saving active (display dim/off while standby) — read-only mirror.
 
-    _attr_icon = "mdi:sleep"
+    Prefer the **Energy saving** switch for control. This binary remains for
+    automations that only need a problem-style/on-off signal.
+    """
+
+    _attr_icon = "mdi:lightbulb-night"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator, device_id: int) -> None:
@@ -186,13 +190,13 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
         super().__init__(
             coordinator,
             device_id,
-            translation_key="sleep_mode",
+            translation_key="energy_saving_active",
             unique_id=f"furbulous_{device_id}_masterSleepOnOff_binary",
         )
 
     @property
     def is_on(self) -> bool:
-        """Return True if sleep mode is on."""
+        """Return True if energy-saving / sleep mode property is on."""
         device = self.device_data
         if not device:
             return False

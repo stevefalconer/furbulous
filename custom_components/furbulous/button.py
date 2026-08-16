@@ -123,3 +123,46 @@ class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
         )
         await self._analytics.async_flush()
         self.async_write_ha_state()
+
+
+class FurbulousScreenButton(FurbulousEntity, ButtonEntity):
+    """Turn the box display off or on (energy-saving / standby screen).
+
+    Uses ``masterSleepOnOff`` (same property as Energy saving). Automations can
+    blank the screen except when bag full / errors need attention.
+    """
+
+    def __init__(
+        self,
+        coordinator,
+        api,
+        device_id: int,
+        iotid: str,
+        *,
+        screen_on: bool,
+    ) -> None:
+        """Initialize screen on or off button."""
+        key = "screen_on" if screen_on else "screen_off"
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key=key,
+            unique_id=f"{iotid}_{key}",
+        )
+        self._api = api
+        self._iotid = iotid
+        self._screen_on = screen_on
+        self._attr_icon = "mdi:monitor" if screen_on else "mdi:monitor-off"
+
+    async def async_press(self) -> None:
+        """Set display energy-saving off (screen on) or on (screen dim/off)."""
+        # masterSleepOnOff 1 = energy saving / display dim; 0 = display normal
+        value = 0 if self._screen_on else 1
+        if not await self._api.set_device_property(
+            self._iotid, {"masterSleepOnOff": value}
+        ):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        await self.coordinator.async_request_refresh()

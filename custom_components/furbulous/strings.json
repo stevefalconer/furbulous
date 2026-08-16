@@ -90,6 +90,8 @@
       "duration_vs_yesterday": { "name": "Duration vs yesterday" },
       "occupying_pet": { "name": "Occupying pet" },
       "last_visitor": { "name": "Last visitor" },
+      "last_visit_time": { "name": "Last visit time" },
+      "last_visit_weight": { "name": "Last visit weight" },
       "visits_7_days": { "name": "Visits (7 days)" },
       "visits_30_days": { "name": "Visits (30 days)" },
       "avg_visit_duration_30d": { "name": "Avg visit duration (30 days)" },
@@ -127,11 +129,13 @@
       "cover_open": { "name": "Cover open" },
       "drawer_not_in_place": { "name": "Drawer not in place" },
       "child_lock": { "name": "Child lock" },
-      "sleep_mode": { "name": "Sleep mode" }
+      "sleep_mode": { "name": "Energy saving active" },
+      "energy_saving_active": { "name": "Energy saving active" }
     },
     "switch": {
       "full_auto_mode": { "name": "Full auto mode" },
       "do_not_disturb": { "name": "Do not disturb" },
+      "energy_saving": { "name": "Energy saving" },
       "child_lock": { "name": "Child lock" }
     },
     "button": {
@@ -140,7 +144,9 @@
       "resume_cleaning": { "name": "Resume cleaning" },
       "empty": { "name": "Empty" },
       "pack": { "name": "Pack" },
-      "mark_litter_reset": { "name": "Mark litter reset" }
+      "mark_litter_reset": { "name": "Mark litter reset" },
+      "screen_off": { "name": "Screen off" },
+      "screen_on": { "name": "Screen on" }
     },
     "select": {
       "cleaning_delay": { "name": "Cleaning delay" }

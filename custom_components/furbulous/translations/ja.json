@@ -200,6 +200,12 @@
       },
       "pet_last_seen": {
         "name": "Last seen"
+      },
+      "last_visit_time": {
+        "name": "Last visit time"
+      },
+      "last_visit_weight": {
+        "name": "Last visit weight"
       }
     },
     "binary_sensor": {
@@ -223,6 +229,9 @@
       },
       "drawer_not_in_place": {
         "name": "Drawer not in place"
+      },
+      "energy_saving_active": {
+        "name": "Energy saving active"
       }
     },
     "switch": {
@@ -234,6 +243,9 @@
       },
       "child_lock": {
         "name": "チャイルドロック"
+      },
+      "energy_saving": {
+        "name": "Energy saving"
       }
     },
     "button": {
@@ -254,6 +266,12 @@
       },
       "mark_litter_reset": {
         "name": "Mark litter reset"
+      },
+      "screen_off": {
+        "name": "Screen off"
+      },
+      "screen_on": {
+        "name": "Screen on"
       }
     },
     "select": {

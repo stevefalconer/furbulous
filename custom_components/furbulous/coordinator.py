@@ -153,11 +153,9 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch presence-only snapshot.
 
-        Interval: 30 s — cat occupancy is the only signal that benefits from
-        near-real-time updates. This path calls properties/get per known iotid
-        only (no device list, no daily stats, no pets). Full property maps are
-        returned by the vendor in that one call; we still avoid 3× extra
-        endpoints that the old dual full-poll design hit every 30 s.
+        Interval: 30 s — occupancy, weight, full/errors, and display mode.
+        Calls properties/get per known iotid; pet/list at most every 60 s
+        (cached). No device list or daily stats (5 min full poll).
         """
         if not self.api.known_devices:
             return {"devices": []}
@@ -177,13 +175,14 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
             )
             self._unavailable_logged = False
 
-        # Visit / full edges only (no pets/stats; no full rollup unless edges fire)
+        # Visit / full edges + pet roster (properties already ~30s; pets added)
         runtime = getattr(self.config_entry, "runtime_data", None)
         if runtime is not None:
             eng = getattr(runtime, "analytics", None)
             if eng is not None:
                 eng.process_snapshot(
                     data.get("devices") or [],
+                    pets=data.get("pets"),
                     full_recompute=False,
                 )
                 eng.schedule_flush()

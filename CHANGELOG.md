@@ -2,6 +2,28 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.2 — 2026-08-16
+
+### Changes
+
+- Empty / missing text metrics show **`-`** (not “Unknown” / “none”). Numeric/duration sensors still use empty/`None` (HA device classes).
+- **Last visitor / last visit time / last visit weight** store API values from each completed use; **Occupying pet** is **`-`** when empty (never the previous cat).
+- **Screen off** and **Screen on** buttons for automation-friendly display blanking (`masterSleepOnOff`).
+- **Pet roster** (`pet/list`) cadence **≤ 1 minute** (cached between fetches). **Properties** stay on the **30s** path (occupancy, weight, errors, modes). Device list + daily stats remain **5 minutes**.
+
+## 1.3.1 — 2026-08-16
+
+### Features
+
+- **Last visit snapshot** (better fit for 30s polls vs short visits):
+  - **Last visitor**, **Last visit time**, **Last visit weight**
+- **Energy saving** switch (`masterSleepOnOff`) + diagnostic **Energy saving active**.
+- **Do not disturb** attributes clarify schedule times are managed in the app.
+
+### Notes
+
+- DND and energy-saving **schedule windows** are not reverse-engineered; HA toggles active state only.
+
 ## 1.3.0 — 2026-08-16
 
 ### Fixes (gap closure + verification)

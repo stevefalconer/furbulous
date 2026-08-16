@@ -12,7 +12,7 @@ from custom_components.furbulous.analytics.engine import (
     AnalyticsEngine,
 )
 from custom_components.furbulous.analytics.metrics import (
-    NOT_ENOUGH_DATA,
+    EMPTY_LABEL,
     compute_device_metrics,
     compute_pet_metrics,
 )
@@ -108,7 +108,7 @@ def test_favorite_box_not_enough_data():
         },
     ]
     m = compute_pet_metrics(events, 1, "Mochi", {"a": "Box A"}, now=now)
-    assert m["favorite_box"] == NOT_ENOUGH_DATA
+    assert m["favorite_box"] == EMPTY_LABEL
     assert m["visits_30d"] == 2
 
 

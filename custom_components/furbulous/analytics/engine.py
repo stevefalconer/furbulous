@@ -18,6 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
+from ..weight import resolve_cat_weight_grams
 from .metrics import UNKNOWN_LABEL, compute_device_metrics, compute_pet_metrics
 from .store import EventStore
 
@@ -133,6 +134,11 @@ class AnalyticsEngine:
                     "iotid": None,
                     "last_pet_id": None,
                     "last_pet_name": UNKNOWN_LABEL,
+                    "last_visitor_name": UNKNOWN_LABEL,
+                    "last_visitor_id": None,
+                    "visit_weight_g": None,
+                    "last_visit_ts": None,
+                    "last_visit_weight_g": None,
                 },
             )
             events = self.store.events_for_device(did)
@@ -142,6 +148,8 @@ class AnalyticsEngine:
             last_full_off = None
             last_visit_name = UNKNOWN_LABEL
             last_visit_id = None
+            last_visit_ts = None
+            last_visit_weight = None
             for ev in events:
                 et = ev.get("event_type")
                 ts = float(ev.get("ts", 0))
@@ -155,8 +163,15 @@ class AnalyticsEngine:
                     last_full_off = ts
                 elif et == "visit_ended":
                     payload = ev.get("payload") or {}
-                    last_visit_name = payload.get("pet_name") or UNKNOWN_LABEL
+                    pname = payload.get("pet_name")
+                    last_visit_name = pname if pname else UNKNOWN_LABEL
                     last_visit_id = payload.get("pet_id")
+                    last_visit_ts = ts
+                    if payload.get("weight_g") is not None:
+                        try:
+                            last_visit_weight = float(payload["weight_g"])
+                        except (TypeError, ValueError):
+                            pass
                 iotid = ev.get("iotid")
                 if iotid:
                     st["iotid"] = iotid
@@ -164,9 +179,11 @@ class AnalyticsEngine:
                 st["last_bag_ts"] = last_bag
             if last_litter is not None:
                 st["last_litter_reset_ts"] = last_litter
-            if last_visit_name and last_visit_name != UNKNOWN_LABEL:
-                st["last_pet_name"] = last_visit_name
-                st["last_pet_id"] = last_visit_id
+            if last_visit_ts is not None:
+                st["last_visit_ts"] = last_visit_ts
+                st["last_visit_weight_g"] = last_visit_weight
+                st["last_visitor_name"] = last_visit_name or UNKNOWN_LABEL
+                st["last_visitor_id"] = last_visit_id
             # Open full episode if last transition was to full
             if last_full_on is not None and (
                 last_full_off is None or last_full_on > last_full_off
@@ -362,12 +379,26 @@ class AnalyticsEngine:
                 "iotid": iotid,
                 "last_pet_id": None,
                 "last_pet_name": UNKNOWN_LABEL,
+                "last_visitor_name": UNKNOWN_LABEL,
+                "last_visitor_id": None,
+                "visit_weight_g": None,
+                "last_visit_ts": None,
+                "last_visit_weight_g": None,
             },
         )
         if name:
             st["name"] = name
         if iotid:
             st["iotid"] = iotid
+
+        # Sample weight while occupied (presence is ~30s; visits can be shorter)
+        weight_now = resolve_cat_weight_grams(props)
+        if occupied and weight_now is not None and weight_now > 0:
+            prev_w = st.get("visit_weight_g")
+            # Prefer latest non-zero sample during the visit
+            st["visit_weight_g"] = float(weight_now) if prev_w is None else float(
+                weight_now
+            )
 
         # Identity updates while occupied should refresh live sensors without
         # counting as a new visit event.
@@ -398,12 +429,19 @@ class AnalyticsEngine:
             st["occupy_since"] = now
             st["last_pet_id"] = pet_id
             st["last_pet_name"] = pet_name
+            st["visit_weight_g"] = (
+                float(weight_now) if weight_now and weight_now > 0 else None
+            )
             self.store.append(
                 "visit_started",
                 device_id=did,
                 iotid=iotid,
                 source="presence",
-                payload={"pet_id": pet_id, "pet_name": pet_name},
+                payload={
+                    "pet_id": pet_id,
+                    "pet_name": pet_name,
+                    "weight_g": st.get("visit_weight_g"),
+                },
                 ts=now,
             )
             rank = 1
@@ -412,8 +450,13 @@ class AnalyticsEngine:
             duration = max(0.0, now - float(start))
             end_pet_id = st.get("last_pet_id") or pet_id
             end_pet_name = st.get("last_pet_name") or pet_name
+            # Prefer weight sampled during visit; fall back to current reading
+            end_weight = st.get("visit_weight_g")
+            if end_weight is None and weight_now is not None and weight_now > 0:
+                end_weight = float(weight_now)
             st["occupied"] = False
             st["occupy_since"] = None
+            st["visit_weight_g"] = None
             if duration >= VISIT_DEBOUNCE_S:
                 self.store.append(
                     "visit_ended",
@@ -424,9 +467,14 @@ class AnalyticsEngine:
                         "duration_s": duration,
                         "pet_id": end_pet_id,
                         "pet_name": end_pet_name,
+                        "weight_g": end_weight,
                     },
                     ts=now,
                 )
+                st["last_visit_ts"] = now
+                st["last_visit_weight_g"] = end_weight
+                st["last_visitor_id"] = end_pet_id
+                st["last_visitor_name"] = end_pet_name or UNKNOWN_LABEL
                 rank = 1
 
         # --- waste full episodes ---
@@ -566,22 +614,73 @@ class AnalyticsEngine:
         self.recompute_all()
         self._notify()
 
+    def is_occupied(self, device_id: str | int) -> bool:
+        """True while the presence edge says a cat is in the box."""
+        return bool(self._device_state.get(str(device_id), {}).get("occupied"))
+
     def occupying_pet(self, device_id: str | int) -> str:
-        """Live occupying pet name or Unknown."""
+        """Live occupying pet: name while occupied, else blank ``-``.
+
+        Never shows the previous visitor after they leave.
+        """
         st = self._device_state.get(str(device_id), {})
         if not st.get("occupied"):
+            return UNKNOWN_LABEL  # EMPTY "-"
+        name = st.get("last_pet_name")
+        if not name or name == UNKNOWN_LABEL:
             return UNKNOWN_LABEL
-        return st.get("last_pet_name") or UNKNOWN_LABEL
+        return str(name)
 
     def last_visitor(self, device_id: str | int) -> str:
-        """Last completed visit pet name."""
+        """Last completed visit pet name (``-`` if none / unidentified)."""
+        st = self._device_state.get(str(device_id), {})
+        if st.get("last_visit_ts") is not None:
+            name = st.get("last_visitor_name")
+            if name and name != UNKNOWN_LABEL and str(name).strip():
+                return str(name)
+            return UNKNOWN_LABEL
         events = self.store.events_for_device(
             device_id, event_types={"visit_ended"}
         )
         if not events:
             return UNKNOWN_LABEL
-        last = events[-1]
-        return (last.get("payload") or {}).get("pet_name") or UNKNOWN_LABEL
+        name = (events[-1].get("payload") or {}).get("pet_name")
+        if not name or name == UNKNOWN_LABEL:
+            return UNKNOWN_LABEL
+        return str(name)
+
+    def last_visit_ts(self, device_id: str | int) -> float | None:
+        """Unix timestamp of last completed visit end (HA shows local time)."""
+        st = self._device_state.get(str(device_id), {})
+        if st.get("last_visit_ts") is not None:
+            return float(st["last_visit_ts"])
+        events = self.store.events_for_device(
+            device_id, event_types={"visit_ended"}
+        )
+        if not events:
+            return None
+        return float(events[-1].get("ts", 0)) or None
+
+    def last_visit_weight_g(self, device_id: str | int) -> float | None:
+        """Weight in grams from last completed visit (display converts to lb/kg)."""
+        st = self._device_state.get(str(device_id), {})
+        if st.get("last_visit_weight_g") is not None:
+            try:
+                return float(st["last_visit_weight_g"])
+            except (TypeError, ValueError):
+                pass
+        events = self.store.events_for_device(
+            device_id, event_types={"visit_ended"}
+        )
+        if not events:
+            return None
+        raw = (events[-1].get("payload") or {}).get("weight_g")
+        if raw is None:
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
 
     def metrics_for_device(self, device_id: str | int) -> dict[str, Any]:
         """Cached metrics for a box."""
