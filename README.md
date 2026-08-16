@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.4 |
+| **Version** | 1.3.5 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -107,40 +107,87 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 ### Litter box (per device)
 
-| Platform | Entities |
-|----------|----------|
-| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Energy saving active* (screen off) |
-| Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; Hand mode*; Completion status*; Uses/duration vs yesterday‡ |
-| Sensor (analytics) | **Last visitor** (closest cat by weight); **Last visit time**; **Last visit weight**; Occupying pet (live only); Visits 7d/30d; Time full; bag / litter / pack metrics |
-| Switch | Full auto mode; Do not disturb; **Screen off** (ON = blank/dim); Child lock; **Confirm empty ready** |
-| Button | Manual clean; Pause; Resume; **Empty** (requires confirm arm); Pack; Mark litter reset |
-| Select | Cleaning delay |
+| Platform | Entities | Device page section |
+|----------|----------|---------------------|
+| Binary sensor | Cat in litter box; **Waste bin status** / **Cover status** / **Drawer status** (PROBLEM → **OK** or **Problem**); Connected*; Child lock*; Screen off active*‡ | Sensors / Diagnostic |
+| Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; **Box action***; **Cycle completion***; Uses/duration vs yesterday‡ | Sensors / Diagnostic |
+| Sensor (schedule) | **Eco mode start** / **Eco mode stop** (read when API exposes times); DND start/stop‡ | **Configuration** |
+| Sensor (analytics) | **Last visitor**; **Last visit activity** (pet · time for Activity/Logbook); Last visit time/weight; Occupying pet; **7d/30d** prefixed rollups; bag / litter / pack metrics | Sensors |
+| Switch | **Screen off** (ON = blank/dim); Full auto mode; Do not disturb; Child lock | **Configuration** |
+| Switch | **Empty confirm ready** (chore safety) | **Controls** |
+| Button | Manual clean; Pause cleaning; Resume cleaning; **Empty** (requires confirm arm); Pack; Mark litter reset | **Controls** |
+| Select | Cleaning delay | **Configuration** |
 
 ### Pets (per cat from account roster)
 
 | Platform | Entities |
 |----------|----------|
-| Sensor | Visits 7d / 30d; Avg visit duration 30d; Favorite litter box; Last seen |
+| Sensor | **7d visits** / **30d visits**; **30d avg visit duration**; Favorite litter box; Last seen |
 
 \* Diagnostic · ‡ Disabled by default  
 
-Controls (switches, buttons, cleaning delay) are **not** under Configuration — they appear with other Controls on the device page.
+**Controls** = chores (Empty + Empty confirm ready + clean/pack buttons).  
+**Configuration** = settings (Screen off, Full auto, DND, Child lock, Cleaning delay, Eco times).
 
-Empty / missing text sensors show **`-`** (not HA’s “unknown”), except pure numeric classes that must stay empty until a value exists.
+### Full auto mode vs Pause / Resume
+
+| Control | What it does |
+|---------|----------------|
+| **Full auto mode** | Policy: after a visit, the box **starts cleaning by itself**. Off = you clean manually (or via **Manual clean**). |
+| **Pause cleaning** | Stops a cycle that is **already running**. |
+| **Resume cleaning** | Continues a **paused** cycle. |
+
+They are not interchangeable: Full auto is “auto after visits”; Pause/Resume only affect an in-progress cycle.
 
 ### Empty safety
 
-1. Turn **ON** **Confirm empty ready** (drum/globe closed; you accept dumping litter).  
+1. Turn **ON** **Empty confirm ready** (drum/globe closed; you accept dumping litter).  
 2. Within **90 seconds**, press **Empty**.  
 3. Without that arm, Empty is blocked with a clear error.  
 
+Names both start with **Empty** so they sort next to each other when HA lists alphabetically.
+
+### Status sensors (OK / Problem)
+
+These use Home Assistant’s **PROBLEM** device class:
+
+| Entity | **OK** means | **Problem** means | Vendor code |
+|--------|--------------|-------------------|-------------|
+| Waste bin status | Bin has room | Litter full — empty/pack | 16 |
+| Cover status | Cover closed | Cover open | 128 |
+| Drawer status | Drawer seated | Drawer not in place | 64 |
+
+### Box action (was “Hand mode”)
+
+What the box is doing now: **Idle**, **Cleaning**, **Emptying**, **Packing bag**, **Paused**, **Resuming**.
+
+### Cycle completion
+
+Vendor field `completionStatus` (not fully documented). HA shows best-effort labels (**Complete**, **Not complete**, …) plus a **raw** attribute for automations. Confirm values on your unit via **Download diagnostics** after a clean cycle.
+
+### Empty states: `-` vs Unknown
+
+| Kind | Empty display | Why |
+|------|---------------|-----|
+| Text / enum sensors | **`-`** | Friendly blank for cat parents |
+| Count metrics (visits, packs, …) | **0** | Valid “no events yet” |
+| WEIGHT / DURATION / TIMESTAMP | **unknown** | HA forbids fake strings for device classes until a real value exists |
+
+### Why ~11 sensors are disabled
+
+**Expected.** Secondary analytics (7d, max clear, hours-since, day-over-day, …), DND time sensors, and the read-only Screen off mirror start **disabled** so first-run UX stays calm and the recorder stays light on a Pi. Enable any entity under the device page when you need it.
+
+### Eco mode start / stop
+
+Read-only **Eco mode start** and **Eco mode stop** under Configuration. When the cloud returns schedule properties they show as `HH:MM`; otherwise **`-`**. **Writing** daily eco/DND windows is still done in the **Furbulous app** until property keys are confirmed from field diagnostics (we do not invent write APIs).
+
 ### Cat-lover tips
 
-1. **Which cat used which box (multi-cat):** like the app — measure visit weight, compare to each pet’s profile weight (from the Furbulous pet list, or learned from past visits), assign the **closest** cat. Works across many boxes (each visit is tied to that box’s **Last visitor**). Attributes show confidence and weight delta.  
-2. Set accurate **weights for every cat in the Furbulous app** (5 cats with distinct weights work best; twins close in weight may show lower confidence).  
-3. **Occupying pet** is only while a cat is inside; otherwise **`-`**. Prefer **Last visitor** after they leave.  
+1. **Which cat used which box (multi-cat):** measure visit weight, compare to roster/learned weights, assign the **closest** cat. See **Last visitor** and **Last visit activity** (pet name appears in Activity/Logbook).  
+2. Set accurate **weights for every cat in the Furbulous app**.  
+3. **Occupying pet** is only while a cat is inside; otherwise **`-`**.  
 4. Properties ~**30s**; pet roster ≤**1 min**; daily stats **5 min**.  
-5. **Screen off** switch for blanking the display via automations.  
+5. **Screen off** (Configuration): ON blanks the display; OFF = screen normal. Legacy Screen on/off **buttons** are removed on upgrade.  
 6. **Mark litter reset** after adding litter.
 
 ---
@@ -212,7 +259,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.4**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.5**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  
@@ -229,11 +276,14 @@ cd furbulous
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 pytest -v
+# Persistent bronze / silver / gold / performance / UAT suite:
+pytest tests/quality/ -v
 ```
 
 - Unit tests mock HTTP (no live Furbulous credentials).  
 - Full HA tests use `pytest-homeassistant-custom-component` (listed in `requirements-dev.txt`).  
-- Quality checklist: [quality_scale.md](quality_scale.md)
+- Quality checklist: [quality_scale.md](quality_scale.md)  
+- Repeatable agent prompts + issue log: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md), [tests/quality/ISSUES.md](tests/quality/ISSUES.md)
 
 ---
 
@@ -265,6 +315,7 @@ Maintenance is **community / best-effort**. There is no SLA. Prefer issues with 
 1. Update via HACS (or replace `custom_components/furbulous/`) → **restart HA**.  
 2. Confirm **unit system** (US → weight in **lb**; Metric → **kg**).  
 3. Set accurate **pet weights in the Furbulous app** for multi-cat matching.  
-4. For Empty: use **Confirm empty ready**, then **Empty** within 90 seconds.  
+4. For Empty: use **Empty confirm ready**, then **Empty** within 90 seconds.  
+5. After 1.3.5: restart once so orphan Screen on/off buttons are removed and names refresh.
 
 See [CHANGELOG.md](CHANGELOG.md) for full history. Notes for the 1.1.x→1.2.0 migration: [DEPLOYMENT_NOTES_1.2.0.md](DEPLOYMENT_NOTES_1.2.0.md).

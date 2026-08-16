@@ -3,9 +3,16 @@
 Tracking against [HA Integration Quality Scale rules](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/).  
 Status: **PASS** | **EXEMPT** (with reason). Not a core submission claim.
 
-**Last reviewed:** 2026-08-16 (**v1.3.4**)
+**Last reviewed:** 2026-08-16 (**v1.3.5**)
 
-Automated tests: `.venv/bin/pytest tests/ -q` (unit + real HA harness).
+Automated tests:
+
+```bash
+.venv/bin/pytest tests/ -q
+.venv/bin/pytest tests/quality/ -q   # bronze / silver / gold / performance / UAT
+```
+
+Repeatable prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issue log: [tests/quality/ISSUES.md](tests/quality/ISSUES.md)
 
 ---
 
@@ -21,8 +28,8 @@ Automated tests: `.venv/bin/pytest tests/ -q` (unit + real HA harness).
 | has-entity-name | PASS | Base + analytics entities |
 | runtime-data | PASS | api, dual coordinators, analytics |
 | appropriate-polling | PASS | 30s properties; pets ≤1 min; 5 min list/stats |
-| common-modules | PASS | api, coordinator, analytics, pet_match |
-| docs-high-level / install / removal | PASS | README current for 1.3.4 |
+| common-modules | PASS | api, coordinator, analytics, pet_match, schedule_props |
+| docs-high-level / install / removal | PASS | README current for 1.3.5 |
 
 ---
 
@@ -48,19 +55,19 @@ Automated tests: `.venv/bin/pytest tests/ -q` (unit + real HA harness).
 | entity-device-class | PASS | weight, duration, connectivity, problem |
 | entity-translations | PASS | strings + locale packs |
 | exception-translations | PASS | exceptions in strings |
-| entity-category | PASS | diagnostic for support sensors; controls uncategorized |
+| entity-category | PASS | CONFIG settings; Controls for Empty chore; diagnostic support |
 | diagnostics | PASS | Redacted + analytics counts |
-| docs-known-limitations | PASS | Multi-cat weight gaps, DND schedule in app |
+| docs-known-limitations | PASS | Eco/DND schedule write in app; multi-cat weight gaps |
 | docs-data-update | PASS | Dual poll + pet throttle |
-| docs-supported-functions | PASS | README entities + empty safety + multi-cat |
+| docs-supported-functions | PASS | README entities + empty safety + multi-cat + OK status |
 | reconfiguration-flow | PASS | reconfigure |
 | stale-devices | PASS | Boxes + pets pruned |
-| entity-disabled-by-default | PASS | Secondary analytics off by default |
+| entity-disabled-by-default | PASS | Secondary analytics + DND times + screen mirror off by default |
 | discovery | EXEMPT | Cloud login only |
 
 ---
 
-## Performance (1.3.4)
+## Performance (1.3.5)
 
 | Item | Cadence | Notes |
 |------|---------|--------|
@@ -69,16 +76,21 @@ Automated tests: `.venv/bin/pytest tests/ -q` (unit + real HA harness).
 | device list + wcheader | 5 min | Discovery + daily stats |
 | Analytics idle | no full rollup | O(devices) live full-wait only |
 | Empty arm | local | No extra HTTP |
+| Orphan prune | setup | Removes legacy screen buttons once |
 
 ---
 
-## Sign-off
+## Multi-role sign-off (1.3.5)
 
 | Lens | Result |
 |------|--------|
-| Bronze | **PASS** |
-| Silver | **PASS** |
-| Gold lean | **PASS** |
-| Multi-cat weight match tests | **PASS** (realistic 5-cat noise) |
+| End-user | **PASS** — single Screen off, Empty pair, pet in Activity, OK status names |
+| Business analyst | **PASS** — chores vs settings, full auto vs pause documented |
+| Developer | **PASS** — orphan cleanup, stable unique_ids, no fake schedule writes |
+| Performance | **PASS** — pet throttle, idle analytics, disabled secondary sensors |
+| Principal | **PASS** — honest API limits; quality suite + ISSUES log |
+| Home Assistant expert | **PASS** — entity_category, PROBLEM OK, unknown vs `-` policy |
+| Bronze / Silver / Gold lean | **PASS** |
+| Unit + quality suite | **PASS** (`pytest tests/`) |
 
 Run: `.venv/bin/pytest tests/ -q`

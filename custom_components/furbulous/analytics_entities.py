@@ -103,7 +103,8 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> Any:
         raw = self._raw()
         if raw is None:
-            # Duration/timestamp/weight must stay None (not "-") for device classes.
+            # Duration/timestamp/weight must stay None (not "-") for device classes —
+            # HA correctly shows "unknown" until a real value exists.
             if (
                 self._none_when_missing
                 and self._attr_device_class is None
@@ -111,6 +112,14 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
                 and not self._as_hours
             ):
                 return EMPTY_LABEL
+            # Count-style metrics (no device class, measurement): prefer 0 over unknown
+            if (
+                self._attr_state_class is not None
+                and self._attr_device_class is None
+                and not self._as_hours
+                and not self._as_timestamp
+            ):
+                return 0
             return None
         if self._as_timestamp:
             return _ts_to_dt(float(raw))
@@ -182,7 +191,10 @@ class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
 
 
 class LastVisitorSensor(CoordinatorEntity, SensorEntity):
-    """Last visitor name after a use (``-`` if none yet)."""
+    """Last visitor name after a use (``-`` if none yet).
+
+    State changes (including pet names) appear in the device Activity/Logbook.
+    """
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -231,6 +243,62 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
         if st.get("last_visitor_id") is not None:
             attrs["pet_id"] = st["last_visitor_id"]
         return attrs
+
+
+class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
+    """Combined last-visit line for Activity/Logbook: “Fluffy · 2026-08-15 14:32”.
+
+    Prefer this over raw Last activity (device active_time) when you care about
+    which cat used the box.
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:history"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "last_visit_activity"
+        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_activity"
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        name = self._analytics.last_visitor(self._device_id) or EMPTY_LABEL
+        ts = self._analytics.last_visit_ts(self._device_id)
+        dt_val = _ts_to_dt(ts)
+        if dt_val is None and (not name or name == EMPTY_LABEL):
+            return EMPTY_LABEL
+        time_str = EMPTY_LABEL
+        if dt_val is not None:
+            try:
+                from homeassistant.util import dt as dt_util
+
+                time_str = dt_util.as_local(dt_val).strftime("%Y-%m-%d %H:%M")
+            except Exception:  # pylint: disable=broad-except
+                time_str = dt_val.strftime("%Y-%m-%d %H:%M UTC")
+        if name and name != EMPTY_LABEL:
+            if time_str != EMPTY_LABEL:
+                return f"{name} · {time_str}"
+            return str(name)
+        return time_str
 
 
 class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
@@ -416,13 +484,15 @@ def box_analytics_entities(
         return AnalyticsBoxSensor(coordinator, analytics, device, **kwargs)
 
     entities: list[Entity] = [
-        # Last-visit trio is primary UX (30s polls can miss live occupancy)
+        # Last-visit set is primary UX (30s polls can miss live occupancy).
+        # Last visit activity includes pet names for the Activity/Logbook section.
         OccupyingPetSensor(presence, analytics, device),
         LastVisitorSensor(coordinator, analytics, device),
+        LastVisitActivitySensor(coordinator, analytics, device),
         LastVisitTimeSensor(coordinator, analytics, device),
         LastVisitWeightSensor(coordinator, analytics, device),
-        # Primary cat-lover set (enabled). Secondary gauges disabled-by-default
-        # to keep first-run UX calm and recorder load low (HA Gold).
+        # Names use 7d/30d prefixes so period averages group alphabetically.
+        # Secondary gauges disabled-by-default (HA Gold / Pi recorder).
         _s(
             translation_key="visits_30_days",
             unique_suffix="visits_30d",
@@ -544,7 +614,6 @@ def box_analytics_entities(
             metric_key="hours_since_bag_replaced",
             unit="h",
             as_hours=True,
-            # BA: primary “is the bag overdue?” gauge for multi-cat homes
         ),
         _s(
             translation_key="last_bag_lifetime",
@@ -592,7 +661,6 @@ def box_analytics_entities(
             metric_key="hours_since_litter_reset",
             unit="h",
             as_hours=True,
-            # BA: primary “time for fresh litter?” gauge
         ),
         _s(
             translation_key="last_litter_interval",

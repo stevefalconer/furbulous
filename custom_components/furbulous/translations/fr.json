@@ -67,7 +67,7 @@
       "message": "Impossible de joindre le cloud Furbulous"
     },
     "empty_not_confirmed": {
-      "message": "Empty not confirmed. Empty dumps all litter — close the litter drum, turn ON “Confirm empty ready”, then press Empty within 90 seconds."
+      "message": "Empty not confirmed. Empty dumps all litter — close the litter drum, turn ON “Empty confirm ready”, then press Empty within 90 seconds."
     }
   },
   "selector": {
@@ -82,28 +82,34 @@
   "entity": {
     "sensor": {
       "last_activity": {
-        "name": "Dernière activité"
+        "name": "Last activity"
       },
       "cat_weight": {
-        "name": "Poids du chat"
+        "name": "Cat weight"
       },
       "daily_uses": {
-        "name": "Utilisations quotidiennes"
+        "name": "Daily uses"
       },
       "average_daily_duration": {
-        "name": "Durée moyenne quotidienne"
+        "name": "Average daily duration"
       },
       "error": {
-        "name": "Erreur"
+        "name": "Error"
       },
       "firmware": {
         "name": "Firmware"
       },
       "hand_mode": {
-        "name": "Hand mode"
+        "name": "Box action"
+      },
+      "box_action": {
+        "name": "Box action"
       },
       "completion_status": {
-        "name": "Completion status"
+        "name": "Cycle completion"
+      },
+      "cycle_completion": {
+        "name": "Cycle completion"
       },
       "uses_vs_yesterday": {
         "name": "Uses vs yesterday"
@@ -117,14 +123,23 @@
       "last_visitor": {
         "name": "Last visitor"
       },
+      "last_visit_activity": {
+        "name": "Last visit activity"
+      },
+      "last_visit_time": {
+        "name": "Last visit time"
+      },
+      "last_visit_weight": {
+        "name": "Last visit weight"
+      },
       "visits_7_days": {
-        "name": "Visits (7 days)"
+        "name": "7d visits"
       },
       "visits_30_days": {
-        "name": "Visits (30 days)"
+        "name": "30d visits"
       },
       "avg_visit_duration_30d": {
-        "name": "Avg visit duration (30 days)"
+        "name": "30d avg visit duration"
       },
       "time_full_current": {
         "name": "Time full (current)"
@@ -133,13 +148,13 @@
         "name": "Last time to clear"
       },
       "avg_time_to_clear_30d": {
-        "name": "Avg time to clear (30 days)"
+        "name": "30d avg time to clear"
       },
       "max_time_to_clear_30d": {
-        "name": "Max time to clear (30 days)"
+        "name": "30d max time to clear"
       },
       "full_episodes_30d": {
-        "name": "Full episodes (30 days)"
+        "name": "30d full episodes"
       },
       "last_pack": {
         "name": "Last pack"
@@ -148,10 +163,10 @@
         "name": "Hours since last pack"
       },
       "avg_hours_between_packs_30d": {
-        "name": "Avg hours between packs (30 days)"
+        "name": "30d avg hours between packs"
       },
       "packs_30d": {
-        "name": "Packs (30 days)"
+        "name": "30d packs"
       },
       "visits_since_last_pack": {
         "name": "Visits since last pack"
@@ -166,10 +181,10 @@
         "name": "Last bag lifetime"
       },
       "avg_bag_lifetime_30d": {
-        "name": "Avg bag lifetime (30 days)"
+        "name": "30d avg bag lifetime"
       },
       "bags_replaced_30d": {
-        "name": "Bags replaced (30 days)"
+        "name": "30d bags replaced"
       },
       "visits_during_last_bag": {
         "name": "Visits during last bag"
@@ -184,19 +199,19 @@
         "name": "Last litter interval"
       },
       "avg_litter_interval_30d": {
-        "name": "Avg litter interval (30 days)"
+        "name": "30d avg litter interval"
       },
       "litter_resets_30d": {
-        "name": "Litter resets (30 days)"
+        "name": "30d litter resets"
       },
       "pet_visits_7d": {
-        "name": "Visits (7 days)"
+        "name": "7d visits"
       },
       "pet_visits_30d": {
-        "name": "Visits (30 days)"
+        "name": "30d visits"
       },
       "pet_avg_duration_30d": {
-        "name": "Avg visit duration (30 days)"
+        "name": "30d avg visit duration"
       },
       "favorite_litter_box": {
         "name": "Favorite litter box"
@@ -204,88 +219,100 @@
       "pet_last_seen": {
         "name": "Last seen"
       },
-      "last_visit_time": {
-        "name": "Last visit time"
+      "eco_mode_start": {
+        "name": "Eco mode start"
       },
-      "last_visit_weight": {
-        "name": "Last visit weight"
+      "eco_mode_stop": {
+        "name": "Eco mode stop"
+      },
+      "dnd_start": {
+        "name": "Do not disturb start"
+      },
+      "dnd_stop": {
+        "name": "Do not disturb stop"
       }
     },
     "binary_sensor": {
       "connected": {
-        "name": "Connecté"
+        "name": "Connected"
       },
       "cat_in_litter_box": {
-        "name": "Chat dans le bac"
+        "name": "Cat in litter box"
       },
       "waste_bin_full": {
-        "name": "Bac à déchets plein"
+        "name": "Waste bin status"
       },
-      "child_lock": {
-        "name": "Sécurité enfants"
-      },
-      "sleep_mode": {
-        "name": "Mode veille"
+      "waste_bin_status": {
+        "name": "Waste bin status"
       },
       "cover_open": {
-        "name": "Cover open"
+        "name": "Cover status"
+      },
+      "cover_status": {
+        "name": "Cover status"
       },
       "drawer_not_in_place": {
-        "name": "Drawer not in place"
+        "name": "Drawer status"
+      },
+      "drawer_status": {
+        "name": "Drawer status"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "sleep_mode": {
+        "name": "Screen off active"
       },
       "energy_saving_active": {
-        "name": "Energy saving active"
+        "name": "Screen off active"
       }
     },
     "switch": {
       "full_auto_mode": {
-        "name": "Mode entièrement automatique"
+        "name": "Full auto mode"
       },
       "do_not_disturb": {
-        "name": "Ne pas déranger"
-      },
-      "child_lock": {
-        "name": "Sécurité enfants"
+        "name": "Do not disturb"
       },
       "energy_saving": {
-        "name": "Energy saving"
-      },
-      "confirm_empty_ready": {
-        "name": "Confirm empty ready"
+        "name": "Screen off"
       },
       "screen_off": {
         "name": "Screen off"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "confirm_empty_ready": {
+        "name": "Empty confirm ready"
+      },
+      "empty_confirm_ready": {
+        "name": "Empty confirm ready"
       }
     },
     "button": {
       "manual_clean": {
-        "name": "Nettoyage manuel"
+        "name": "Manual clean"
       },
       "pause_cleaning": {
-        "name": "Pause nettoyage"
+        "name": "Pause cleaning"
       },
       "resume_cleaning": {
-        "name": "Reprendre le nettoyage"
+        "name": "Resume cleaning"
       },
       "empty": {
-        "name": "Vider"
+        "name": "Empty"
       },
       "pack": {
-        "name": "Emballer"
+        "name": "Pack"
       },
       "mark_litter_reset": {
         "name": "Mark litter reset"
-      },
-      "screen_off": {
-        "name": "Screen off"
-      },
-      "screen_on": {
-        "name": "Screen on"
       }
     },
     "select": {
       "cleaning_delay": {
-        "name": "Délai de nettoyage"
+        "name": "Cleaning delay"
       }
     }
   }

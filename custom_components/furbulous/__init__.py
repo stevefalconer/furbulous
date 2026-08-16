@@ -27,7 +27,7 @@ from .furbulous_api import (
     FurbulousCatConnectionError,
 )
 from .models import FurbulousRuntimeData
-from .registry import async_clear_display_overrides
+from .registry import async_clear_display_overrides, async_remove_orphan_entities
 
 if TYPE_CHECKING:
     FurbulousConfigEntry = ConfigEntry[FurbulousRuntimeData]
@@ -86,6 +86,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
     await presence_coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Drop legacy Screen on/off buttons (1.3.4+) so only Screen off switch remains
+    await async_remove_orphan_entities(hass, entry)
 
     # One-shot after upgrade from 1.1.x: drop sticky weight unit locks only
     # (does not wipe custom entity names the user intentionally set).

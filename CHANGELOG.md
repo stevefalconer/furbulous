@@ -2,6 +2,29 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.5 — 2026-08-16
+
+### Controls / Configuration UX (user feedback)
+
+- **Single Screen off control:** ON = display blank/dim; OFF = screen normal. Legacy Screen on/off **buttons** are pruned from the entity registry on setup.
+- **Configuration section:** Screen off, Full auto mode, Do not disturb, Child lock, Cleaning delay, Eco mode start/stop.
+- **Controls section:** Empty, **Empty confirm ready** (renamed so it sorts next to Empty), Manual clean, Pause/Resume, Pack, Mark litter reset.
+- **Eco mode start / stop** sensors (read when API returns schedule properties; write remains in the app until keys are confirmed).
+- Diagnostic **Screen off active** mirror disabled by default (avoids looking like a second Screen off).
+
+### Naming & sensors
+
+- Problem binaries → **Waste bin status**, **Cover status**, **Drawer status** (HA **OK** / **Problem**).
+- **Hand mode** → **Box action** (Idle / Cleaning / Emptying / Packing bag / Paused / Resuming).
+- **Completion status** → **Cycle completion** with best-effort labels + raw attribute.
+- Period metrics prefixed **7d** / **30d** for alphabetical grouping.
+- **Last visit activity** sensor: `PetName · time` for Activity/Logbook.
+- Counts default to **0**; text empties **`-`**; WEIGHT/DURATION/TIMESTAMP still use HA **unknown** when empty (documented).
+
+### Quality suite
+
+- Persistent `tests/quality/{bronze,silver,gold,performance,uat}/` with [PROMPTS.md](tests/quality/PROMPTS.md) and [ISSUES.md](tests/quality/ISSUES.md).
+
 ## 1.3.4 — 2026-08-16
 
 ### Multi-cat identity (5 cats × many boxes)
