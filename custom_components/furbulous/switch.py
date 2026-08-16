@@ -187,25 +187,26 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify schedule is managed in the vendor app when not in properties."""
+        """Point to matching Quiet hours start/end time entities."""
         device = self.device_data or {}
         props = device.get("properties") or {}
         start, start_key = first_prop(props, DND_START_KEYS)
         stop, stop_key = first_prop(props, DND_STOP_KEYS)
         attrs: dict[str, str] = {
-            "note": (
-                "DND start/stop daily times are set in the Furbulous app when "
-                "not returned by the cloud API. HA toggles active on/off."
+            "plain_english": (
+                "ON = quiet mode active. The box only respects this inside "
+                "Quiet hours start–end (set those times on this device)."
             ),
+            "audience": "setting",
         }
         if start:
-            attrs["dnd_start"] = start
+            attrs["quiet_hours_start"] = start
             if start_key:
-                attrs["dnd_start_key"] = start_key
+                attrs["quiet_hours_start_key"] = start_key
         if stop:
-            attrs["dnd_stop"] = stop
+            attrs["quiet_hours_end"] = stop
             if stop_key:
-                attrs["dnd_stop_key"] = stop_key
+                attrs["quiet_hours_end_key"] = stop_key
         return attrs
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -283,10 +284,15 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
             "effect": "display_dim_standby",
             "when_on": "screen_off_or_dimmed",
             "when_off": "screen_on_normal",
-            "note": (
-                "ON blanks/dims the screen. Daily eco start/stop times are set "
-                "in the Furbulous app unless shown on Eco mode start/stop sensors."
+            "plain_english": (
+                "ON blanks/dims the screen only inside Screen off start–end. "
+                "Set those times on this device or the display may stay on."
             ),
+            "note": (
+                "ON blanks/dims the display. Daily window is Screen off start "
+                "and Screen off end (writable time entities)."
+            ),
+            "audience": "setting",
         }
         if start:
             attrs["eco_start"] = start

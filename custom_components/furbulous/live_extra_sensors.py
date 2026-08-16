@@ -10,21 +10,10 @@ from .entity import FurbulousEntity, extract_prop_value
 from .entity_ids import (
     UID_CLEAN_CYCLE_STATUS,
     UID_FIRMWARE,
-    UID_QUIET_HOURS_END,
-    UID_QUIET_HOURS_START,
-    UID_SCREEN_OFF_SCHEDULE_END,
-    UID_SCREEN_OFF_SCHEDULE_START,
     UID_USES_VS_YESTERDAY,
     UID_VISIT_LENGTH_VS_YESTERDAY,
     UID_WHAT_BOX_DOING,
     box_uid,
-)
-from .schedule_props import (
-    DND_START_KEYS,
-    DND_STOP_KEYS,
-    ECO_START_KEYS,
-    ECO_STOP_KEYS,
-    first_prop,
 )
 
 # Vendor handMode codes → cat-friendly labels (what the box is doing)
@@ -175,7 +164,6 @@ class FurbulousUsesVsYesterdaySensor(FurbulousEntity, SensorEntity):
 
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:chart-line"
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator, device_id: int) -> None:
         super().__init__(
@@ -200,7 +188,6 @@ class FurbulousDurationVsYesterdaySensor(FurbulousEntity, SensorEntity):
 
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:chart-timeline-variant"
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator, device_id: int) -> None:
         super().__init__(
@@ -220,125 +207,3 @@ class FurbulousDurationVsYesterdaySensor(FurbulousEntity, SensorEntity):
         return int(value) if value is not None else None
 
 
-class FurbulousEcoStartSensor(FurbulousEntity, SensorEntity):
-    """Eco / screen-off schedule start (daily), when exposed by the API.
-
-    Write schedules remain in the Furbulous app until property keys are confirmed.
-    Configuration category so it sits with Screen off / DND settings.
-    """
-
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:clock-start"
-
-    def __init__(self, coordinator, device_id: int) -> None:
-        super().__init__(
-            coordinator,
-            device_id,
-            translation_key="eco_mode_start",
-            unique_id=box_uid(device_id, UID_SCREEN_OFF_SCHEDULE_START),
-        )
-
-    @property
-    def native_value(self) -> str:
-        device = self.device_data
-        if not device:
-            return "-"
-        value, _key = first_prop(device.get("properties") or {}, ECO_START_KEYS)
-        return value if value else "-"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str]:
-        device = self.device_data or {}
-        value, key = first_prop(device.get("properties") or {}, ECO_START_KEYS)
-        return {
-            "property_key": key or "-",
-            "note": (
-                "Daily eco/screen schedule start. Set in the Furbulous app if "
-                "this shows “-”. Captured property keys appear after cloud returns them."
-            ),
-            "has_value": "yes" if value else "no",
-        }
-
-
-class FurbulousEcoStopSensor(FurbulousEntity, SensorEntity):
-    """Eco / screen-off schedule stop (daily), when exposed by the API."""
-
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:clock-end"
-
-    def __init__(self, coordinator, device_id: int) -> None:
-        super().__init__(
-            coordinator,
-            device_id,
-            translation_key="eco_mode_stop",
-            unique_id=box_uid(device_id, UID_SCREEN_OFF_SCHEDULE_END),
-        )
-
-    @property
-    def native_value(self) -> str:
-        device = self.device_data
-        if not device:
-            return "-"
-        value, _key = first_prop(device.get("properties") or {}, ECO_STOP_KEYS)
-        return value if value else "-"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str]:
-        device = self.device_data or {}
-        value, key = first_prop(device.get("properties") or {}, ECO_STOP_KEYS)
-        return {
-            "property_key": key or "-",
-            "note": (
-                "Daily eco/screen schedule stop. Set in the Furbulous app if "
-                "this shows “-”. Write from HA needs confirmed API keys."
-            ),
-            "has_value": "yes" if value else "no",
-        }
-
-
-class FurbulousDndStartSensor(FurbulousEntity, SensorEntity):
-    """Do not disturb / night mode schedule start when exposed by the API."""
-
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:clock-start"
-    _attr_entity_registry_enabled_default = False
-
-    def __init__(self, coordinator, device_id: int) -> None:
-        super().__init__(
-            coordinator,
-            device_id,
-            translation_key="dnd_start",
-            unique_id=box_uid(device_id, UID_QUIET_HOURS_START),
-        )
-
-    @property
-    def native_value(self) -> str:
-        device = self.device_data
-        if not device:
-            return "-"
-        value, _key = first_prop(device.get("properties") or {}, DND_START_KEYS)
-        return value if value else "-"
-
-
-class FurbulousDndStopSensor(FurbulousEntity, SensorEntity):
-    """Do not disturb / night mode schedule stop when exposed by the API."""
-
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:clock-end"
-    _attr_entity_registry_enabled_default = False
-
-    def __init__(self, coordinator, device_id: int) -> None:
-        super().__init__(
-            coordinator,
-            device_id,
-            translation_key="dnd_stop",
-            unique_id=box_uid(device_id, UID_QUIET_HOURS_END),
-        )
-
-    @property
-    def native_value(self) -> str:
-        device = self.device_data
-        if not device:
-            return "-"
-        value, _key = first_prop(device.get("properties") or {}, DND_STOP_KEYS)
-        return value if value else "-"

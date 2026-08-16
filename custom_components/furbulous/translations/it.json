@@ -218,18 +218,6 @@
       },
       "pet_last_seen": {
         "name": "Last seen"
-      },
-      "eco_mode_start": {
-        "name": "Screen-off schedule starts"
-      },
-      "eco_mode_stop": {
-        "name": "Screen-off schedule ends"
-      },
-      "dnd_start": {
-        "name": "Quiet hours start"
-      },
-      "dnd_stop": {
-        "name": "Quiet hours end"
       }
     },
     "binary_sensor": {
@@ -312,7 +300,21 @@
     },
     "select": {
       "cleaning_delay": {
-        "name": "Minutes before auto-clean"
+        "name": "Auto-clean minutes before"
+      }
+    },
+    "time": {
+      "screen_off_start": {
+        "name": "Screen off start"
+      },
+      "screen_off_end": {
+        "name": "Screen off end"
+      },
+      "quiet_hours_start": {
+        "name": "Quiet hours start"
+      },
+      "quiet_hours_end": {
+        "name": "Quiet hours end"
       }
     }
   }

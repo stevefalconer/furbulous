@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.7 |
+| **Version** | 1.3.8 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -115,12 +115,12 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 |----------|----------|---------------------|
 | Binary sensor | **Cat inside**; **Needs emptying** / **Cover open** / **Drawer out of place** (OK or Problem); Online*; Child lock on*; Screen is off*‡ | Sensors / Diagnostic |
 | Sensor (live) | Cat weight; **Uses today**; Average visit today; Error message*; Firmware*; **What the box is doing***; **Clean cycle status***; day-over-day‡ | Sensors / Diagnostic |
-| Sensor (schedule) | **Screen-off schedule starts/ends**; Quiet hours start/end‡ | **Configuration** |
+| Time | **Screen off start** / **Screen off end**; **Quiet hours start** / **Quiet hours end** (writable daily window) | **Configuration** |
 | Sensor (analytics) | **Last cat**; **Last visit** (`Name · time`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
 | Switch | **Screen off**; **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
 | Switch | **Empty — confirm ready** (safety) | **Controls** |
 | Button | **Clean now**; Pause / Resume cleaning; **Empty waste** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
-| Select | **Minutes before auto-clean** | **Configuration** |
+| Select | **Auto-clean minutes before** | **Configuration** |
 
 ### Pets (per cat from account roster)
 
@@ -128,9 +128,9 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 |----------|----------|
 | Sensor | Visits (7 / 30 days); Visit length average (30 days); Favorite litter box; Last seen |
 
-\* Diagnostic · ‡ Disabled by default  
+\* Diagnostic  
 
-**Controls** = chores. **Configuration** = preferences.  
+**Controls** = chores. **Configuration** = preferences (including schedule times).  
 
 **Entity unique_ids** (1.3.7+) use cat-language slugs, e.g.  
 `furbulous_{device_id}_last_cat`, `_needs_emptying`, `_empty_waste`, `_bag_age_hours`  
@@ -174,18 +174,19 @@ Vendor `completionStatus` — friendly labels + **raw** attribute. Confirm on yo
 | Counts | **0** |
 | Weight / duration / timestamp | HA **unknown** until first real value |
 
-### Disabled-by-default sensors
+### Screen off & Quiet hours windows
 
-**Expected.** Secondary analytics, day-over-day, quiet-hours times, screen mirror — enable when needed (keeps Pi recorder calm).
+The box only applies **Screen off** / **Quiet hours** inside the daily start–end times. Set:
+
+- **Screen off** + **Screen off start** + **Screen off end**
+- **Quiet hours** + **Quiet hours start** + **Quiet hours end**
+
+Times are written to the cloud API (not app-only).
 
 ### Power-user events (capabilities kept)
 
 Bus events for automations (do not depend on display names):  
 `furbulous_visit_ended`, `furbulous_waste_full`, `furbulous_waste_cleared`, `furbulous_bag_replaced`, `furbulous_pack`, `furbulous_litter_reset` — details in [POWER_USER.md](docs/POWER_USER.md).
-
-### Screen-off schedule
-
-Read-only start/end when the API exposes times; **set schedule in the Furbulous app** if blank.
 
 ### Cat-lover tips
 
@@ -263,7 +264,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.7**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.8**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  

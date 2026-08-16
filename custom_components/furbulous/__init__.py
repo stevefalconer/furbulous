@@ -14,6 +14,7 @@ from .const import (
     CONF_ACCOUNT_TYPE,
     CONF_CAT_UID_SCHEME_V1_DONE,
     CONF_DISPLAY_RESET_DONE,
+    CONF_ENABLE_ALL_ENTITIES_DONE,
     CONF_REGION,
     CONF_WEIGHT_CALC_UNIT_RESET_DONE,
     CONFIG_VERSION,
@@ -30,7 +31,9 @@ from .furbulous_api import (
 from .models import FurbulousRuntimeData
 from .registry import (
     async_clear_display_overrides,
+    async_enable_all_entry_entities,
     async_purge_config_entry_entities,
+    async_remove_legacy_schedule_sensors,
     async_remove_orphan_entities,
 )
 
@@ -47,6 +50,7 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.SWITCH,
     Platform.SELECT,
+    Platform.TIME,
 ]
 
 
@@ -97,10 +101,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
         data[CONF_CAT_UID_SCHEME_V1_DONE] = True
         hass.config_entries.async_update_entry(entry, data=data)
 
+    # Drop old sensor-domain schedule entities before time platform registers
+    await async_remove_legacy_schedule_sensors(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Drop legacy Screen on/off buttons (1.3.4+) so only Screen off switch remains
     await async_remove_orphan_entities(hass, entry)
+
+    # One-shot: enable entities that were created disabled-by-default earlier
+    data = dict(entry.data)
+    if not data.get(CONF_ENABLE_ALL_ENTITIES_DONE):
+        await async_enable_all_entry_entities(hass, entry)
+        data[CONF_ENABLE_ALL_ENTITIES_DONE] = True
+        hass.config_entries.async_update_entry(entry, data=data)
 
     # One-shot after upgrade from 1.1.x: drop sticky weight unit locks only
     # (does not wipe custom entity names the user intentionally set).

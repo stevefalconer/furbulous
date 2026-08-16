@@ -42,7 +42,11 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["button"]["pack"]["name"] == "Seal waste bag"
     assert s["button"]["mark_litter_reset"]["name"] == "I refilled the litter"
     assert s["switch"]["empty_confirm_ready"]["name"].startswith("Empty")
-    assert s["select"]["cleaning_delay"]["name"] == "Minutes before auto-clean"
+    assert s["select"]["cleaning_delay"]["name"].startswith("Auto-clean")
+    assert s["time"]["screen_off_start"]["name"].startswith("Screen off")
+    assert s["time"]["screen_off_end"]["name"].startswith("Screen off")
+    assert s["time"]["quiet_hours_start"]["name"].startswith("Quiet hours")
+    assert s["time"]["quiet_hours_end"]["name"].startswith("Quiet hours")
 
 
 def test_chore_names_group_for_scanning():

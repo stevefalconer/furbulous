@@ -73,10 +73,12 @@ Press **I refilled the litter** so “Litter age” restarts. The cloud may not 
 | Name | Plain English |
 |------|----------------|
 | **Auto-clean after visits** | Box cleans itself after each use |
-| **Quiet hours** | Soft/no cleaning while quiet mode is on (schedule often in the **app**) |
+| **Auto-clean minutes before** | Wait after a visit before auto-clean starts |
+| **Quiet hours** | Soft/no cleaning while quiet mode is on |
+| **Quiet hours start** / **Quiet hours end** | Daily window for quiet mode (set both) |
 | **Screen off** | ON = dim/blank the display · OFF = normal |
+| **Screen off start** / **Screen off end** | Daily window when Screen off applies (set both) |
 | **Child lock** | Locks the physical controls |
-| **Screen-off schedule starts/ends** | Shown when the cloud sends times; set schedule in the **app** if blank |
 
 ---
 

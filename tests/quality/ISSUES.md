@@ -22,6 +22,8 @@ link tests that guard the fix.
 | Q-015 | 1.3.6 UX review | **resolved** 1.3.6 | uat | Power users need event triggers without name scrape | Bus events visit/full/bag/litter/pack | `test_event_type_constants_are_namespaced`, `test_emit_event_fires_on_hass_bus` |
 | Q-016 | 1.3.6 UX review | **resolved** 1.3.6 | uat | Adoption docs missing for non-tech vs power | CAT_PARENT_GUIDE + POWER_USER + UX_REVIEW | `test_adoption_docs_exist` |
 | Q-017 | 1.3.7 | **resolved** 1.3.7 | bronze | unique_ids still vendor camelCase / iotid | Cat-parent slug scheme + one-shot purge | `test_all_box_unique_ids_use_cat_parent_scheme` |
+| Q-018 | 1.3.8 | **resolved** 1.3.8 | gold | Screen/Quiet schedules read-only / wrong names | Writable time entities named Screen off / Quiet hours start|end | `test_screen_off_and_quiet_hours_time_entities_writable` |
+| Q-019 | 1.3.8 | **resolved** 1.3.8 | gold | Secondary sensors + Screen is off disabled | All enabled by default + one-shot registry enable | `test_all_entities_enabled_by_default` |
 
 ## How to use
 
