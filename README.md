@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.2.0 |
+| **Version** | 1.2.1 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -117,11 +117,16 @@ Switches are suitable for HomeKit / dashboards when exposed by HA. Buttons and s
 
 ## 8. Units
 
-- **Weight:** API native **grams** + `SensorDeviceClass.WEIGHT`. Home Assistant converts for your unit system (e.g. **lb** for US Customary, **kg** for Metric). Suggested display precision is one decimal for converted units.  
+- **Weight:** API native **grams** + `SensorDeviceClass.WEIGHT`. The integration **suggests** your HA mass unit (`lb` for US Customary, `g` for Metric) so the UI converts correctly. (Unlike temperature, HA does **not** auto-convert weight from the unit system alone without a suggested unit.)  
 - **Duration:** native **seconds** + `SensorDeviceClass.DURATION`.  
-- No login-time unit picker and no parallel unit system in this integration.
+- Suggested display precision is one decimal for converted weight.  
+- No login-time unit picker.
 
-If weight stays on **g** after upgrade: first 1.2.0 load clears sticky weight unit locks once. **Reconfigure** / **Reauthenticate** also clear unit locks and old custom names so HA language + unit system apply.
+**If Cat weight still shows grams** with US units (Fahrenheit / pounds):
+
+1. Open the **Cat weight** entity → gear (settings) → **Unit of measurement** → **lb** → Update.  
+2. Or: Devices & Services → Furbulous → **Reconfigure** (same credentials is fine) — clears locked units and refreshes the suggested unit from your mass unit system.  
+3. Confirm **Settings → System → General → Unit system** is **US Customary** (mass = pounds). “Home Information” alone is not enough if the entity unit was locked earlier.
 
 ---
 

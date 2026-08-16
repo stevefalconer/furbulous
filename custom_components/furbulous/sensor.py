@@ -73,7 +73,14 @@ class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
 
 
 class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
-    """Cat weight — native grams; HA converts to lb/kg for the user profile."""
+    """Cat weight — API native grams; display unit follows HA mass unit system.
+
+    Home Assistant does **not** auto-map weight g→lb from the unit system the way
+    it does for temperature. We set ``suggested_unit_of_measurement`` from
+    ``hass.config.units.mass_unit`` (lb for US Customary, g for Metric) so the
+    first registration and a registry refresh show pounds when the user chose
+    imperial mass.
+    """
 
     _attr_device_class = SensorDeviceClass.WEIGHT
     _attr_native_unit_of_measurement = UnitOfMass.GRAMS
@@ -91,8 +98,20 @@ class FurbulousCatWeightSensor(FurbulousEntity, SensorEntity):
         )
 
     @property
+    def suggested_unit_of_measurement(self) -> str | None:
+        """Prefer HA mass unit (e.g. lb) when convertible from grams."""
+        if self.hass is None:
+            return None
+        mass_unit = self.hass.config.units.mass_unit
+        # Metric profile uses grams as mass_unit — keep native g (return None).
+        # US Customary uses pounds — suggest lb so the UI converts from grams.
+        if mass_unit and mass_unit != UnitOfMass.GRAMS:
+            return mass_unit
+        return None
+
+    @property
     def native_value(self) -> float | None:
-        """Return weight in grams (API-native; no display conversion here)."""
+        """Return weight in grams (API-native)."""
         device = self.device_data
         if not device:
             return None
