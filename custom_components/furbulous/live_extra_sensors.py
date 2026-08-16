@@ -93,11 +93,17 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
         device = self.device_data or {}
         raw = extract_prop_value((device.get("properties") or {}).get("handMode"))
         return {
+            "plain_english": (
+                "Shows Idle, Cleaning, Emptying, Packing bag, Paused, or Resuming."
+            ),
             "raw_hand_mode": raw if raw is not None else "-",
+            "vendor_property": "handMode",
+            "audience": "power",
             "note": (
                 "Idle = waiting. Cleaning = cycle running. Emptying / Packing bag "
                 "are waste actions. Paused / Resuming control an in-progress cycle."
             ),
+            "automation_hint": "Trigger on state change or raw_hand_mode attribute",
         }
 
 

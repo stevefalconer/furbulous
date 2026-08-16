@@ -3,16 +3,17 @@
 Tracking against [HA Integration Quality Scale rules](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/).  
 Status: **PASS** | **EXEMPT** (with reason). Not a core submission claim.
 
-**Last reviewed:** 2026-08-16 (**v1.3.5**)
+**Last reviewed:** 2026-08-16 (**v1.3.6**)
 
 Automated tests:
 
 ```bash
 .venv/bin/pytest tests/ -q
-.venv/bin/pytest tests/quality/ -q   # bronze / silver / gold / performance / UAT
+.venv/bin/pytest tests/quality/ -q
 ```
 
-Repeatable prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issue log: [tests/quality/ISSUES.md](tests/quality/ISSUES.md)
+Prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issues: [tests/quality/ISSUES.md](tests/quality/ISSUES.md)  
+Adoption: [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md) · Power: [docs/POWER_USER.md](docs/POWER_USER.md)
 
 ---
 
@@ -24,12 +25,12 @@ Repeatable prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issu
 | test-before-configure | PASS | Auth + device list before create_entry |
 | test-before-setup | PASS | ConfigEntryAuthFailed / ConfigEntryNotReady |
 | unique-config-entry | PASS | unique_id email_region |
-| entity-unique-id | PASS | Stable box + pet + analytics ids |
-| has-entity-name | PASS | Base + analytics entities |
+| entity-unique-id | PASS | Stable across friendly renames (1.3.6) |
+| has-entity-name | PASS | translation_key names |
 | runtime-data | PASS | api, dual coordinators, analytics |
-| appropriate-polling | PASS | 30s properties; pets ≤1 min; 5 min list/stats |
-| common-modules | PASS | api, coordinator, analytics, pet_match, schedule_props |
-| docs-high-level / install / removal | PASS | README current for 1.3.5 |
+| appropriate-polling | PASS | 30s / ≤60s pets / 5 min full |
+| common-modules | PASS | analytics, events, ux, schedule_props |
+| docs-high-level / install / removal | PASS | README + cat parent guide |
 
 ---
 
@@ -37,13 +38,13 @@ Repeatable prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issu
 
 | Rule | Status | Notes |
 |------|--------|--------|
-| config-entry-unloading | PASS | Flush analytics; cancel flush tasks |
+| config-entry-unloading | PASS | Analytics flush |
 | reauthentication-flow | PASS | reauth |
 | entity-unavailable | PASS | last_update_success |
 | log-when-unavailable | PASS | Once down / once up |
 | parallel-updates | PASS | PARALLEL_UPDATES = 0 |
-| integration-owner | PASS | CODEOWNERS + manifest |
-| action-exceptions | PASS | HomeAssistantError + empty_not_confirmed |
+| integration-owner | PASS | CODEOWNERS |
+| action-exceptions | PASS | empty_not_confirmed plain English |
 
 ---
 
@@ -51,46 +52,34 @@ Repeatable prompts: [tests/quality/PROMPTS.md](tests/quality/PROMPTS.md) · Issu
 
 | Rule | Status | Notes |
 |------|--------|--------|
-| devices | PASS | Box + pet devices |
+| devices | PASS | Box + pet |
 | entity-device-class | PASS | weight, duration, connectivity, problem |
-| entity-translations | PASS | strings + locale packs |
-| exception-translations | PASS | exceptions in strings |
-| entity-category | PASS | CONFIG settings; Controls for Empty chore; diagnostic support |
-| diagnostics | PASS | Redacted + analytics counts |
-| docs-known-limitations | PASS | Eco/DND schedule write in app; multi-cat weight gaps |
-| docs-data-update | PASS | Dual poll + pet throttle |
-| docs-supported-functions | PASS | README entities + empty safety + multi-cat + OK status |
+| entity-translations | PASS | Cat-parent English names in packs |
+| exception-translations | PASS | exceptions |
+| entity-category | PASS | CONFIG settings; Controls chores |
+| diagnostics | PASS | Redacted |
+| docs-known-limitations | PASS | Schedule write in app; multi-cat weight |
+| docs-data-update | PASS | Dual poll |
+| docs-supported-functions | PASS | README + guides + events |
 | reconfiguration-flow | PASS | reconfigure |
-| stale-devices | PASS | Boxes + pets pruned |
-| entity-disabled-by-default | PASS | Secondary analytics + DND times + screen mirror off by default |
-| discovery | EXEMPT | Cloud login only |
+| stale-devices | PASS | Prune |
+| entity-disabled-by-default | PASS | Secondary set |
+| discovery | EXEMPT | Cloud login |
 
 ---
 
-## Performance (1.3.5)
-
-| Item | Cadence | Notes |
-|------|---------|--------|
-| properties/get | 30s | Occupancy, weight, full, screen, modes |
-| pet/list | ≤60s | Cached; force on full poll |
-| device list + wcheader | 5 min | Discovery + daily stats |
-| Analytics idle | no full rollup | O(devices) live full-wait only |
-| Empty arm | local | No extra HTTP |
-| Orphan prune | setup | Removes legacy screen buttons once |
-
----
-
-## Multi-role sign-off (1.3.5)
+## Multi-role sign-off (1.3.6)
 
 | Lens | Result |
 |------|--------|
-| End-user | **PASS** — single Screen off, Empty pair, pet in Activity, OK status names |
-| Business analyst | **PASS** — chores vs settings, full auto vs pause documented |
-| Developer | **PASS** — orphan cleanup, stable unique_ids, no fake schedule writes |
-| Performance | **PASS** — pet throttle, idle analytics, disabled secondary sensors |
-| Principal | **PASS** — honest API limits; quality suite + ISSUES log |
-| Home Assistant expert | **PASS** — entity_category, PROBLEM OK, unknown vs `-` policy |
+| Casual cat parent | **PASS** — plain names + CAT_PARENT_GUIDE |
+| Multi-cat household | **PASS** — Last cat/visit, bag/litter age |
+| Power automator | **PASS** — events + attrs + stable unique_ids |
+| HA usability | **PASS** — categories, PROBLEM OK, progressive disclosure |
+| General app UX | **PASS** — safety empty, jargon reduced |
+| Business analyst | **PASS** — chore outcomes mapped |
+| Performance | **PASS** — unchanged poll budget + events cheap |
+| Principal | **PASS** — no capability removal |
 | Bronze / Silver / Gold lean | **PASS** |
-| Unit + quality suite | **PASS** (`pytest tests/`) |
 
 Run: `.venv/bin/pytest tests/ -q`

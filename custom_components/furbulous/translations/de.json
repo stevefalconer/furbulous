@@ -67,7 +67,7 @@
       "message": "Furbulous-Cloud nicht erreichbar"
     },
     "empty_not_confirmed": {
-      "message": "Empty not confirmed. Empty dumps all litter — close the litter drum, turn ON “Empty confirm ready”, then press Empty within 90 seconds."
+      "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty waste within 90 seconds."
     }
   },
   "selector": {
@@ -82,49 +82,49 @@
   "entity": {
     "sensor": {
       "last_activity": {
-        "name": "Last activity"
+        "name": "Device last active"
       },
       "cat_weight": {
         "name": "Cat weight"
       },
       "daily_uses": {
-        "name": "Daily uses"
+        "name": "Uses today"
       },
       "average_daily_duration": {
-        "name": "Average daily duration"
+        "name": "Average visit today"
       },
       "error": {
-        "name": "Error"
+        "name": "Error message"
       },
       "firmware": {
         "name": "Firmware"
       },
       "hand_mode": {
-        "name": "Box action"
+        "name": "What the box is doing"
       },
       "box_action": {
-        "name": "Box action"
+        "name": "What the box is doing"
       },
       "completion_status": {
-        "name": "Cycle completion"
+        "name": "Clean cycle status"
       },
       "cycle_completion": {
-        "name": "Cycle completion"
+        "name": "Clean cycle status"
       },
       "uses_vs_yesterday": {
         "name": "Uses vs yesterday"
       },
       "duration_vs_yesterday": {
-        "name": "Duration vs yesterday"
+        "name": "Visit length vs yesterday"
       },
       "occupying_pet": {
-        "name": "Occupying pet"
+        "name": "Who is inside"
       },
       "last_visitor": {
-        "name": "Last visitor"
+        "name": "Last cat"
       },
       "last_visit_activity": {
-        "name": "Last visit activity"
+        "name": "Last visit"
       },
       "last_visit_time": {
         "name": "Last visit time"
@@ -133,85 +133,85 @@
         "name": "Last visit weight"
       },
       "visits_7_days": {
-        "name": "7d visits"
+        "name": "Visits (7 days)"
       },
       "visits_30_days": {
-        "name": "30d visits"
+        "name": "Visits (30 days)"
       },
       "avg_visit_duration_30d": {
-        "name": "30d avg visit duration"
+        "name": "Visit length average (30 days)"
       },
       "time_full_current": {
-        "name": "Time full (current)"
+        "name": "Waiting with full bag"
       },
       "last_time_to_clear": {
-        "name": "Last time to clear"
+        "name": "Last wait until emptied"
       },
       "avg_time_to_clear_30d": {
-        "name": "30d avg time to clear"
+        "name": "Average wait until emptied (30 days)"
       },
       "max_time_to_clear_30d": {
-        "name": "30d max time to clear"
+        "name": "Longest wait until emptied (30 days)"
       },
       "full_episodes_30d": {
-        "name": "30d full episodes"
+        "name": "Times bag filled (30 days)"
       },
       "last_pack": {
-        "name": "Last pack"
+        "name": "Last bag seal"
       },
       "hours_since_last_pack": {
-        "name": "Hours since last pack"
+        "name": "Hours since bag seal"
       },
       "avg_hours_between_packs_30d": {
-        "name": "30d avg hours between packs"
+        "name": "Average hours between seals (30 days)"
       },
       "packs_30d": {
-        "name": "30d packs"
+        "name": "Bag seals (30 days)"
       },
       "visits_since_last_pack": {
-        "name": "Visits since last pack"
+        "name": "Visits since bag seal"
       },
       "last_bag_replaced": {
-        "name": "Last bag replaced"
+        "name": "Bag last changed"
       },
       "hours_since_bag_replaced": {
-        "name": "Hours since bag replaced"
+        "name": "Bag age (hours)"
       },
       "last_bag_lifetime": {
-        "name": "Last bag lifetime"
+        "name": "Bag last lifespan"
       },
       "avg_bag_lifetime_30d": {
-        "name": "30d avg bag lifetime"
+        "name": "Bag average life (30 days)"
       },
       "bags_replaced_30d": {
-        "name": "30d bags replaced"
+        "name": "Bags used (30 days)"
       },
       "visits_during_last_bag": {
-        "name": "Visits during last bag"
+        "name": "Visits on last bag"
       },
       "last_litter_reset": {
-        "name": "Last litter reset"
+        "name": "Litter last refilled"
       },
       "hours_since_litter_reset": {
-        "name": "Hours since litter reset"
+        "name": "Litter age (hours)"
       },
       "last_litter_interval": {
-        "name": "Last litter interval"
+        "name": "Litter last interval"
       },
       "avg_litter_interval_30d": {
-        "name": "30d avg litter interval"
+        "name": "Litter average interval (30 days)"
       },
       "litter_resets_30d": {
-        "name": "30d litter resets"
+        "name": "Litter refills (30 days)"
       },
       "pet_visits_7d": {
-        "name": "7d visits"
+        "name": "Visits (7 days)"
       },
       "pet_visits_30d": {
-        "name": "30d visits"
+        "name": "Visits (30 days)"
       },
       "pet_avg_duration_30d": {
-        "name": "30d avg visit duration"
+        "name": "Visit length average (30 days)"
       },
       "favorite_litter_box": {
         "name": "Favorite litter box"
@@ -220,59 +220,59 @@
         "name": "Last seen"
       },
       "eco_mode_start": {
-        "name": "Eco mode start"
+        "name": "Screen-off schedule starts"
       },
       "eco_mode_stop": {
-        "name": "Eco mode stop"
+        "name": "Screen-off schedule ends"
       },
       "dnd_start": {
-        "name": "Do not disturb start"
+        "name": "Quiet hours start"
       },
       "dnd_stop": {
-        "name": "Do not disturb stop"
+        "name": "Quiet hours end"
       }
     },
     "binary_sensor": {
       "connected": {
-        "name": "Connected"
+        "name": "Online"
       },
       "cat_in_litter_box": {
-        "name": "Cat in litter box"
+        "name": "Cat inside"
       },
       "waste_bin_full": {
-        "name": "Waste bin status"
+        "name": "Needs emptying"
       },
       "waste_bin_status": {
-        "name": "Waste bin status"
+        "name": "Needs emptying"
       },
       "cover_open": {
-        "name": "Cover status"
+        "name": "Cover open"
       },
       "cover_status": {
-        "name": "Cover status"
+        "name": "Cover open"
       },
       "drawer_not_in_place": {
-        "name": "Drawer status"
+        "name": "Drawer out of place"
       },
       "drawer_status": {
-        "name": "Drawer status"
+        "name": "Drawer out of place"
       },
       "child_lock": {
-        "name": "Child lock"
+        "name": "Child lock on"
       },
       "sleep_mode": {
-        "name": "Screen off active"
+        "name": "Screen is off"
       },
       "energy_saving_active": {
-        "name": "Screen off active"
+        "name": "Screen is off"
       }
     },
     "switch": {
       "full_auto_mode": {
-        "name": "Full auto mode"
+        "name": "Auto-clean after visits"
       },
       "do_not_disturb": {
-        "name": "Do not disturb"
+        "name": "Quiet hours"
       },
       "energy_saving": {
         "name": "Screen off"
@@ -284,15 +284,15 @@
         "name": "Child lock"
       },
       "confirm_empty_ready": {
-        "name": "Empty confirm ready"
+        "name": "Empty — confirm ready"
       },
       "empty_confirm_ready": {
-        "name": "Empty confirm ready"
+        "name": "Empty — confirm ready"
       }
     },
     "button": {
       "manual_clean": {
-        "name": "Manual clean"
+        "name": "Clean now"
       },
       "pause_cleaning": {
         "name": "Pause cleaning"
@@ -301,18 +301,18 @@
         "name": "Resume cleaning"
       },
       "empty": {
-        "name": "Empty"
+        "name": "Empty waste"
       },
       "pack": {
-        "name": "Pack"
+        "name": "Seal waste bag"
       },
       "mark_litter_reset": {
-        "name": "Mark litter reset"
+        "name": "I refilled the litter"
       }
     },
     "select": {
       "cleaning_delay": {
-        "name": "Cleaning delay"
+        "name": "Minutes before auto-clean"
       }
     }
   }

@@ -69,6 +69,19 @@ Review this Furbulous HA change as:
 4) Performance developer (poll budget, Pi recorder, O-device idle path)
 5) Principal developer (architecture, orphan cleanup, no fake write APIs)
 6) Home Assistant expert (entity_category, PROBLEM OK, unknown vs -, disabled-by-default)
+7) HA usability + general app usability (plain language, progressive disclosure)
+8) Three personas: casual cat parent; multi-cat household; power automator
+   — keep power events/attrs; simplify names for non-tech
 
 Check tests in tests/quality/* and update ISSUES.md.
+Verify docs/CAT_PARENT_GUIDE.md and docs/POWER_USER.md still match names.
+```
+
+## Cat-parent UAT prompt
+
+```
+As a non-technical multi-cat owner: open the device page.
+Confirm you can find Last cat, Needs emptying, Bag age, Litter age,
+Clean now, Empty — confirm ready, Empty waste, Auto-clean after visits
+without jargon. Confirm unique_ids unchanged and furbulous_* events still fire.
 ```

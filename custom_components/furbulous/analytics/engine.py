@@ -18,6 +18,15 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
+from ..events import (
+    EVENT_BAG_REPLACED,
+    EVENT_LITTER_RESET,
+    EVENT_PACK,
+    EVENT_VISIT_ENDED,
+    EVENT_WASTE_CLEARED,
+    EVENT_WASTE_FULL,
+    emit_event,
+)
 from ..weight import resolve_cat_weight_grams
 from .metrics import UNKNOWN_LABEL, compute_device_metrics, compute_pet_metrics
 from .pet_match import (
@@ -451,23 +460,34 @@ class AnalyticsEngine:
             st["visit_weight_samples"] = []
             st["visit_weight_g"] = None
             if duration >= VISIT_DEBOUNCE_S:
+                visit_payload = {
+                    "duration_s": duration,
+                    "pet_id": end_pet_id,
+                    "pet_name": end_pet_name,
+                    "weight_g": end_weight,
+                    "weight_match_delta_g": end_delta,
+                    "identity_method": end_method,
+                    "identity_confidence": end_conf,
+                    "second_pet": end_match.second_pet_name,
+                    "second_delta_g": end_match.second_delta_g,
+                }
                 self.store.append(
                     "visit_ended",
                     device_id=did,
                     iotid=iotid,
                     source="presence",
-                    payload={
-                        "duration_s": duration,
-                        "pet_id": end_pet_id,
-                        "pet_name": end_pet_name,
-                        "weight_g": end_weight,
-                        "weight_match_delta_g": end_delta,
-                        "identity_method": end_method,
-                        "identity_confidence": end_conf,
-                        "second_pet": end_match.second_pet_name,
-                        "second_delta_g": end_match.second_delta_g,
-                    },
+                    payload=visit_payload,
                     ts=now,
+                )
+                emit_event(
+                    self.hass,
+                    EVENT_VISIT_ENDED,
+                    {
+                        "device_id": did,
+                        "iotid": iotid,
+                        "config_entry_id": self.entry_id,
+                        **visit_payload,
+                    },
                 )
                 st["last_visit_ts"] = now
                 st["last_visit_weight_g"] = end_weight
@@ -507,6 +527,15 @@ class AnalyticsEngine:
                     payload={},
                     ts=now,
                 )
+                emit_event(
+                    self.hass,
+                    EVENT_WASTE_FULL,
+                    {
+                        "device_id": did,
+                        "iotid": iotid,
+                        "config_entry_id": self.entry_id,
+                    },
+                )
                 rank = 1
         else:
             st["full_true_polls"] = 0
@@ -522,6 +551,17 @@ class AnalyticsEngine:
                     source="presence",
                     payload={"time_full_s": time_full, "cleared_how": "unknown"},
                     ts=now,
+                )
+                emit_event(
+                    self.hass,
+                    EVENT_WASTE_CLEARED,
+                    {
+                        "device_id": did,
+                        "iotid": iotid,
+                        "config_entry_id": self.entry_id,
+                        "time_full_s": time_full,
+                        "cleared_how": "unknown",
+                    },
                 )
                 rank = 1
 
@@ -550,6 +590,16 @@ class AnalyticsEngine:
                 payload={},
                 ts=now,
             )
+            emit_event(
+                self.hass,
+                EVENT_PACK,
+                {
+                    "device_id": did,
+                    "iotid": iotid,
+                    "config_entry_id": self.entry_id,
+                    "source": source,
+                },
+            )
         elif hand_mode == HAND_MODE_EMPTY:
             last_bag = st.get("last_bag_ts")
             if last_bag is not None and (now - float(last_bag)) < BAG_EMPTY_DEBOUNCE_S:
@@ -574,19 +624,42 @@ class AnalyticsEngine:
                     payload={"lifetime_s": lifetime_s},
                     ts=now,
                 )
+                emit_event(
+                    self.hass,
+                    EVENT_BAG_REPLACED,
+                    {
+                        "device_id": did,
+                        "iotid": iotid,
+                        "config_entry_id": self.entry_id,
+                        "lifetime_s": lifetime_s,
+                        "source": source,
+                    },
+                )
                 st["last_bag_ts"] = now
                 if st.get("is_full"):
                     start = st.get("full_episode_start") or now
+                    time_full = max(0.0, now - float(start))
                     self.store.append(
                         "waste_full_off",
                         device_id=did,
                         iotid=iotid,
                         source=source,
                         payload={
-                            "time_full_s": max(0.0, now - float(start)),
+                            "time_full_s": time_full,
                             "cleared_how": "empty",
                         },
                         ts=now,
+                    )
+                    emit_event(
+                        self.hass,
+                        EVENT_WASTE_CLEARED,
+                        {
+                            "device_id": did,
+                            "iotid": iotid,
+                            "config_entry_id": self.entry_id,
+                            "time_full_s": time_full,
+                            "cleared_how": "empty",
+                        },
                     )
                     st["is_full"] = False
                     st["full_episode_start"] = None
@@ -621,6 +694,17 @@ class AnalyticsEngine:
             source=source,
             payload={"interval_s": interval_s},
             ts=now,
+        )
+        emit_event(
+            self.hass,
+            EVENT_LITTER_RESET,
+            {
+                "device_id": did,
+                "iotid": iotid,
+                "config_entry_id": self.entry_id,
+                "interval_s": interval_s,
+                "source": source,
+            },
         )
         st["last_litter_reset_ts"] = now
         self._dirty = True

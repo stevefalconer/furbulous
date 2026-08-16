@@ -81,10 +81,15 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
             return None
         return {
             "warning": (
-                "Empty dumps all litter from the globe. Confirm the litter drum "
-                "is closed, turn ON “Empty confirm ready”, then press Empty."
+                "Empty waste dumps all litter from the globe. Confirm the litter "
+                "drum is closed, turn ON “Empty — confirm ready”, then press "
+                "Empty waste within 90 seconds."
             ),
             "requires": "empty_confirm_ready",
+            "plain_english": "Dumps the litter — only after Empty — confirm ready.",
+            "audience": "chore",
+            "vendor_property": "handMode",
+            "raw_hand_mode": "2",
         }
 
     async def async_press(self) -> None:

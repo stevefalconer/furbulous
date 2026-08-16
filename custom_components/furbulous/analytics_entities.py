@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .analytics.metrics import EMPTY_LABEL, NONE_LABEL
 from .const import DOMAIN
 from .device import get_device_info
+from .ux import ROLE_CHORE, ROLE_PRIMARY, power_attrs
 from .weight import (
     convert_grams_to_unit,
     preferred_display_mass_unit,
@@ -132,7 +133,17 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         m = self._analytics.metrics_for_device(self._device_id)
-        attrs: dict[str, Any] = {}
+        role = ROLE_CHORE
+        if self._metric_key.startswith("visits_") or "duration" in self._metric_key:
+            role = ROLE_PRIMARY
+        attrs = power_attrs(
+            role=role,
+            metric_key=self._metric_key,
+            automation_hint=(
+                f"Use state or metric_key={self._metric_key} in templates; "
+                f"unique_id stays stable across renames."
+            ),
+        )
         for key in (
             "avg_duration_sample_count",
             "pack_gap_sample_count",
@@ -232,10 +243,17 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """How identity was chosen (closest weight like the app)."""
         st = self._analytics._device_state.get(str(self._device_id), {})  # noqa: SLF001
-        attrs: dict[str, Any] = {
-            "match_method": st.get("last_match_method") or "-",
-            "confidence": st.get("last_match_confidence") or "-",
-        }
+        attrs = power_attrs(
+            role=ROLE_PRIMARY,
+            automation_hint=(
+                "Prefer event furbulous_visit_ended for automations; "
+                "state is the cat name (or “-”)."
+            ),
+            extra={
+                "match_method": st.get("last_match_method") or "-",
+                "confidence": st.get("last_match_confidence") or "-",
+            },
+        )
         if st.get("last_visit_weight_g") is not None:
             attrs["visit_weight_g"] = st["last_visit_weight_g"]
         if st.get("last_match_delta_g") is not None:
