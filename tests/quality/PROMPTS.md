@@ -3,6 +3,13 @@
 Use these prompts (or copy into an agent session) after each change set.
 Tests live under `tests/quality/` and **must stay green** on every release.
 
+## API truth (read before display / DND / pets / weight work)
+
+**Mandatory:** [docs/api/FURBULOUS_API_REFERENCE.md](../../docs/api/FURBULOUS_API_REFERENCE.md)
+
+Do **not** assume property meanings. Prefer physical checks for display.
+Never Empty/Pack in discovery unless the user authorizes.
+
 ## Run all quality tiers
 
 ```bash

@@ -81,11 +81,22 @@ def extract_pet_weight_grams(pet: dict[str, Any]) -> float | None:
             return val * 453.59237
         if "kg" in key_l:
             return val * 1000.0
-        # Bare weight: app often stores kg (3.5–8); large = already grams
+        # Bare weight + unit field (US account: unit=1 means pounds — verified)
         if key_l in ("weight", "mass", "petweight", "catweight", "weightvalue"):
-            if val < 80:
+            if val >= 80:
+                return val  # already grams
+            unit = pet.get("unit")
+            try:
+                unit_i = int(unit) if unit is not None else None
+            except (TypeError, ValueError):
+                unit_i = None
+            # unit 1 = lb, unit 0 = kg (US field verification 2026-08)
+            if unit_i == 1:
+                return val * 453.59237
+            if unit_i == 0:
                 return val * 1000.0
-            return val
+            # No unit: treat small values as kg (legacy / EU-style fixtures)
+            return val * 1000.0
         return val
     return None
 
@@ -107,10 +118,12 @@ def reference_weight_g(
         return w
     if not learned:
         return None
-    pid = pet.get("id")
+    pid = pet.get("id") if pet.get("id") is not None else pet.get("pet_id")
     if pid is not None and str(pid) in learned:
         return learned[str(pid)]
-    name = (pet.get("name") or "").strip().lower()
+    name = (
+        pet.get("name") or pet.get("nickname") or pet.get("pet_name") or ""
+    ).strip().lower()
     if name and name in learned:
         return learned[name]
     return None
@@ -148,15 +161,18 @@ def match_closest_pet(
 
     if not scored:
         # No profiles: single cat → assign; multi → cannot weight-match yet
-        if len(pets) == 1 and pets[0].get("name"):
-            return MatchResult(
-                pets[0].get("id"),
-                str(pets[0]["name"]),
-                "single_pet",
-                "medium",
-                weight_g,
-                None,
-            )
+        if len(pets) == 1:
+            only = pets[0]
+            only_name = only.get("name") or only.get("nickname")
+            if only_name:
+                return MatchResult(
+                    only.get("id") or only.get("pet_id"),
+                    str(only_name),
+                    "single_pet",
+                    "medium",
+                    weight_g,
+                    None,
+                )
         return empty
 
     scored.sort(key=lambda x: x[0])
@@ -178,9 +194,14 @@ def match_closest_pet(
         else:
             confidence = "low"  # still assign closest — like the app
 
-    name = best_pet.get("name")
+    name = (
+        best_pet.get("name")
+        or best_pet.get("nickname")
+        or best_pet.get("pet_name")
+    )
+    pid = best_pet.get("id") or best_pet.get("pet_id")
     return MatchResult(
-        best_pet.get("id"),
+        pid,
         str(name) if name else "-",
         "weight_closest",
         confidence,

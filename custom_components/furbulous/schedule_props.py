@@ -13,10 +13,14 @@ from typing import Any
 
 from .entity import extract_prop_value
 
-# Preferred write keys first; then common aliases from reverse-engineered dumps.
+# Preferred write keys first — field capture (US boxes, 2026-08) shows
+# displayStartTime / displayEndTime (minutes from midnight) control the
+# panel blanking window. masterSleep* aliases may be absent on some units.
 ECO_START_KEYS = (
+    "displayStartTime",
     "masterSleepStartTime",
     "masterSleepTimeStart",
+    "sleepTimeStart",
     "sleepStartTime",
     "ecoModeStartTime",
     "ecoStartTime",
@@ -25,9 +29,11 @@ ECO_START_KEYS = (
     "sleepOnTime",
 )
 ECO_STOP_KEYS = (
+    "displayEndTime",
     "masterSleepEndTime",
     "masterSleepTimeEnd",
     "masterSleepStopTime",
+    "sleepTimeStop",
     "sleepEndTime",
     "sleepStopTime",
     "ecoModeEndTime",
@@ -37,7 +43,9 @@ ECO_STOP_KEYS = (
     "masterSleepOffTime",
     "sleepOffTime",
 )
+# Quiet hours / DND window (verified writable on US boxes)
 DND_START_KEYS = (
+    "sleepTimeStart",
     "disturbStartTime",
     "dndStartTime",
     "nightModeStartTime",
@@ -46,6 +54,7 @@ DND_START_KEYS = (
     "disturbTimeStart",
 )
 DND_STOP_KEYS = (
+    "sleepTimeStop",
     "disturbEndTime",
     "disturbStopTime",
     "dndEndTime",
@@ -57,10 +66,61 @@ DND_STOP_KEYS = (
 )
 
 # Default keys when the cloud has not returned a schedule property yet
-DEFAULT_ECO_START_KEY = ECO_START_KEYS[0]
-DEFAULT_ECO_STOP_KEY = ECO_STOP_KEYS[0]
-DEFAULT_DND_START_KEY = DND_START_KEYS[0]
-DEFAULT_DND_STOP_KEY = DND_STOP_KEYS[0]
+DEFAULT_ECO_START_KEY = "displayStartTime"
+DEFAULT_ECO_STOP_KEY = "displayEndTime"
+DEFAULT_DND_START_KEY = "sleepTimeStart"
+DEFAULT_DND_STOP_KEY = "sleepTimeStop"
+
+
+def minutes_now_local(hass=None) -> int:
+    """Minutes from midnight in HA local timezone (fallback system local)."""
+    try:
+        from homeassistant.util import dt as dt_util
+
+        now = dt_util.now()
+        return now.hour * 60 + now.minute
+    except Exception:  # pylint: disable=broad-except
+        from datetime import datetime
+
+        now = datetime.now()
+        return now.hour * 60 + now.minute
+
+
+def in_overnight_window(now_min: int, start: int | None, end: int | None) -> bool:
+    """True if now_min is inside [start, end) allowing overnight wrap."""
+    if start is None or end is None:
+        return False
+    start_i, end_i = int(start), int(end)
+    if start_i == end_i:
+        return True  # degenerate full-day style
+    if start_i < end_i:
+        return start_i <= now_min < end_i
+    # Overnight: e.g. 23:00–07:00
+    return now_min >= start_i or now_min < end_i
+
+
+def is_display_blanked(properties: dict[str, Any] | None, hass=None) -> bool:
+    """Whether the panel should be blank per verified DisplaySwitch model.
+
+    DisplaySwitch 0 → force on (never blank).
+    DisplaySwitch 1 → blank inside displayStartTime–displayEndTime (local minutes).
+    """
+    if not properties:
+        return False
+    try:
+        ds = int(extract_prop_value(properties.get("DisplaySwitch")))
+    except (TypeError, ValueError):
+        ds = 1
+    if ds == 0:
+        return False
+    start = extract_prop_value(properties.get("displayStartTime"))
+    end = extract_prop_value(properties.get("displayEndTime"))
+    try:
+        start_i = int(start) if start is not None else None
+        end_i = int(end) if end is not None else None
+    except (TypeError, ValueError):
+        return False
+    return in_overnight_window(minutes_now_local(hass), start_i, end_i)
 
 
 def _format_time_value(raw: Any) -> str | None:

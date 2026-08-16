@@ -203,13 +203,13 @@ class FurbulousChildLockBinarySensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
-    """Read-only mirror of Screen off (masterSleepOnOff).
+    """Whether the panel should be blank now (DisplaySwitch + schedule).
 
-    Prefer the **Screen off** switch for control. Disabled by default so the
-    device page does not show a second Screen-off style control.
+    Physically verified: DisplaySwitch=0 → lit; DisplaySwitch=1 → blank inside
+    displayStartTime–displayEndTime. Not masterSleepOnOff.
     """
 
-    _attr_icon = "mdi:lightbulb-night"
+    _attr_icon = "mdi:monitor-off"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator, device_id: int) -> None:
@@ -223,24 +223,32 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return True if energy-saving / sleep mode property is on."""
+        """True when the display is expected blank."""
+        from .schedule_props import is_display_blanked
+
         device = self.device_data
         if not device:
             return False
-        return (
-            extract_prop_value(
-                (device.get("properties") or {}).get("masterSleepOnOff")
-            )
-            == 1
-        )
+        return is_display_blanked(device.get("properties") or {}, self.hass)
 
     @property
     def available(self) -> bool:
-        """Available when property exists."""
+        """Available when DisplaySwitch is present."""
         device = self.device_data
         if not device or not self.coordinator.last_update_success:
             return False
-        return (device.get("properties") or {}).get("masterSleepOnOff") is not None
+        return (device.get("properties") or {}).get("DisplaySwitch") is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        device = self.device_data or {}
+        props = device.get("properties") or {}
+        return {
+            "DisplaySwitch": str(props.get("DisplaySwitch")),
+            "displayStartTime": str(props.get("displayStartTime")),
+            "displayEndTime": str(props.get("displayEndTime")),
+            "note": "on = blank now; off = lit (or outside schedule)",
+        }
 
 
 class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):

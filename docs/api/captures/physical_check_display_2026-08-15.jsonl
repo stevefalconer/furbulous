@@ -1,0 +1,9 @@
+{"step": "DisplaySwitch=0", "before": {"t_la": "2026-08-15T23:52:46.099368-07:00", "DisplaySwitch": 1, "masterSleepOnOff": 0, "displayStartTime": 1380, "displayEndTime": 420, "sleepTimeStart": 720, "sleepTimeStop": 360, "catWeight": 10805, "workstatus": 0}, "after": {"ok": true, "DisplaySwitch": 0, "masterSleepOnOff": 0, "t_la": "2026-08-15T23:52:48.315292-07:00"}}
+{"step": "DisplaySwitch=1", "ok": true, "DisplaySwitch": 1, "masterSleepOnOff": 0, "displayStartTime": 1380, "displayEndTime": 420, "t_la": "2026-08-15T23:53:47.784465-07:00"}
+{"step": "physical_confirm_DisplaySwitch=1", "user_observed": "screen_off", "t_la": "2026-08-15T23:54:19.014448-07:00"}
+{"step": "masterSleepOnOff=1", "ok": true, "DisplaySwitch": 1, "masterSleepOnOff": 1, "t_la": "2026-08-15T23:54:21.228300-07:00"}
+{"step": "physical_confirm_masterSleepOnOff=1", "user_observed": "screen_off", "t_la": "2026-08-15T23:54:50.743244-07:00"}
+{"step": "masterSleepOnOff=0", "ok": true, "DisplaySwitch": 1, "masterSleepOnOff": 0, "t_la": "2026-08-15T23:54:52.952476-07:00"}
+{"step": "physical_confirm_masterSleepOnOff=0_still_dark", "user_observed": "screen_off", "conclusion": "blanking driven by DisplaySwitch=1 + display schedule", "t_la": "2026-08-15T23:55:55.099437-07:00"}
+{"step": "DisplaySwitch=0_restore_on", "ok": true, "DisplaySwitch": 0, "masterSleepOnOff": 0, "t_la": "2026-08-15T23:55:57.310305-07:00"}
+{"step": "physical_confirm_DisplaySwitch=0", "user_observed": "screen_lit", "t_la": "2026-08-15T23:56:37.836451-07:00"}

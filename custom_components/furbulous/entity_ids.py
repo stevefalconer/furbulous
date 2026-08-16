@@ -54,6 +54,7 @@ UID_SCREEN_IS_OFF = "screen_is_off"
 UID_AUTO_CLEAN_AFTER_VISITS = "auto_clean_after_visits"
 UID_QUIET_HOURS = "quiet_hours"
 UID_SCREEN_OFF = "screen_off"
+UID_SCREEN_MODE = "screen_mode"
 UID_CHILD_LOCK = "child_lock"
 UID_EMPTY_CONFIRM_READY = "empty_confirm_ready"
 

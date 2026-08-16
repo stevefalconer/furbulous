@@ -61,7 +61,7 @@
       "message": "Could not update the Furbulous device. Check the cloud connection and try again."
     },
     "empty_not_confirmed": {
-      "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty waste within 90 seconds."
+      "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty all litter within 90 seconds."
     },
     "invalid_auth": {
       "message": "Invalid credentials or wrong Furbulous region"
@@ -138,8 +138,8 @@
       "drawer_not_in_place": { "name": "Drawer out of place" },
       "drawer_status": { "name": "Drawer out of place" },
       "child_lock": { "name": "Child lock on" },
-      "sleep_mode": { "name": "Screen is off" },
-      "energy_saving_active": { "name": "Screen is off" }
+      "sleep_mode": { "name": "Screen blank now" },
+      "energy_saving_active": { "name": "Screen blank now" }
     },
     "switch": {
       "full_auto_mode": { "name": "Auto-clean after visits" },
@@ -154,16 +154,19 @@
       "manual_clean": { "name": "Clean now" },
       "pause_cleaning": { "name": "Pause cleaning" },
       "resume_cleaning": { "name": "Resume cleaning" },
-      "empty": { "name": "Empty waste" },
+      "empty": { "name": "Empty all litter" },
       "pack": { "name": "Seal waste bag" },
       "mark_litter_reset": { "name": "I refilled the litter" }
     },
     "select": {
-      "cleaning_delay": { "name": "Auto-clean minutes before" }
+      "cleaning_delay": { "name": "Auto-clean minutes before" },
+      "screen_mode": { "name": "Screen mode" }
     },
     "time": {
-      "screen_off_start": { "name": "Screen off start" },
-      "screen_off_end": { "name": "Screen off end" },
+      "screen_off_start": { "name": "Screen schedule start" },
+      "screen_off_end": { "name": "Screen schedule end" },
+      "screen_schedule_start": { "name": "Screen schedule start" },
+      "screen_schedule_end": { "name": "Screen schedule end" },
       "quiet_hours_start": { "name": "Quiet hours start" },
       "quiet_hours_end": { "name": "Quiet hours end" }
     }

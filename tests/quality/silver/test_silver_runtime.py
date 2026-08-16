@@ -10,14 +10,13 @@ from custom_components.furbulous.empty_safety import (
     is_empty_armed,
 )
 from custom_components.furbulous.registry import (
-    _is_orphan_screen_button,
+    _is_orphan_screen_control,
     async_remove_orphan_entities,
 )
 from custom_components.furbulous.switch import (
     FurbulousChildLockSwitch,
     FurbulousDNDSwitch,
     FurbulousEmptyConfirmSwitch,
-    FurbulousEnergySavingSwitch,
     FurbulousFullAutoModeSwitch,
 )
 
@@ -46,10 +45,11 @@ def test_orphan_screen_button_detection():
             self.domain = domain
             self.unique_id = unique_id
 
-    assert _is_orphan_screen_button(E("button", "iot-x_screen_on"))
-    assert _is_orphan_screen_button(E("button", "iot-x_screen_off"))
-    assert not _is_orphan_screen_button(E("switch", "iot-x_energy_saving_switch"))
-    assert not _is_orphan_screen_button(E("button", "iot-x_dump"))
+    assert _is_orphan_screen_control(E("button", "iot-x_screen_on"))
+    assert _is_orphan_screen_control(E("button", "iot-x_screen_off"))
+    assert _is_orphan_screen_control(E("switch", "furbulous_1_screen_off"))
+    assert not _is_orphan_screen_control(E("switch", "iot-x_energy_saving_switch"))
+    assert not _is_orphan_screen_control(E("button", "iot-x_dump"))
 
 
 async def test_async_remove_orphan_entities_noop_without_registry(hass_if_available=None):
@@ -65,7 +65,6 @@ def test_settings_switches_are_config_category():
     for cls in (
         FurbulousFullAutoModeSwitch,
         FurbulousDNDSwitch,
-        FurbulousEnergySavingSwitch,
         FurbulousChildLockSwitch,
     ):
         sw = cls(coord, api, 1, "i")

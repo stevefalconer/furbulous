@@ -97,7 +97,7 @@ class EventStore:
         self._events.append(event)
         did = event.get("device_id")
         if did:
-            self._by_device[did].append(event)
+            self._by_device.setdefault(did, []).append(event)
         self._prune_in_memory()
         return event
 

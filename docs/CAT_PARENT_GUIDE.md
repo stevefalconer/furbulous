@@ -59,7 +59,7 @@ You’ll see sections roughly like:
 
 1. Close the litter drum / globe.  
 2. Turn **ON** **Empty — confirm ready**.  
-3. Within **90 seconds**, press **Empty waste**.  
+3. Within **90 seconds**, press **Empty all litter**.  
 4. Or use **Seal waste bag** when you only want to pack/seal (no full dump).
 
 ### After you add litter
@@ -122,7 +122,7 @@ Examples:
 3. Confirm **unit system** (US → lb, metric → kg).  
 4. Set **pet weights in the app**.  
 5. Glance **Last cat**, **Needs emptying**, **Bag age**, **Litter age**.  
-6. Practice **Empty — confirm ready** + **Empty waste** once carefully.  
+6. Practice **Empty — confirm ready** + **Empty all litter** once carefully.  
 
 ---
 

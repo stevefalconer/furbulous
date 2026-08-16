@@ -10,10 +10,11 @@ from custom_components.furbulous.analytics_entities import LastVisitActivitySens
 from custom_components.furbulous.button import FurbulousHandModeButton
 from custom_components.furbulous.device_entities import button_entities_for_device
 from custom_components.furbulous.empty_safety import arm_empty, disarm_empty
-from custom_components.furbulous.switch import (
-    FurbulousEnergySavingSwitch,
-    FurbulousFullAutoModeSwitch,
+from custom_components.furbulous.select import (
+    SCREEN_MODE_ALWAYS_ON,
+    FurbulousScreenModeSelect,
 )
+from custom_components.furbulous.switch import FurbulousFullAutoModeSwitch
 
 
 def _coord(props=None):
@@ -38,17 +39,13 @@ def _coord(props=None):
     return c
 
 
-def test_screen_off_on_means_display_off():
-    """UAT: enabling Screen off turns screen off; disabling leaves screen on."""
-    coord = _coord({"masterSleepOnOff": 1})
-    sw = FurbulousEnergySavingSwitch(coord, MagicMock(), 7, "iot-7")
-    assert sw.is_on is True  # ON = screen off
-    assert sw.extra_state_attributes["when_on"] == "screen_off_or_dimmed"
-    assert sw.extra_state_attributes["when_off"] == "screen_on_normal"
-
-    coord_on = _coord({"masterSleepOnOff": 0})
-    sw2 = FurbulousEnergySavingSwitch(coord_on, MagicMock(), 7, "iot-7")
-    assert sw2.is_on is False
+def test_screen_mode_always_on_vs_scheduled():
+    """UAT: DisplaySwitch 0 = Always on; 1 = Scheduled (verified physical model)."""
+    coord = _coord({"DisplaySwitch": 0})
+    sel = FurbulousScreenModeSelect(coord, MagicMock(), 7, "iot-7")
+    assert sel.current_option == SCREEN_MODE_ALWAYS_ON
+    coord.data["devices"][0]["properties"]["DisplaySwitch"] = 1
+    assert sel.current_option == "Scheduled"
 
 
 def test_full_auto_vs_pause_docs():
