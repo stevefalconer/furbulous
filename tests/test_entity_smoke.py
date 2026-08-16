@@ -33,7 +33,7 @@ def test_weight_sensor_unique_id_and_naming():
     sensor.hass.config.units.mass_unit = "kg"
     assert sensor.has_entity_name is True
     assert sensor.translation_key == "cat_weight"
-    assert sensor.unique_id == "furbulous_7_catWeight"
+    assert sensor.unique_id == "furbulous_7_cat_weight"
     # 4000 g → 4.0 kg when metric
     assert sensor.native_value == pytest.approx(4.0)
     assert sensor.native_unit_of_measurement == "kg"
@@ -58,11 +58,11 @@ def test_presence_sensor_unique_id():
     sensor = FurbulousCatInBoxSensor(_coord(), 7)
     assert sensor.has_entity_name is True
     assert sensor.translation_key == "cat_in_litter_box"
-    assert sensor.unique_id == "furbulous_7_cat_in_box"
+    assert sensor.unique_id == "furbulous_7_cat_inside"
 
 
 def test_switch_unique_id():
-    """Switch unique_id includes iotid for stability."""
+    """Switch unique_id uses cat-parent box scheme (device_id + slug)."""
     sw = FurbulousFullAutoModeSwitch(_coord(), MagicMock(), 7, "iot-7")
     assert sw.has_entity_name is True
-    assert sw.unique_id == "iot-7_full_auto_mode_switch"
+    assert sw.unique_id == "furbulous_7_auto_clean_after_visits"

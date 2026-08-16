@@ -10,6 +10,8 @@ CONF_TOKEN = "token"
 CONF_DISPLAY_RESET_DONE = "display_reset_done"
 # One-shot: clear sticky registry units after switch to calculated lb/kg (1.2.2+)
 CONF_WEIGHT_CALC_UNIT_RESET_DONE = "weight_calc_unit_reset_done"
+# One-shot: purge entity registry so cat-parent unique_id scheme recreates cleanly (1.3.7)
+CONF_CAT_UID_SCHEME_V1_DONE = "cat_uid_scheme_v1_done"
 
 # Config entry version (v2 adds region)
 CONFIG_VERSION = 2

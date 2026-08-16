@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.6+
+**Integration version:** 1.3.7+
 
 ---
 

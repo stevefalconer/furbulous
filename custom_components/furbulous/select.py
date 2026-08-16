@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import FurbulousEntity, extract_prop_value
+from .entity_ids import UID_MINUTES_BEFORE_AUTO_CLEAN, box_uid
 from .helpers import async_add_devices_listener
 
 if TYPE_CHECKING:
@@ -59,7 +60,7 @@ class FurbulousCleanDelaySelect(FurbulousEntity, SelectEntity):
             coordinator,
             device_id,
             translation_key="cleaning_delay",
-            unique_id=f"{iotid}_clean_delay",
+            unique_id=box_uid(device_id, UID_MINUTES_BEFORE_AUTO_CLEAN),
         )
         self._api = api
         self._iotid = iotid

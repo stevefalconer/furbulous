@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_ACCOUNT_TYPE,
+    CONF_CAT_UID_SCHEME_V1_DONE,
     CONF_DISPLAY_RESET_DONE,
     CONF_REGION,
     CONF_WEIGHT_CALC_UNIT_RESET_DONE,
@@ -27,7 +28,11 @@ from .furbulous_api import (
     FurbulousCatConnectionError,
 )
 from .models import FurbulousRuntimeData
-from .registry import async_clear_display_overrides, async_remove_orphan_entities
+from .registry import (
+    async_clear_display_overrides,
+    async_purge_config_entry_entities,
+    async_remove_orphan_entities,
+)
 
 if TYPE_CHECKING:
     FurbulousConfigEntry = ConfigEntry[FurbulousRuntimeData]
@@ -84,6 +89,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
 
     await coordinator.async_config_entry_first_refresh()
     await presence_coordinator.async_config_entry_first_refresh()
+
+    # One-shot before platforms: rewrite unique_ids to cat-parent scheme (1.3.7)
+    data = dict(entry.data)
+    if not data.get(CONF_CAT_UID_SCHEME_V1_DONE):
+        await async_purge_config_entry_entities(hass, entry)
+        data[CONF_CAT_UID_SCHEME_V1_DONE] = True
+        hass.config_entries.async_update_entry(entry, data=data)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

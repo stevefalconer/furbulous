@@ -11,6 +11,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import FurbulousEntity, extract_prop_value
+from .entity_ids import (
+    UID_AUTO_CLEAN_AFTER_VISITS,
+    UID_CHILD_LOCK,
+    UID_EMPTY_CONFIRM_READY,
+    UID_QUIET_HOURS,
+    UID_SCREEN_OFF,
+    box_uid,
+)
 from .helpers import async_add_devices_listener
 from .schedule_props import (
     DND_START_KEYS,
@@ -92,7 +100,7 @@ class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
             device_id,
             iotid,
             translation_key="full_auto_mode",
-            unique_id=f"{iotid}_full_auto_mode_switch",
+            unique_id=box_uid(device_id, UID_AUTO_CLEAN_AFTER_VISITS),
         )
 
     @property
@@ -166,7 +174,7 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
             device_id,
             iotid,
             translation_key="do_not_disturb",
-            unique_id=f"{iotid}_dnd_switch",
+            unique_id=box_uid(device_id, UID_QUIET_HOURS),
         )
 
     @property
@@ -240,8 +248,7 @@ class FurbulousEnergySavingSwitch(_FurbulousSwitch):
             device_id,
             iotid,
             translation_key="screen_off",
-            # Keep stable unique_id so existing installs do not duplicate entities
-            unique_id=f"{iotid}_energy_saving_switch",
+            unique_id=box_uid(device_id, UID_SCREEN_OFF),
         )
 
     @property
@@ -334,7 +341,7 @@ class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
             device_id,
             iotid,
             translation_key="empty_confirm_ready",
-            unique_id=f"{iotid}_confirm_empty_ready",
+            unique_id=box_uid(device_id, UID_EMPTY_CONFIRM_READY),
         )
 
     @property
@@ -388,7 +395,7 @@ class FurbulousChildLockSwitch(_FurbulousSwitch):
             device_id,
             iotid,
             translation_key="child_lock",
-            unique_id=f"{iotid}_child_lock_switch",
+            unique_id=box_uid(device_id, UID_CHILD_LOCK),
         )
 
     @property

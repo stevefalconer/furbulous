@@ -117,7 +117,7 @@ def _weight_states(hass: HomeAssistant) -> list:
 
 
 def _find_weight_state(hass: HomeAssistant):
-    # unique_id fragment catWeight → entity often sensor.living_room_box_cat_weight
+    # unique_id fragment cat_weight → entity often sensor.living_room_box_cat_weight
     for state in hass.states.async_all("sensor"):
         if state.attributes.get("device_class") == "weight":
             return state
@@ -187,7 +187,7 @@ async def test_ha_weight_entity_native_matches_unit_system(
     weight_entries = [
         e
         for e in registry.entities.values()
-        if e.config_entry_id == entry.entry_id and "catWeight" in (e.unique_id or "")
+        if e.config_entry_id == entry.entry_id and "cat_weight" in (e.unique_id or "")
     ]
     assert weight_entries, "weight entity not in registry"
     entity_id = weight_entries[0].entity_id

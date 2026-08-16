@@ -127,12 +127,21 @@ def button_entities_for_device(
     if device_id is None or not iotid:
         return []
     entities: list[Entity] = []
-    for translation_key, unique_suffix, hand_mode, icon in (
-        ("manual_clean", "manual_clean", 1, "mdi:broom"),
-        ("pause_cleaning", "pause_clean", 4, "mdi:pause"),
-        ("resume_cleaning", "resume_clean", 5, "mdi:play"),
-        ("empty", "dump", 2, "mdi:delete-empty"),
-        ("pack", "pack", 3, "mdi:package"),
+    from .entity_ids import (
+        UID_CLEAN_NOW,
+        UID_EMPTY_WASTE,
+        UID_PAUSE_CLEANING,
+        UID_RESUME_CLEANING,
+        UID_SEAL_WASTE_BAG,
+        box_uid,
+    )
+
+    for translation_key, slug, hand_mode, icon in (
+        ("manual_clean", UID_CLEAN_NOW, 1, "mdi:broom"),
+        ("pause_cleaning", UID_PAUSE_CLEANING, 4, "mdi:pause"),
+        ("resume_cleaning", UID_RESUME_CLEANING, 5, "mdi:play"),
+        ("empty", UID_EMPTY_WASTE, 2, "mdi:delete-empty"),
+        ("pack", UID_SEAL_WASTE_BAG, 3, "mdi:package"),
     ):
         entities.append(
             FurbulousHandModeButton(
@@ -141,7 +150,7 @@ def button_entities_for_device(
                 device_id,
                 iotid,
                 translation_key=translation_key,
-                unique_id=f"{iotid}_{unique_suffix}",
+                unique_id=box_uid(device_id, slug),
                 hand_mode=hand_mode,
                 icon=icon,
                 analytics=analytics,

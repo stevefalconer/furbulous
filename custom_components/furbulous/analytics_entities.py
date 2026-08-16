@@ -18,6 +18,44 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .analytics.metrics import EMPTY_LABEL, NONE_LABEL
 from .const import DOMAIN
 from .device import get_device_info
+from .entity_ids import (
+    UID_AVG_HOURS_BETWEEN_SEALS_30_DAYS,
+    UID_AVG_WAIT_UNTIL_EMPTIED_30_DAYS,
+    UID_BAG_AGE_HOURS,
+    UID_BAG_AVERAGE_LIFE_30_DAYS,
+    UID_BAG_LAST_CHANGED,
+    UID_BAG_LAST_LIFESPAN,
+    UID_BAG_SEALS_30_DAYS,
+    UID_BAGS_USED_30_DAYS,
+    UID_HOURS_SINCE_BAG_SEAL,
+    UID_LAST_BAG_SEAL,
+    UID_LAST_CAT,
+    UID_LAST_VISIT,
+    UID_LAST_VISIT_TIME,
+    UID_LAST_VISIT_WEIGHT,
+    UID_LAST_WAIT_UNTIL_EMPTIED,
+    UID_LITTER_AGE_HOURS,
+    UID_LITTER_AVERAGE_INTERVAL_30_DAYS,
+    UID_LITTER_LAST_INTERVAL,
+    UID_LITTER_LAST_REFILLED,
+    UID_LITTER_REFILLS_30_DAYS,
+    UID_LONGEST_WAIT_UNTIL_EMPTIED_30_DAYS,
+    UID_PET_FAVORITE_BOX,
+    UID_PET_LAST_SEEN,
+    UID_PET_VISIT_LENGTH_AVG_30_DAYS,
+    UID_PET_VISITS_30_DAYS,
+    UID_PET_VISITS_7_DAYS,
+    UID_TIMES_BAG_FILLED_30_DAYS,
+    UID_VISIT_LENGTH_AVG_30_DAYS,
+    UID_VISITS_30_DAYS,
+    UID_VISITS_7_DAYS,
+    UID_VISITS_ON_LAST_BAG,
+    UID_VISITS_SINCE_BAG_SEAL,
+    UID_WAITING_WITH_FULL_BAG,
+    UID_WHO_IS_INSIDE,
+    box_uid,
+    pet_uid,
+)
 from .ux import ROLE_CHORE, ROLE_PRIMARY, power_attrs
 from .weight import (
     convert_grams_to_unit,
@@ -64,7 +102,7 @@ class AnalyticsBoxSensor(CoordinatorEntity, SensorEntity):
         self._as_hours = as_hours
         self._none_when_missing = none_when_missing
         self._attr_translation_key = translation_key
-        self._attr_unique_id = f"furbulous_{self._device_id}_{unique_suffix}"
+        self._attr_unique_id = box_uid(self._device_id, unique_suffix)
         self._attr_device_info = get_device_info(device)
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
@@ -173,7 +211,7 @@ class OccupyingPetSensor(CoordinatorEntity, SensorEntity):
         self._analytics = analytics
         self._device_id = device.get("id")
         self._attr_translation_key = "occupying_pet"
-        self._attr_unique_id = f"furbulous_{self._device_id}_occupying_pet"
+        self._attr_unique_id = box_uid(self._device_id, UID_WHO_IS_INSIDE)
         self._attr_device_info = get_device_info(device)
         self._last_fingerprint: object | None = object()
 
@@ -216,7 +254,7 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
         self._analytics = analytics
         self._device_id = device.get("id")
         self._attr_translation_key = "last_visitor"
-        self._attr_unique_id = f"furbulous_{self._device_id}_last_visitor"
+        self._attr_unique_id = box_uid(self._device_id, UID_LAST_CAT)
         self._attr_device_info = get_device_info(device)
         self._last_fingerprint: object | None = object()
 
@@ -279,7 +317,7 @@ class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
         self._analytics = analytics
         self._device_id = device.get("id")
         self._attr_translation_key = "last_visit_activity"
-        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_activity"
+        self._attr_unique_id = box_uid(self._device_id, UID_LAST_VISIT)
         self._attr_device_info = get_device_info(device)
         self._last_fingerprint: object | None = object()
 
@@ -335,7 +373,7 @@ class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
         self._analytics = analytics
         self._device_id = device.get("id")
         self._attr_translation_key = "last_visit_time"
-        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_time"
+        self._attr_unique_id = box_uid(self._device_id, UID_LAST_VISIT_TIME)
         self._attr_device_info = get_device_info(device)
         self._last_fingerprint: object | None = object()
 
@@ -384,7 +422,7 @@ class LastVisitWeightSensor(CoordinatorEntity, SensorEntity):
         self._analytics = analytics
         self._device_id = device.get("id")
         self._attr_translation_key = "last_visit_weight"
-        self._attr_unique_id = f"furbulous_{self._device_id}_last_visit_weight"
+        self._attr_unique_id = box_uid(self._device_id, UID_LAST_VISIT_WEIGHT)
         self._attr_device_info = get_device_info(device)
         self._last_fingerprint: object | None = object()
 
@@ -447,7 +485,7 @@ class PetDeviceSensor(CoordinatorEntity, SensorEntity):
         pid = pet.get("id")
         self._pet_key = str(pid) if pid is not None else (pet.get("name") or "unknown")
         self._attr_translation_key = translation_key
-        self._attr_unique_id = f"furbulous_pet_{self._pet_key}_{unique_suffix}"
+        self._attr_unique_id = pet_uid(self._pet_key, unique_suffix)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"pet_{self._pet_key}")},
             name=pet.get("name") or EMPTY_LABEL,
@@ -513,14 +551,14 @@ def box_analytics_entities(
         # Secondary gauges disabled-by-default (HA Gold / Pi recorder).
         _s(
             translation_key="visits_30_days",
-            unique_suffix="visits_30d",
+            unique_suffix=UID_VISITS_30_DAYS,
             metric_key="visits_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
         ),
         _s(
             translation_key="visits_7_days",
-            unique_suffix="visits_7d",
+            unique_suffix=UID_VISITS_7_DAYS,
             metric_key="visits_7d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
@@ -528,7 +566,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="avg_visit_duration_30d",
-            unique_suffix="avg_visit_duration_30d",
+            unique_suffix=UID_VISIT_LENGTH_AVG_30_DAYS,
             metric_key="avg_duration_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -538,7 +576,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="time_full_current",
-            unique_suffix="time_full_current",
+            unique_suffix=UID_WAITING_WITH_FULL_BAG,
             metric_key="current_time_full_s",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -546,7 +584,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="last_time_to_clear",
-            unique_suffix="last_time_to_clear",
+            unique_suffix=UID_LAST_WAIT_UNTIL_EMPTIED,
             metric_key="last_time_to_clear_s",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -555,7 +593,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="avg_time_to_clear_30d",
-            unique_suffix="avg_time_to_clear_30d",
+            unique_suffix=UID_AVG_WAIT_UNTIL_EMPTIED_30_DAYS,
             metric_key="avg_time_to_clear_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -563,7 +601,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="max_time_to_clear_30d",
-            unique_suffix="max_time_to_clear_30d",
+            unique_suffix=UID_LONGEST_WAIT_UNTIL_EMPTIED_30_DAYS,
             metric_key="max_time_to_clear_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -572,7 +610,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="full_episodes_30d",
-            unique_suffix="full_episodes_30d",
+            unique_suffix=UID_TIMES_BAG_FILLED_30_DAYS,
             metric_key="full_episodes_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
@@ -580,7 +618,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="last_pack",
-            unique_suffix="last_pack",
+            unique_suffix=UID_LAST_BAG_SEAL,
             metric_key="last_pack_ts",
             device_class=SensorDeviceClass.TIMESTAMP,
             as_timestamp=True,
@@ -588,7 +626,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="hours_since_last_pack",
-            unique_suffix="hours_since_pack",
+            unique_suffix=UID_HOURS_SINCE_BAG_SEAL,
             metric_key="hours_since_pack",
             unit="h",
             as_hours=True,
@@ -597,7 +635,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="avg_hours_between_packs_30d",
-            unique_suffix="avg_hours_between_packs",
+            unique_suffix=UID_AVG_HOURS_BETWEEN_SEALS_30_DAYS,
             metric_key="avg_hours_between_packs_30d",
             unit="h",
             as_hours=True,
@@ -606,21 +644,21 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="packs_30d",
-            unique_suffix="packs_30d",
+            unique_suffix=UID_BAG_SEALS_30_DAYS,
             metric_key="packs_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:package-variant-closed",
         ),
         _s(
             translation_key="visits_since_last_pack",
-            unique_suffix="visits_since_pack",
+            unique_suffix=UID_VISITS_SINCE_BAG_SEAL,
             metric_key="visits_since_last_pack",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:paw",
         ),
         _s(
             translation_key="last_bag_replaced",
-            unique_suffix="last_bag_replaced",
+            unique_suffix=UID_BAG_LAST_CHANGED,
             metric_key="last_bag_replaced_ts",
             device_class=SensorDeviceClass.TIMESTAMP,
             as_timestamp=True,
@@ -628,14 +666,14 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="hours_since_bag_replaced",
-            unique_suffix="hours_since_bag",
+            unique_suffix=UID_BAG_AGE_HOURS,
             metric_key="hours_since_bag_replaced",
             unit="h",
             as_hours=True,
         ),
         _s(
             translation_key="last_bag_lifetime",
-            unique_suffix="last_bag_lifetime",
+            unique_suffix=UID_BAG_LAST_LIFESPAN,
             metric_key="last_bag_lifetime_s",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -643,7 +681,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="avg_bag_lifetime_30d",
-            unique_suffix="avg_bag_lifetime_30d",
+            unique_suffix=UID_BAG_AVERAGE_LIFE_30_DAYS,
             metric_key="avg_bag_lifetime_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -651,7 +689,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="bags_replaced_30d",
-            unique_suffix="bags_replaced_30d",
+            unique_suffix=UID_BAGS_USED_30_DAYS,
             metric_key="bags_replaced_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
@@ -659,7 +697,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="visits_during_last_bag",
-            unique_suffix="visits_during_last_bag",
+            unique_suffix=UID_VISITS_ON_LAST_BAG,
             metric_key="visits_during_last_bag",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:paw",
@@ -667,7 +705,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="last_litter_reset",
-            unique_suffix="last_litter_reset",
+            unique_suffix=UID_LITTER_LAST_REFILLED,
             metric_key="last_litter_reset_ts",
             device_class=SensorDeviceClass.TIMESTAMP,
             as_timestamp=True,
@@ -675,14 +713,14 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="hours_since_litter_reset",
-            unique_suffix="hours_since_litter_reset",
+            unique_suffix=UID_LITTER_AGE_HOURS,
             metric_key="hours_since_litter_reset",
             unit="h",
             as_hours=True,
         ),
         _s(
             translation_key="last_litter_interval",
-            unique_suffix="last_litter_interval",
+            unique_suffix=UID_LITTER_LAST_INTERVAL,
             metric_key="last_litter_interval_s",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -690,7 +728,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="avg_litter_interval_30d",
-            unique_suffix="avg_litter_interval_30d",
+            unique_suffix=UID_LITTER_AVERAGE_INTERVAL_30_DAYS,
             metric_key="avg_litter_interval_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -698,7 +736,7 @@ def box_analytics_entities(
         ),
         _s(
             translation_key="litter_resets_30d",
-            unique_suffix="litter_resets_30d",
+            unique_suffix=UID_LITTER_REFILLS_30_DAYS,
             metric_key="litter_resets_30d",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:counter",
@@ -716,7 +754,7 @@ def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
             analytics,
             pet,
             translation_key="pet_visits_7d",
-            unique_suffix="visits_7d",
+            unique_suffix=UID_PET_VISITS_7_DAYS,
             metric_key="visits_7d",
             icon="mdi:counter",
         ),
@@ -725,7 +763,7 @@ def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
             analytics,
             pet,
             translation_key="pet_visits_30d",
-            unique_suffix="visits_30d",
+            unique_suffix=UID_PET_VISITS_30_DAYS,
             metric_key="visits_30d",
             icon="mdi:counter",
         ),
@@ -734,7 +772,7 @@ def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
             analytics,
             pet,
             translation_key="pet_avg_duration_30d",
-            unique_suffix="avg_duration_30d",
+            unique_suffix=UID_PET_VISIT_LENGTH_AVG_30_DAYS,
             metric_key="avg_duration_s_30d",
             device_class=SensorDeviceClass.DURATION,
             unit=UnitOfTime.SECONDS,
@@ -745,7 +783,7 @@ def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
             analytics,
             pet,
             translation_key="favorite_litter_box",
-            unique_suffix="favorite_box",
+            unique_suffix=UID_PET_FAVORITE_BOX,
             metric_key="favorite_box",
             icon="mdi:home-heart",
         ),
@@ -754,7 +792,7 @@ def pet_analytics_entities(coordinator, analytics, pet: dict) -> list[Entity]:
             analytics,
             pet,
             translation_key="pet_last_seen",
-            unique_suffix="last_seen",
+            unique_suffix=UID_PET_LAST_SEEN,
             metric_key="last_seen_ts",
             device_class=SensorDeviceClass.TIMESTAMP,
             as_timestamp=True,

@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.6 |
+| **Version** | 1.3.7 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -130,7 +130,11 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 \* Diagnostic · ‡ Disabled by default  
 
-**Controls** = chores. **Configuration** = preferences. Display names can change for clarity; **entity unique_ids stay stable** for automations.
+**Controls** = chores. **Configuration** = preferences.  
+
+**Entity unique_ids** (1.3.7+) use cat-language slugs, e.g.  
+`furbulous_{device_id}_last_cat`, `_needs_emptying`, `_empty_waste`, `_bag_age_hours`  
+(see `entity_ids.py`). Display names match the same vocabulary.
 
 ### Auto-clean vs Pause / Resume
 
@@ -259,7 +263,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.6**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.7**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  
