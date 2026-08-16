@@ -49,7 +49,7 @@ class FurbulousCatCleanDelaySelect(CoordinatorEntity, SelectEntity):
         self._attr_icon = "mdi:timer-outline"
         self._attr_device_info = get_device_info(device)
         
-        # Options: 1 à 30 minutes
+        # Options: 1 to 30 minutes
         self._attr_options = [f"{i} min" for i in range(1, 31)]
 
     @property

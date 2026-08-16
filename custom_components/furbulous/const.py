@@ -72,7 +72,8 @@ ERROR_SEVERITY = {
     512: "error",
 }
 
-# Unit of measurement
+# Native units from the Furbulous API
+# Weight is reported in grams. With SensorDeviceClass.WEIGHT, Home Assistant
+# will automatically convert to the user's preferred unit (lb for US, kg/g otherwise).
 UNIT_GRAMS = "g"
 UNIT_SECONDS = "s"
-UNIT_TIMES = "times"
