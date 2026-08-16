@@ -65,6 +65,9 @@
     },
     "cannot_connect": {
       "message": "Не удаётся подключиться к облаку Furbulous"
+    },
+    "empty_not_confirmed": {
+      "message": "Empty not confirmed. Empty dumps all litter — close the litter drum, turn ON “Confirm empty ready”, then press Empty within 90 seconds."
     }
   },
   "selector": {
@@ -246,6 +249,12 @@
       },
       "energy_saving": {
         "name": "Energy saving"
+      },
+      "confirm_empty_ready": {
+        "name": "Confirm empty ready"
+      },
+      "screen_off": {
+        "name": "Screen off"
       }
     },
     "button": {

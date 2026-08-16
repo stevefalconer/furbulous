@@ -60,6 +60,9 @@
     "set_property_failed": {
       "message": "Could not update the Furbulous device. Check the cloud connection and try again."
     },
+    "empty_not_confirmed": {
+      "message": "Empty not confirmed. Empty dumps all litter — close the litter drum, turn ON “Confirm empty ready”, then press Empty within 90 seconds."
+    },
     "invalid_auth": {
       "message": "Invalid credentials or wrong Furbulous region"
     },
@@ -135,8 +138,10 @@
     "switch": {
       "full_auto_mode": { "name": "Full auto mode" },
       "do_not_disturb": { "name": "Do not disturb" },
-      "energy_saving": { "name": "Energy saving" },
-      "child_lock": { "name": "Child lock" }
+      "energy_saving": { "name": "Screen off" },
+      "screen_off": { "name": "Screen off" },
+      "child_lock": { "name": "Child lock" },
+      "confirm_empty_ready": { "name": "Confirm empty ready" }
     },
     "button": {
       "manual_clean": { "name": "Manual clean" },
@@ -144,9 +149,7 @@
       "resume_cleaning": { "name": "Resume cleaning" },
       "empty": { "name": "Empty" },
       "pack": { "name": "Pack" },
-      "mark_litter_reset": { "name": "Mark litter reset" },
-      "screen_off": { "name": "Screen off" },
-      "screen_on": { "name": "Screen on" }
+      "mark_litter_reset": { "name": "Mark litter reset" }
     },
     "select": {
       "cleaning_delay": { "name": "Cleaning delay" }

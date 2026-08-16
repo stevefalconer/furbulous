@@ -209,6 +209,179 @@ def test_last_visit_captures_weight_and_time():
     assert ended and ended[-1]["payload"].get("weight_g") == pytest.approx(4500.0)
 
 
+def test_single_pet_roster_fills_last_visitor():
+    """If API omits petName but roster has one cat, use that name."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "e-single")
+    eng.store._loaded = True
+    eng.pets = [{"id": 9, "name": "Mochi", "weight": 4.5}]
+    eng.process_snapshot(
+        [
+            {
+                "id": 12,
+                "iotid": "iot-12",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 1,
+                    "errorReportEvent": 0,
+                    "catWeight": 4500,
+                },
+            }
+        ],
+        pets=[{"id": 9, "name": "Mochi", "weight": 4.5}],
+    )
+    eng._device_state["12"]["occupy_since"] = time.time() - 40
+    eng.process_snapshot(
+        [
+            {
+                "id": 12,
+                "iotid": "iot-12",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 0,
+                    "errorReportEvent": 0,
+                    "catWeight": 4500,
+                },
+            }
+        ],
+        pets=[{"id": 9, "name": "Mochi", "weight": 4.5}],
+    )
+    assert eng.last_visitor(12) == "Mochi"
+
+
+def test_closest_weight_picks_correct_of_two_cats():
+    """Visit weight nearer Bean than Mochi → last visitor Bean."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "e-two")
+    eng.store._loaded = True
+    pets = [
+        {"id": 1, "name": "Mochi", "weight": 4.0},
+        {"id": 2, "name": "Bean", "weight": 5.5},
+    ]
+    eng.process_snapshot(
+        [
+            {
+                "id": 20,
+                "iotid": "iot-20",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 1,
+                    "errorReportEvent": 0,
+                    "catWeight": 5600,
+                },
+            }
+        ],
+        pets=pets,
+    )
+    eng._device_state["20"]["occupy_since"] = time.time() - 40
+    eng.process_snapshot(
+        [
+            {
+                "id": 20,
+                "iotid": "iot-20",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 0,
+                    "errorReportEvent": 0,
+                    "catWeight": 5600,
+                },
+            }
+        ],
+        pets=pets,
+    )
+    assert eng.last_visitor(20) == "Bean"
+    assert eng.last_visit_weight_g(20) == pytest.approx(5600.0)
+
+
+def test_five_cats_three_boxes_engine_end_to_end():
+    """Realistic household: 5 cats, 3 boxes; noisy weights → correct last visitor."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "e-5x3")
+    eng.store._loaded = True
+    pets = [
+        {"id": 1, "name": "Mochi", "weight": 3.2},
+        {"id": 2, "name": "Bean", "weight": 3.9},
+        {"id": 3, "name": "Luna", "weight": 4.6},
+        {"id": 4, "name": "Shadow", "weight": 5.4},
+        {"id": 5, "name": "Pumpkin", "weight": 6.8},
+    ]
+    # Visits: Box1 Luna 4.55kg, Box2 Pumpkin 6.75kg, Box3 Bean 3.85kg
+    scenarios = [
+        (101, 4550, "Luna"),
+        (102, 6750, "Pumpkin"),
+        (103, 3850, "Bean"),
+    ]
+    for box_id, weight_g, expected in scenarios:
+        eng.process_snapshot(
+            [
+                {
+                    "id": box_id,
+                    "iotid": f"iot-{box_id}",
+                    "name": f"Box {box_id}",
+                    "properties": {
+                        "workstatus": 1,
+                        "errorReportEvent": 0,
+                        "catWeight": weight_g,
+                    },
+                }
+            ],
+            pets=pets,
+        )
+        eng._device_state[str(box_id)]["occupy_since"] = time.time() - 45
+        # Second sample while occupied (slight noise)
+        eng.process_snapshot(
+            [
+                {
+                    "id": box_id,
+                    "iotid": f"iot-{box_id}",
+                    "name": f"Box {box_id}",
+                    "properties": {
+                        "workstatus": 1,
+                        "errorReportEvent": 0,
+                        "catWeight": weight_g + 40,
+                    },
+                }
+            ],
+            pets=pets,
+        )
+        eng._device_state[str(box_id)]["occupy_since"] = time.time() - 45
+        eng.process_snapshot(
+            [
+                {
+                    "id": box_id,
+                    "iotid": f"iot-{box_id}",
+                    "name": f"Box {box_id}",
+                    "properties": {
+                        "workstatus": 0,
+                        "errorReportEvent": 0,
+                        "catWeight": weight_g - 30,
+                    },
+                }
+            ],
+            pets=pets,
+        )
+        assert eng.last_visitor(box_id) == expected, (
+            f"box {box_id}: got {eng.last_visitor(box_id)}, want {expected}"
+        )
+        assert eng.occupying_pet(box_id) == "-"
+
+
+def test_empty_arm_required():
+    from custom_components.furbulous.empty_safety import (
+        arm_empty,
+        consume_empty_arm,
+        is_empty_armed,
+    )
+
+    disarm = consume_empty_arm  # noqa: F841
+    assert is_empty_armed(99) is False
+    assert consume_empty_arm(99) is False
+    arm_empty(99)
+    assert is_empty_armed(99) is True
+    assert consume_empty_arm(99) is True
+    assert is_empty_armed(99) is False
+
+
 def test_restore_open_full_and_bag_markers():
     """After reload, open full episode + last bag/litter are restored from log."""
     hass = MagicMock()

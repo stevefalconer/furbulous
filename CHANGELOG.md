@@ -2,14 +2,22 @@
 
 All notable changes to this fork are documented here.
 
-## 1.3.2 — 2026-08-16
+## 1.3.4 — 2026-08-16
 
-### Changes
+### Multi-cat identity (5 cats × many boxes)
 
-- Empty / missing text metrics show **`-`** (not “Unknown” / “none”). Numeric/duration sensors still use empty/`None` (HA device classes).
-- **Last visitor / last visit time / last visit weight** store API values from each completed use; **Occupying pet** is **`-`** when empty (never the previous cat).
-- **Screen off** and **Screen on** buttons for automation-friendly display blanking (`masterSleepOnOff`).
-- **Pet roster** (`pet/list`) cadence **≤ 1 minute** (cached between fetches). **Properties** stay on the **30s** path (occupancy, weight, errors, modes). Device list + daily stats remain **5 minutes**.
+- **App-style matching:** after each visit, pick the roster cat with the **smallest weight delta** vs measured `catWeight` (weight-first over stale property names).
+- Uses `pet/list` profile weights when present; otherwise **learns** weights from past visits (EMA).
+- **Median of samples** during the visit resists litter/sensor noise; rejects implausible weights.
+- Confidence + delta on **Last visitor** attributes; carry identity if exit poll drops `petName`.
+- Realistic tests: 5 cats with ±noise, 3 boxes end-to-end, ambiguous twins.
+
+### UX (also since 1.3.2)
+
+- **Controls** (not Configuration): delay, child lock, screen off, confirm empty.
+- **Empty safety:** **Confirm empty ready** (90s) then **Empty**.
+- Text empty states **`-`**; **Screen off** toggle (replaces separate screen buttons).
+- Pet roster **≤1 min**; properties **30s**; list/stats **5 min**.
 
 ## 1.3.1 — 2026-08-16
 

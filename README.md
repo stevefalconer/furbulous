@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.2 |
+| **Version** | 1.3.4 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -27,10 +27,11 @@ This is **not** an official Furbulous product and is **not** affiliated with or 
 2. You select the **account region** (must match the country chosen when you created the app account). Wrong region usually returns **invalid credentials**.
 3. The integration authenticates to that region’s cloud host, lists devices, and stores a single API client on the config entry.
 4. Two coordinators refresh data (entities never call the API themselves):
-   - **~5 minutes:** device list, full properties, daily stats, **pet roster**  
-   - **~30 seconds:** properties only for known devices (occupancy + full-bag edges)
-5. Entities expose live control/status **and** local cat-lover analytics (visits, bag lifetime, litter intervals, time-to-clear full bags).  
-6. History for 7d/30d metrics is stored **locally** (90-day event log)—the cloud does not provide month history.
+   - **~5 minutes:** device list, full properties, daily stats, pets (force refresh)  
+   - **~30 seconds:** properties (occupancy, weight, full/errors, modes); pet roster at most every **1 minute**
+5. **Multi-cat identity** (app-style): match visit weight to the closest cat on the account roster (or learned weights).  
+6. Entities expose last visit (cat / time / weight), chore analytics, and controls.  
+7. Day/7d/30d history is **local** (90-day event log)—the cloud does not expose month history.
 
 ---
 
@@ -88,17 +89,17 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Coordinator | Interval | What it refreshes |
 |-------------|----------|-------------------|
-| **Normal** | 5 minutes | Device list, full properties, daily stats, pets |
-| **Presence** | 30 seconds | Properties for known devices only (occupancy / full edges) |
+| **Normal** | 5 minutes | Device list, full properties, daily stats, pets (force) |
+| **Presence** | 30 seconds | Properties (occupancy, weight, errors, modes); pets ≤1/min cache |
 
 - Requires internet and Furbulous cloud availability.  
 - On failure, entities go **unavailable**; the integration logs once when down and once when restored.  
 - Failed requests use short exponential backoff (no request storms).  
-- New litter boxes appear after the next normal poll **without** reloading the integration. Devices that disappear are pruned from the device registry (pet devices are kept while still on the account).  
-- **Analytics** run from coordinator deltas + Empty/Pack/litter-reset buttons (no extra cloud history API).
+- New litter boxes appear after the next normal poll **without** reloading the integration. Boxes/pets that disappear are pruned from the device registry.  
+- **Analytics** run from poll edges + Empty/Pack/litter-reset buttons (no vendor visit-history API).
 
 **Load (1 device, idle):** ~**180** cloud HTTP calls/hour  
-(~120 presence property polls + ~60 pet-list/hour at 1 min + ~36 full-path calls for list/stats/pets).
+(~120 property polls + ~60 pet-list/hour + full-path list/stats).
 
 ---
 
@@ -108,12 +109,12 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Platform | Entities |
 |----------|----------|
-| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Energy saving active* |
+| Binary sensor | Cat in litter box; Waste bin full; Cover open; Drawer not in place; Connected*; Child lock*; Energy saving active* (screen off) |
 | Sensor (live) | Cat weight (lb/kg); Daily uses; Average daily duration; Error*; Firmware*; Hand mode*; Completion status*; Uses/duration vs yesterday‡ |
-| Sensor (analytics) | **Last visitor**; **Last visit time** (local in UI); **Last visit weight** (lb/kg); Occupying pet; Visits 7d/30d; Time full; bag/litter/pack metrics |
-| Switch | Full auto mode; **Do not disturb** (on/off; schedule in app); **Energy saving** (display dim on standby; on/off); Child lock† |
-| Button | Manual clean; Pause; Resume; Empty; Pack; **Mark litter reset**; **Screen off** / **Screen on** (blank display for automations) |
-| Select | Cleaning delay† |
+| Sensor (analytics) | **Last visitor** (closest cat by weight); **Last visit time**; **Last visit weight**; Occupying pet (live only); Visits 7d/30d; Time full; bag / litter / pack metrics |
+| Switch | Full auto mode; Do not disturb; **Screen off** (ON = blank/dim); Child lock; **Confirm empty ready** |
+| Button | Manual clean; Pause; Resume; **Empty** (requires confirm arm); Pack; Mark litter reset |
+| Select | Cleaning delay |
 
 ### Pets (per cat from account roster)
 
@@ -121,19 +122,26 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 |----------|----------|
 | Sensor | Visits 7d / 30d; Avg visit duration 30d; Favorite litter box; Last seen |
 
-\* Diagnostic · † Config · ‡ Disabled by default  
+\* Diagnostic · ‡ Disabled by default  
 
-**Unknown** is used when a visitor cannot be identified. Averages with no samples show **none** / empty (not a fake zero).  
+Controls (switches, buttons, cleaning delay) are **not** under Configuration — they appear with other Controls on the device page.
 
-### Cat-lover tips (get great analytics from day one)
+Empty / missing text sensors show **`-`** (not HA’s “unknown”), except pure numeric classes that must stay empty until a value exists.
 
-1. Prefer **Last visitor**, **Last visit time**, and **Last visit weight** — filled after each detected use (name/weight from API when present). Empty values show as **`-`**.  
-2. **Occupying pet** is only set while a cat is in the box; otherwise **`-`** (never the previous visitor).  
-3. **Properties** (occupancy, weight, pet name fields, full/errors, display mode) refresh about every **30 seconds**. The **pet roster** (`pet/list`) refreshes at most every **1 minute**. Daily stats and device discovery stay on the **5‑minute** poll.  
-4. **Screen off** / **Screen on** buttons blank or restore the display (same API as Energy saving) so automations can keep the screen off unless bag full / errors.  
-5. **Empty from HA** for bag lifetime; **Mark litter reset** after adding litter.  
-6. **Do not disturb** = stop cleaning (on/off in HA; schedule times in the app).  
-7. After upgrade, **restart HA** so weight shows **lb** / **kg**.
+### Empty safety
+
+1. Turn **ON** **Confirm empty ready** (drum/globe closed; you accept dumping litter).  
+2. Within **90 seconds**, press **Empty**.  
+3. Without that arm, Empty is blocked with a clear error.  
+
+### Cat-lover tips
+
+1. **Which cat used which box (multi-cat):** like the app — measure visit weight, compare to each pet’s profile weight (from the Furbulous pet list, or learned from past visits), assign the **closest** cat. Works across many boxes (each visit is tied to that box’s **Last visitor**). Attributes show confidence and weight delta.  
+2. Set accurate **weights for every cat in the Furbulous app** (5 cats with distinct weights work best; twins close in weight may show lower confidence).  
+3. **Occupying pet** is only while a cat is inside; otherwise **`-`**. Prefer **Last visitor** after they leave.  
+4. Properties ~**30s**; pet roster ≤**1 min**; daily stats **5 min**.  
+5. **Screen off** switch for blanking the display via automations.  
+6. **Mark litter reset** after adding litter.
 
 ---
 
@@ -146,7 +154,7 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 - **Duration:** native **seconds** + `SensorDeviceClass.DURATION`.  
 - No login-time unit picker.
 
-This avoids relying on HA’s sticky entity-registry conversion for weight (which often left grams on US installs). After upgrading to **1.2.2+**, reload or restart once so sticky `g` locks are cleared.
+After upgrade, **restart Home Assistant** once so weight units and new entities load cleanly.
 
 ---
 
@@ -204,7 +212,7 @@ This avoids relying on HA’s sticky entity-registry conversion for weight (whic
 **Include:**
 
 - Home Assistant version  
-- Integration version (1.2.0)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.4**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  
@@ -252,10 +260,11 @@ Maintenance is **community / best-effort**. There is no SLA. Prefer issues with 
 
 ---
 
-## Upgrading from 1.1.2
+## Upgrading
 
-1. Install 1.2.0 → restart HA.  
-2. Entries migrate to **region = us** automatically.  
-3. Confirm devices and weight unit; use **Reconfigure** for non-US accounts.  
+1. Update via HACS (or replace `custom_components/furbulous/`) → **restart HA**.  
+2. Confirm **unit system** (US → weight in **lb**; Metric → **kg**).  
+3. Set accurate **pet weights in the Furbulous app** for multi-cat matching.  
+4. For Empty: use **Confirm empty ready**, then **Empty** within 90 seconds.  
 
-See [CHANGELOG.md](CHANGELOG.md) and [DEPLOYMENT_NOTES_1.2.0.md](DEPLOYMENT_NOTES_1.2.0.md).
+See [CHANGELOG.md](CHANGELOG.md) for full history. Notes for the 1.1.x→1.2.0 migration: [DEPLOYMENT_NOTES_1.2.0.md](DEPLOYMENT_NOTES_1.2.0.md).
