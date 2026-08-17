@@ -163,4 +163,4 @@ Cloud **Uses today** is from the Furbulous servers and can reset at their day bo
 
 Entity unique IDs stay stable when we improve names. Advanced automations, bus events, and raw codes are documented in [POWER_USER.md](POWER_USER.md). You can ignore that file forever and still use everything above.
 
-A Mushroom dashboard you can paste into Home Assistant is in [dashboards/](dashboards/README.md).
+An **example** Mushroom dashboard (one house’s entity IDs) is in [dashboards/](dashboards/README.md). Copy it, then replace the prefixes with the IDs from **Developer tools → States** on your HA.

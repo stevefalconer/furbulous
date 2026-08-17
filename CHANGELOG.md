@@ -9,7 +9,7 @@ All notable changes to this fork are documented here.
 - Occupancy, **What the box is doing**, and visit edges share `box_state.classify()`.
 - 5-minute full poll no longer opens visits (presence owns those edges so a stale snapshot cannot invent a cat).
 - Visit / bag / litter events flush to disk immediately instead of waiting up to 60s.
-- New **Trash door jammed** PROBLEM sensor (E4 / bit 524288). Attributes and the cat-parent guide say the usual cause (clump on the waste door) and the fix (scoop, then **OK on the box**). Importable Mushroom dashboard: `docs/dashboards/`.
+- New **Trash door jammed** PROBLEM sensor (E4 / bit 524288). Attributes and the cat-parent guide say the usual cause (clump on the waste door) and the fix (scoop, then **OK on the box**). Example Mushroom dashboard (`docs/dashboards/`) — edit entity ID prefixes for your areas/box names.
 
 ## 1.3.10 — 2026-08-16
 

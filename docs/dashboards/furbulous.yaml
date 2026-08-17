@@ -1,7 +1,13 @@
-# Furbulous — cat-parent dashboard (Mushroom)
+# EXAMPLE dashboard for one house — edit before using elsewhere.
 #
-# Entity IDs from the house HA (areas + box names):
-#   family_room_downstairs_*, front_bedroom_upstairs_*, master_bedroom_master_*
+# HA entity IDs are area + box name. This file is wired to:
+#   family_room_downstairs_*   (Downstairs)
+#   front_bedroom_upstairs_*   (Upstairs)
+#   master_bedroom_master_*    (Master)
+#
+# To adapt: Developer tools → States → search cat_inside. Replace the three
+# prefixes above with your IDs. Rename the card titles. Delete or duplicate
+# a vertical-stack if you have fewer or more boxes. See README.md.
 #
 # Paste into a dashboard from scratch: pencil → ⋮ → Raw configuration editor.
 # Requires Mushroom (HACS frontend).
