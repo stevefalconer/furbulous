@@ -24,6 +24,20 @@ ERROR_LID_OFF = 512
 ERROR_LITTER_POUR = 4096
 ERROR_TRASH_DOOR = 524288
 
+# Live 2026-08-16: owner blocked the waste lid (clump on the door). Clean set
+# 64|524288, drum never moved, screen Device Failure E4. Cloud Resume/Clean
+# did not clear it. On-box OK after clearing the door did, then clean finished.
+# This is not a cat visit and not "drawer out."
+TRASH_DOOR_CAUSE = (
+    "A clump or litter landed on the waste-bin door instead of falling into "
+    "the open bag, so the door cannot open."
+)
+TRASH_DOOR_FIX = (
+    "Scoop the litter off the waste door, then press OK on the box. "
+    "Home Assistant Resume or Clean will not clear this. Cleaning should "
+    "continue after OK."
+)
+
 WASTE_FULL_MASK = ERROR_WASTE_FULL | ERROR_WASTE_FULL_ALT
 COVER_MASK = ERROR_COVER_DOC | ERROR_LID_OFF
 

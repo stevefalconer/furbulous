@@ -270,6 +270,7 @@ Owner put a weight on the **trash-bin lid** so Clean could not open it. Then clo
 
 Learned:
 
+- Real-world cause (owner): a **clump lands on the waste door** instead of dropping into the open bag, so the door cannot open. The lab run used a weight on the lid; the bit and E4 screen are the same.  
 - Trash-door jam during Clean is **`errorReportEvent=524352`**, not old bit **4** (motor blocked).  
 - Cloud **Resume** and **retry Clean** do **not** ack E4. The box stays `workstatus=1` with the bits latched until the **on-box OK/Enter**.  
 - After OK, clean **continues** (`work=1`, `err=0`) and finishes like a normal clean (`comp=1`, then `work=0`).  

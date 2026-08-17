@@ -96,7 +96,15 @@ Examples:
 - **Needs emptying** → Problem means empty/seal soon  
 - **Cover open** → Problem means the **lid is off**  
 - **Drawer out of place** → stays OK; the cloud does **not** tell HA when the drawer is out. Look at the box.  
-- **Trash door jammed** → Problem means the waste door could not open (on-box **Device Failure E4**). Clear the lid and press OK on the box.  
+- **Trash door jammed** → Problem means a **clump landed on the waste door** so it cannot open. This is **not** a cat visit and **not** “the drawer is out.”
+
+### How to clear **Trash door jammed**
+
+This happens during a clean when waste drops a moment late and sits **on** the bin door instead of **in** the bag. The box screen often says **Device Failure E4**. Home Assistant cannot press OK for you.
+
+1. Open the waste area and **scoop the litter off the door**.  
+2. On the box, press **OK** (not a Home Assistant Clean or Resume — those will not clear E4).  
+3. The clean should continue. **Trash door jammed** goes back to OK.
 
 ---
 
@@ -154,3 +162,5 @@ Cloud **Uses today** is from the Furbulous servers and can reset at their day bo
 ## 11. Want more power?
 
 Entity unique IDs stay stable when we improve names. Advanced automations, bus events, and raw codes are documented in [POWER_USER.md](POWER_USER.md). You can ignore that file forever and still use everything above.
+
+A Mushroom dashboard you can paste into Home Assistant is in [dashboards/](dashboards/README.md).
