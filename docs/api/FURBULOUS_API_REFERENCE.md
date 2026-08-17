@@ -431,6 +431,14 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 
 ---
 
+## 10.5 Box state (HA 1.3.11)
+
+HA classifies each properties snapshot in `box_state.classify()` once. Occupancy, **What the box is doing**, and visit edges all read that result. Do not re-parse `workstatus` in a third place.
+
+Priority: E4 trash door → reset (8/6) → pack (3) → pour (5) → clean (`workstatus=1` and `completionStatus` 2 or 3) → best-effort cat (`workstatus=1`) → idle (`0`) → sticky `handMode` only if `workstatus` is missing.
+
+The 5-minute full poll **does not** open visits. Presence (30s) owns those edges so a stale full snapshot cannot invent a cat.
+
 ## 11. HA UX (shipped 1.3.9+)
 
 **Screen mode** (one select):

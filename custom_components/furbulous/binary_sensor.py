@@ -15,6 +15,7 @@ from .entity import FurbulousEntity, extract_prop_value
 from .error_report import (
     is_cover_open,
     is_drawer_out,
+    is_trash_door_blocked,
     is_waste_full,
     parse_error_code,
 )
@@ -26,6 +27,7 @@ from .entity_ids import (
     UID_NEEDS_EMPTYING,
     UID_ONLINE,
     UID_SCREEN_IS_OFF,
+    UID_TRASH_DOOR_BLOCKED,
     box_uid,
 )
 from .helpers import async_add_devices_listener
@@ -323,6 +325,45 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
                 "Look at the box. Trash-door jam is a different error."
             ),
             "error_code": "none",
+            "vendor_property": "errorReportEvent",
+            "audience": "primary",
+        }
+
+
+class FurbulousTrashDoorSensor(FurbulousEntity, BinarySensorEntity):
+    """Trash-door jam / Device Failure E4 (bit 524288)."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:gate-alert"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="trash_door_blocked",
+            unique_id=box_uid(device_id, UID_TRASH_DOOR_BLOCKED),
+        )
+
+    @property
+    def is_on(self) -> bool:
+        device = self.device_data
+        if not device:
+            return False
+        return is_trash_door_blocked(
+            (device.get("properties") or {}).get("errorReportEvent")
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        device = self.device_data or {}
+        raw = parse_error_code(
+            (device.get("properties") or {}).get("errorReportEvent")
+        )
+        return {
+            "when_ok": "Trash door can open",
+            "when_problem": "Clear the trash lid and press OK on the box",
+            "plain_english": "Problem = the waste door could not open (E4).",
+            "error_code": str(raw) if raw is not None else "-",
             "vendor_property": "errorReportEvent",
             "audience": "primary",
         }

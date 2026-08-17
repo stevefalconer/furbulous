@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.11 — 2026-08-16
+
+### One box-state classifier
+
+- Occupancy, **What the box is doing**, and visit edges share `box_state.classify()`.
+- 5-minute full poll no longer opens visits (presence owns those edges so a stale snapshot cannot invent a cat).
+- Visit / bag / litter events flush to disk immediately instead of waiting up to 60s.
+- New **Trash door jammed** PROBLEM sensor (E4 / bit 524288).
+
 ## 1.3.10 — 2026-08-16
 
 ### Cat inside vs clean

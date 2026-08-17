@@ -13,6 +13,7 @@ from .binary_sensor import (
     FurbulousCoverOpenSensor,
     FurbulousDrawerNotInPlaceSensor,
     FurbulousSleepModeSensor,
+    FurbulousTrashDoorSensor,
     FurbulousWasteBinFullSensor,
 )
 from .button import FurbulousHandModeButton, FurbulousLitterResetButton
@@ -86,6 +87,7 @@ def binary_sensor_entities_for_device(
         FurbulousWasteBinFullSensor(presence, device_id),
         FurbulousCoverOpenSensor(presence, device_id),
         FurbulousDrawerNotInPlaceSensor(presence, device_id),
+        FurbulousTrashDoorSensor(presence, device_id),
         FurbulousChildLockBinarySensor(coordinator, device_id),
         FurbulousSleepModeSensor(presence, device_id),
         FurbulousCatInBoxSensor(presence, device_id),

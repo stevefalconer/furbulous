@@ -245,6 +245,9 @@
       "drawer_status": {
         "name": "Drawer out of place"
       },
+      "trash_door_blocked": {
+        "name": "Porta do lixo emperrada"
+      },
       "child_lock": {
         "name": "Child lock on"
       },

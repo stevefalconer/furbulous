@@ -48,6 +48,7 @@ UID_CAT_INSIDE = "cat_inside"
 UID_NEEDS_EMPTYING = "needs_emptying"
 UID_COVER_OPEN = "cover_open"
 UID_DRAWER_OUT_OF_PLACE = "drawer_out_of_place"
+UID_TRASH_DOOR_BLOCKED = "trash_door_blocked"
 UID_CHILD_LOCK_ON = "child_lock_on"
 UID_SCREEN_IS_OFF = "screen_is_off"
 
