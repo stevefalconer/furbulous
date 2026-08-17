@@ -19,7 +19,7 @@ from .entity_ids import (
     UID_SCREEN_OFF_SCHEDULE_START,
     box_uid,
 )
-from .helpers import async_add_devices_listener
+from .helpers import apply_write_to_runtime, async_add_devices_listener
 from .schedule_props import (
     DEFAULT_DND_START_KEY,
     DEFAULT_DND_STOP_KEY,
@@ -136,7 +136,7 @@ class FurbulousScheduleTime(FurbulousEntity, TimeEntity):
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
-        await self.coordinator.async_request_refresh()
+        apply_write_to_runtime(self.coordinator, self._iotid, payload)
 
 
 def schedule_time_entities(

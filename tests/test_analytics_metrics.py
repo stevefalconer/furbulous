@@ -207,6 +207,84 @@ async def test_engine_full_debounce():
     assert len(ons) == 1
 
 
+@pytest.mark.asyncio
+async def test_engine_full_accepts_32():
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-32")
+    eng.store._loaded = True
+    device = {
+        "id": 8,
+        "iotid": "iot-8",
+        "name": "Upstairs",
+        "properties": {"workstatus": 0, "errorReportEvent": 32},
+    }
+    eng.process_snapshot([device])
+    eng.process_snapshot([device])
+    assert eng._device_state["8"].get("is_full") is True
+
+
+@pytest.mark.asyncio
+async def test_engine_clean_and_e4_are_not_visits():
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-clean")
+    eng.store._loaded = True
+    eng.process_snapshot(
+        [
+            {
+                "id": 9,
+                "iotid": "iot-9",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 1,
+                    "completionStatus": 3,
+                    "errorReportEvent": 0,
+                },
+            }
+        ]
+    )
+    assert eng._device_state["9"]["occupied"] is False
+    eng.process_snapshot(
+        [
+            {
+                "id": 9,
+                "iotid": "iot-9",
+                "name": "Box",
+                "properties": {
+                    "workstatus": 1,
+                    "completionStatus": 5,
+                    "errorReportEvent": 64 | 524288,
+                },
+            }
+        ]
+    )
+    assert eng._device_state["9"]["occupied"] is False
+    assert eng.store.events_for_device(9, event_types={"visit_started"}) == []
+
+
+@pytest.mark.asyncio
+async def test_engine_workstatus_8_records_device_litter_reset():
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-ws8")
+    eng.store._loaded = True
+    idle = {
+        "id": 10,
+        "iotid": "iot-10",
+        "name": "Box",
+        "properties": {"workstatus": 0, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([idle])
+    resetting = {
+        "id": 10,
+        "iotid": "iot-10",
+        "name": "Box",
+        "properties": {"workstatus": 8, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([resetting])
+    resets = eng.store.events_for_device(10, event_types={"litter_reset"})
+    assert len(resets) == 1
+    assert resets[0]["source"] == "device"
+
+
 def test_idle_presence_does_not_dirty_store():
     """Unchanged presence ticks must not mark analytics dirty (Pi SD)."""
     hass = MagicMock()

@@ -82,7 +82,7 @@ Those answers reduce smell, overflow, and household friction. They are first-cla
 | **Litter top-up** | User physically added litter | Often unobserved by cloud; may only see **reset** |
 | **Litter reset** | User pressed **reset** after adding litter (sensor/level baseline) | **API TBD**; helper button fallback |
 | **Litter interval** | Time between consecutive litter resets | Primary “how long does litter last?” proxy |
-| **Waste full** | Box reports full waste | `errorReportEvent == 16` (“Litter full - Need to empty”) → binary **Waste bin full** |
+| **Waste full** | Box reports full waste | `errorReportEvent` bit **16 or 32** (“Litter full”) → binary **Needs emptying** |
 | **Full episode** | Continuous period while waste full is true | One open episode at a time per box |
 | **Time-to-clear / time-to-take-out** | How long the full bag sat before cleared | `waste_full_off.ts − waste_full_on.ts` |
 | **Cleared** | Full condition ends (bag taken out / emptied / pack cycle completed) | Full true→false; ideally after Empty/Pack |
@@ -238,7 +238,7 @@ Status key: **Done** = in 1.2.x · **Gap** = API known / partially known but not
 | `catWeight` | R | Health, identity assist | Sensor **Cat weight** (WEIGHT) | on | Done |
 | `errorReportEvent` | R | Safety + full bag | Sensor **Error** (diagnostic) + derived binaries | on | Done (error); full binary Done |
 | Waste full (code 16) | R | Chore automations | Binary **Waste bin full** | on | Done |
-| Drawer not in place (64) | R | Safety | Binary **Drawer in place** (inverted) or problem binary | on | Gap |
+| Drawer not in place (64) | R | Safety | **Not in cloud** (live drawer-out=0). 64 only with 524288 = trash-door E4 | on | **Falsified** |
 | Cover open (128) | R | Safety | Binary **Cover open** | on | Gap |
 | Motor / sensor errors (1,2,4,8,…) | R | Maintenance | Keep on Error sensor; optional problem binaries | diagnostic | Partial (text error only) |
 | `FullAutoModeSwitch` | R/W | Control cleaning behavior | Switch **Full auto mode** | on | Done |

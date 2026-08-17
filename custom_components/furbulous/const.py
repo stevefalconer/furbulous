@@ -60,11 +60,13 @@ ERROR_CODES = {
     4: "Motor error - Rotation blocked",
     8: "Motor error - Overload",
     16: "Litter full - Need to empty",
-    32: "Normal operation",
-    64: "Drawer not in place",
+    32: "Litter full - Need to empty",
+    # 64 alone was never seen live; describe_error labels it "Error 64"
     128: "Cover open",
     256: "Temperature error",
-    512: "Communication error",
+    512: "Cover / lid off",
+    4096: "Litter pour",
+    524288: "Trash door blocked",
 }
 
 ERROR_SEVERITY = {
@@ -74,11 +76,13 @@ ERROR_SEVERITY = {
     4: "error",
     8: "error",
     16: "warning",
-    32: "info",
+    32: "warning",
     64: "warning",
     128: "warning",
     256: "error",
-    512: "error",
+    512: "warning",
+    4096: "info",
+    524288: "error",
 }
 
 # Polling

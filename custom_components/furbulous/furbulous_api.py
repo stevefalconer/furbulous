@@ -210,15 +210,25 @@ class FurbulousCatAPI:
                 f"Authentication request failed: {err}"
             ) from err
 
+    # Vendor auth-failure codes (re-login). Do not treat every "expired"/"token"
+    # substring as auth failure — that re-logins and can kick the phone app.
+    _TOKEN_FAIL_CODES = frozenset({401, 403, 10401, 10402, 10403})
+
     def _is_token_error(self, error_code: Any, error_message: str) -> bool:
-        """Return True if the API response indicates an expired/invalid token."""
-        return (
-            error_code in [401, 403, 10401, 10402, 10403]
-            or "token" in error_message.lower()
-            or "无效的" in error_message
-            or "Token" in error_message
-            or "expired" in error_message.lower()
-            or "unauthor" in error_message.lower()
+        """True only for explicit auth/token failure (then we login once more)."""
+        if error_code in self._TOKEN_FAIL_CODES:
+            return True
+        msg = (error_message or "").lower()
+        if not msg:
+            return False
+        mentions_auth = any(
+            word in msg for word in ("token", "unauthor", "未授权", "无效的")
+        )
+        if not mentions_auth:
+            return False
+        return any(
+            word in msg
+            for word in ("invalid", "expired", "unauthor", "expire", "无效", "过期")
         )
 
     async def _make_authenticated_request(

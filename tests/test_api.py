@@ -437,3 +437,43 @@ async def test_token_refresh_on_10403(
 
     assert len(devices) == 1
     assert devices[0]["iotid"] == "iot-device-001"
+
+
+def test_token_error_only_on_explicit_auth_failure():
+    """Do not re-login on unrelated 'expired' / 'token' substrings."""
+    api = FurbulousCatAPI(email="x", password="y", region_id="us")
+    assert api._is_token_error(10403, "") is True
+    assert api._is_token_error(0, "Invalid Token") is True
+    assert api._is_token_error(0, "token expired") is True
+    assert api._is_token_error(0, "unauthorized") is True
+    assert api._is_token_error(0, "bag expired") is False
+    assert api._is_token_error(0, "timing token field") is False
+
+
+@pytest.mark.asyncio
+async def test_reuse_token_without_second_login(
+    sample_auth_success, sample_device_list
+):
+    """One login, then Bearer token on later calls (no per-request login)."""
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add(
+        "GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list
+    )
+    session.add(
+        "GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list
+    )
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    await api.get_devices()
+    await api.get_devices()
+    logins = [c for c in session.calls if c["url"].endswith("/auth/login")]
+    lists = [c for c in session.calls if c["url"].endswith("/device/list")]
+    assert len(logins) == 1
+    assert len(lists) == 2

@@ -90,13 +90,16 @@ Many entities expose:
 |---------------|------------|
 | Last cat | Text state = pet name; attrs for match quality |
 | Last visit | `Name · local time` for logbook |
-| Needs emptying | PROBLEM binary; error 16; events full/cleared |
+| Needs emptying | PROBLEM binary; error **16 or 32** (bitfield); events full/cleared |
 | What the box is doing | handMode enum labels + `raw_hand_mode` |
 | Clean cycle status | completionStatus labels + raw |
 | Auto-clean after visits | FullAutoModeSwitch 0/1 |
 | Auto-clean minutes before | catCleanOnOff (1–30) |
-| Screen off start/end | masterSleepStartTime / masterSleepEndTime (or aliases); writable time entities |
-| Quiet hours start/end | disturbStartTime / disturbEndTime (or aliases); writable time entities |
+| Screen mode | DisplaySwitch 0 = always on, 1 = Eco/scheduled (blank **inside** window, house-local) |
+| Screen schedule start/end | displayStartTime / displayEndTime (minutes from midnight; PDT-verified) |
+| Screen is off | Schedule **intent** only — no live pixel property |
+| Error message | Bitfield; 32=full, 512=lid off, 524288=trash-door E4; 64≠drawer |
+| Quiet hours start/end | sleepTimeStart / sleepTimeStop (minutes from midnight) |
 | Empty all litter | handMode 2 (requires Empty — confirm ready) |
 | Seal waste bag | handMode 3 |
 | Bag age (hours) | hours since bag_replaced |
@@ -104,7 +107,23 @@ Many entities expose:
 
 ---
 
-## 4. Polling budget (Pi-aware)
+## 4. Analytics persistence
+
+Events are append-only in `config/.storage/furbulous.analytics_<entry_id>` (`STORAGE_KEY` in `analytics/store.py`). 90-day prune, 50k cap.
+
+| Action | Store |
+|--------|--------|
+| HA restart / Docker recreate **with the same config volume** | Survives |
+| Integration version upgrade | Survives |
+| Reload entry | Survives |
+| Delete config entry / wipe `.storage` / new volume | Gone |
+| Reconfigure (same `entry_id`) | Survives |
+
+Bag age restarts on **Empty** (`bag_replaced`). Litter age restarts on **I refilled the litter**. Pack does not reset bag age. Cloud `Uses today` is vendor-day, not this file.
+
+---
+
+## 5. Polling budget (Pi-aware)
 
 | Path | Interval | Content |
 |------|----------|---------|
@@ -116,13 +135,13 @@ Secondary sensors stay **disabled by default** to limit recorder noise. Enable a
 
 ---
 
-## 5. Diagnostics
+## 6. Diagnostics
 
 Device/integration → **Download diagnostics** (redacted). Useful for discovering eco/DND schedule property keys.
 
 ---
 
-## 6. Quality gates
+## 7. Quality gates
 
 ```bash
 .venv/bin/pytest tests/quality/ -v

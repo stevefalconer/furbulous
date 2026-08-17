@@ -106,7 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Drop legacy Screen on/off buttons (1.3.4+) so only Screen off switch remains
+    # Drop leftover Screen on/off buttons and Screen off switch (DisplaySwitch mode)
     await async_remove_orphan_entities(hass, entry)
 
     # One-shot: enable entities that were created disabled-by-default earlier

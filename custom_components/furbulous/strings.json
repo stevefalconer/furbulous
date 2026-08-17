@@ -160,7 +160,13 @@
     },
     "select": {
       "cleaning_delay": { "name": "Auto-clean minutes before" },
-      "screen_mode": { "name": "Screen mode" }
+      "screen_mode": {
+        "name": "Screen mode",
+        "state": {
+          "always_on": "Always on",
+          "scheduled": "Scheduled"
+        }
+      }
     },
     "time": {
       "screen_off_start": { "name": "Screen schedule start" },

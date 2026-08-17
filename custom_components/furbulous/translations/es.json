@@ -303,7 +303,11 @@
         "name": "Auto-clean minutes before"
       },
       "screen_mode": {
-        "name": "Screen mode"
+        "name": "Screen mode",
+        "state": {
+          "always_on": "Siempre encendido",
+          "scheduled": "Programado"
+        }
       }
     },
     "time": {

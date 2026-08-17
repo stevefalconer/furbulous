@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.9 |
+| **Version** | 1.3.10 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -66,8 +66,11 @@ Sharing and control only work **within the same cloud region**. There is no cros
 ### Prerequisites
 
 - Home Assistant **2024.4** or newer  
-- Furbulous app account and at least one litter box online  
+- A **dedicated Furbulous account** for Home Assistant (recommended)  
+- At least one litter box online  
 - Device Wi‑Fi bind is typically **2.4 GHz only** (app / hardware limit)
+
+The Furbulous **phone app appears to allow only one login at a time**. If you put your everyday app email/password into HA, each HA login or token refresh can **sign the app out** and you will keep re-entering the password. Create a second Furbulous account, share the boxes to it, and use **only that account** in this integration.
 
 ---
 
@@ -115,12 +118,12 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 |----------|----------|---------------------|
 | Binary sensor | **Cat inside**; **Needs emptying** / **Cover open** / **Drawer out of place** (OK or Problem); Online*; Child lock on*; Screen is off*‡ | Sensors / Diagnostic |
 | Sensor (live) | Cat weight; **Uses today**; Average visit today; Error message*; Firmware*; **What the box is doing***; **Clean cycle status***; day-over-day‡ | Sensors / Diagnostic |
-| Time | **Screen off start** / **Screen off end**; **Quiet hours start** / **Quiet hours end** (writable daily window) | **Configuration** |
+| Time | **Screen schedule start** / **Screen schedule end**; **Quiet hours start** / **Quiet hours end** (writable daily window) | **Configuration** |
 | Sensor (analytics) | **Last cat**; **Last visit** (`Name · time`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
-| Switch | **Screen off**; **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
+| Switch | **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
 | Switch | **Empty — confirm ready** (safety) | **Controls** |
 | Button | **Clean now**; Pause / Resume cleaning; **Empty all litter** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
-| Select | **Auto-clean minutes before** | **Configuration** |
+| Select | **Screen mode** (Always on / Scheduled); **Auto-clean minutes before** | **Configuration** |
 
 ### Pets (per cat from account roster)
 
@@ -154,13 +157,13 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Entity | **OK** | **Problem** | Code |
 |--------|--------|-------------|------|
-| Needs emptying | Bag has room | Empty / seal soon | 16 |
-| Cover open | Cover closed | Close the cover | 128 |
-| Drawer out of place | Drawer seated | Push drawer in | 64 |
+| Needs emptying | Bag has room | Empty / seal soon | 16 or 32 |
+| Cover open | Lid / cover on | Put the lid back on | 128 or **512** (live lid-off) |
+| Drawer out of place | Always OK | Cloud does **not** report drawer-out | — |
 
 ### What the box is doing
 
-**Idle**, **Cleaning**, **Emptying**, **Packing bag**, **Paused**, **Resuming** (vendor `handMode`; raw code in attributes for power users).
+**Idle** when `workstatus=0` (even if the last button still shows in attributes). **Cleaning** / **Packing bag** / **Resetting litter** follow live `workstatus`. Sticky `handMode` is in attributes only.
 
 ### Clean cycle status
 
@@ -174,14 +177,13 @@ Vendor `completionStatus` — friendly labels + **raw** attribute. Confirm on yo
 | Counts | **0** |
 | Weight / duration / timestamp | HA **unknown** until first real value |
 
-### Screen off & Quiet hours windows
+### Screen mode & Quiet hours windows
 
-The box only applies **Screen off** / **Quiet hours** inside the daily start–end times. Set:
+- **Screen mode** = **Always on** (panel stays lit, including overnight) or **Scheduled / Eco** (blank **inside** **Screen schedule start**–**end**, house-local minutes).
+- A button **always wakes** a dark Eco panel. **Screen is off** is schedule *intent*, not live pixels.
+- **Quiet hours** only applies inside **Quiet hours start**–**Quiet hours end**. Set both times.
 
-- **Screen off** + **Screen off start** + **Screen off end**
-- **Quiet hours** + **Quiet hours start** + **Quiet hours end**
-
-Times are written to the cloud API (not app-only).
+Times are written to the cloud API (not app-only). House-local, not UTC / Virginia.
 
 ### Power-user events (capabilities kept)
 
@@ -264,7 +266,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.9**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.10**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  

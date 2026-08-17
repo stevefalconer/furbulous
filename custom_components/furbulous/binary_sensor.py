@@ -12,6 +12,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import FurbulousEntity, extract_prop_value
+from .error_report import (
+    is_cover_open,
+    is_drawer_out,
+    is_waste_full,
+    parse_error_code,
+)
 from .entity_ids import (
     UID_CAT_INSIDE,
     UID_CHILD_LOCK_ON,
@@ -95,27 +101,24 @@ class FurbulousCatInBoxSensor(FurbulousEntity, BinarySensorEntity):
         device = self.device_data
         if not device:
             return False
-        workstatus = extract_prop_value(
-            (device.get("properties") or {}).get("workstatus")
-        )
-        return workstatus == 1
+        from .helpers import is_cat_present
+
+        return is_cat_present(device.get("properties") or {})
 
     def _entity_fingerprint(self) -> object:
         """Fingerprint occupancy only (ignore other property churn)."""
+        from .helpers import is_cat_present
+
         device = self.device_data
-        workstatus = None
-        if device:
-            workstatus = extract_prop_value(
-                (device.get("properties") or {}).get("workstatus")
-            )
-        return ("occ", workstatus == 1, self.available)
+        occupied = is_cat_present((device or {}).get("properties") or {})
+        return ("occ", occupied, self.available)
 
 
 class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
     """Waste bin status (PROBLEM class: OK when not full, Problem when full).
 
     Values: **OK** (bin has room) / **Problem** (litter full — empty needed).
-    errorReportEvent == 16.
+    errorReportEvent bit 16 (documented) or 32 (live-verified on zvb-114).
     """
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
@@ -132,14 +135,11 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return True if litter-full error code is set."""
+        """Return True if a litter-full error bit is set."""
         device = self.device_data
         if not device:
             return False
-        error_code = extract_prop_value(
-            (device.get("properties") or {}).get("errorReportEvent")
-        )
-        return error_code == 16
+        return is_waste_full((device.get("properties") or {}).get("errorReportEvent"))
 
     @property
     def icon(self) -> str:
@@ -149,11 +149,16 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         """Explain OK vs Problem for cat parents + power users."""
+        device = self.device_data or {}
+        raw = parse_error_code(
+            (device.get("properties") or {}).get("errorReportEvent")
+        )
         return {
             "when_ok": "Bag has room — nothing to do",
             "when_problem": "Time to empty / seal the bag",
             "plain_english": "OK = fine. Problem = needs emptying.",
-            "error_code": "16",
+            "error_code": str(raw) if raw is not None else "-",
+            "full_bits": "16 or 32",
             "vendor_property": "errorReportEvent",
             "audience": "primary",
             "automation_hint": "Also fires furbulous_waste_full / furbulous_waste_cleared",
@@ -247,12 +252,15 @@ class FurbulousSleepModeSensor(FurbulousEntity, BinarySensorEntity):
             "DisplaySwitch": str(props.get("DisplaySwitch")),
             "displayStartTime": str(props.get("displayStartTime")),
             "displayEndTime": str(props.get("displayEndTime")),
-            "note": "on = blank now; off = lit (or outside schedule)",
+            "note": (
+                "on = Eco/Scheduled says blank now (inside start–end, "
+                "house-local). Not live pixels; a button still wakes the panel."
+            ),
         }
 
 
 class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
-    """Cover status (PROBLEM: OK when closed, Problem when open). Code 128."""
+    """Cover / lid status (PROBLEM). Live lid-off is bit 512; 128 documented."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:door-open"
@@ -270,27 +278,22 @@ class FurbulousCoverOpenSensor(FurbulousEntity, BinarySensorEntity):
         device = self.device_data
         if not device:
             return False
-        return (
-            extract_prop_value(
-                (device.get("properties") or {}).get("errorReportEvent")
-            )
-            == 128
-        )
+        return is_cover_open((device.get("properties") or {}).get("errorReportEvent"))
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         return {
             "when_ok": "Cover closed — fine",
-            "when_problem": "Close the cover",
-            "plain_english": "OK = closed. Problem = cover is open.",
-            "error_code": "128",
+            "when_problem": "Put the lid / cover back on",
+            "plain_english": "OK = closed. Problem = lid or cover is off.",
+            "error_code": "128 or 512",
             "vendor_property": "errorReportEvent",
             "audience": "primary",
         }
 
 
 class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
-    """Drawer status (PROBLEM: OK when seated, Problem when not). Code 64."""
+    """Drawer status. Cloud does not report drawer-out (live pull stayed 0)."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:tray-alert"
@@ -308,20 +311,18 @@ class FurbulousDrawerNotInPlaceSensor(FurbulousEntity, BinarySensorEntity):
         device = self.device_data
         if not device:
             return False
-        return (
-            extract_prop_value(
-                (device.get("properties") or {}).get("errorReportEvent")
-            )
-            == 64
-        )
+        return is_drawer_out((device.get("properties") or {}).get("errorReportEvent"))
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         return {
-            "when_ok": "Drawer seated — fine",
-            "when_problem": "Push the drawer fully in",
-            "plain_english": "OK = drawer in place. Problem = drawer out.",
-            "error_code": "64",
+            "when_ok": "Cloud does not report drawer-out — stay OK",
+            "when_problem": "Not used (no verified drawer bit)",
+            "plain_english": (
+                "The box does not tell the cloud when the drawer is out. "
+                "Look at the box. Trash-door jam is a different error."
+            ),
+            "error_code": "none",
             "vendor_property": "errorReportEvent",
             "audience": "primary",
         }

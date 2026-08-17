@@ -24,6 +24,7 @@ _BOX_ACTION_LABELS = {
     3: "Packing bag",
     4: "Paused",
     5: "Resuming",
+    6: "Resetting litter",
 }
 
 # Best-effort completionStatus labels (vendor enum not fully documented)
@@ -31,7 +32,8 @@ _COMPLETION_LABELS = {
     0: "Not complete",
     1: "Complete",
     2: "In progress",
-    3: "Failed",
+    3: "In progress",
+    5: "Litter reset done",
 }
 
 
@@ -58,10 +60,9 @@ class FurbulousFirmwareSensor(FurbulousEntity, SensorEntity):
 
 
 class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
-    """What the box is doing right now (vendor handMode).
+    """What the box is doing — live workstatus first, sticky handMode fallback.
 
-    Formerly labeled “Hand mode” (vendor jargon). Cat-friendly name: Box action.
-    Values: Idle, Cleaning, Emptying, Packing bag, Paused, Resuming.
+    handMode is last command and stays set after idle. workstatus 0 is Idle.
     """
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -80,7 +81,28 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
         device = self.device_data
         if not device:
             return "-"
-        raw = extract_prop_value((device.get("properties") or {}).get("handMode"))
+        props = device.get("properties") or {}
+        work = extract_prop_value(props.get("workstatus"))
+        try:
+            wcode = int(work)
+        except (TypeError, ValueError):
+            wcode = None
+        if wcode == 0:
+            return "Idle"
+        if wcode == 8 or wcode == 6:
+            return "Resetting litter"
+        if wcode == 3:
+            return "Packing bag"
+        if wcode == 5:
+            return "Adding litter"
+        if wcode == 1:
+            try:
+                if int(extract_prop_value(props.get("completionStatus"))) == 3:
+                    return "Cleaning"
+            except (TypeError, ValueError):
+                pass
+            return "In use"
+        raw = extract_prop_value(props.get("handMode"))
         if raw is None:
             return "-"
         try:
@@ -92,19 +114,22 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         device = self.device_data or {}
-        raw = extract_prop_value((device.get("properties") or {}).get("handMode"))
+        props = device.get("properties") or {}
+        raw = extract_prop_value(props.get("handMode"))
+        work = extract_prop_value(props.get("workstatus"))
         return {
             "plain_english": (
-                "Shows Idle, Cleaning, Emptying, Packing bag, Paused, or Resuming."
+                "Idle when the globe is stopped. Cleaning / packing / litter reset "
+                "come from live workstatus, not the last button."
             ),
             "raw_hand_mode": raw if raw is not None else "-",
-            "vendor_property": "handMode",
+            "raw_workstatus": work if work is not None else "-",
+            "vendor_property": "workstatus",
             "audience": "power",
             "note": (
-                "Idle = waiting. Cleaning = cycle running. Emptying / Packing bag "
-                "are waste actions. Paused / Resuming control an in-progress cycle."
+                "handMode is last command and can stick after the box is idle."
             ),
-            "automation_hint": "Trigger on state change or raw_hand_mode attribute",
+            "automation_hint": "Trigger on state change or raw_workstatus attribute",
         }
 
 

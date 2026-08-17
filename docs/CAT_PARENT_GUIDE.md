@@ -3,7 +3,9 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.7+
+**Integration version:** 1.3.10
+
+**Sign-in tip:** Use a **separate Furbulous account** for Home Assistant. The phone app seems to allow only **one login at a time**, so using the same email as your daily app can keep kicking you out of the app.
 
 ---
 
@@ -64,7 +66,7 @@ You’ll see sections roughly like:
 
 ### After you add litter
 
-Press **I refilled the litter** so “Litter age” restarts. The cloud may not detect refills by itself.
+After you pour litter, press **I refilled the litter**. The box **rotates to spread it and resets the scale** (so a pile is not a cat). Litter age also restarts.
 
 ---
 
@@ -76,9 +78,9 @@ Press **I refilled the litter** so “Litter age” restarts. The cloud may not 
 | **Auto-clean minutes before** | Wait after a visit before auto-clean starts |
 | **Quiet hours** | Soft/no cleaning while quiet mode is on |
 | **Quiet hours start** / **Quiet hours end** | Daily window for quiet mode (set both) |
-| **Screen off** | ON = dim/blank the display · OFF = normal |
-| **Screen off start** / **Screen off end** | Daily window when Screen off applies (set both) |
-| **Child lock** | Locks the physical controls |
+| **Screen mode** | **Always on** = stays lit (even overnight) · **Scheduled** = Eco; blanks **during** the daily window |
+| **Screen schedule start** / **Screen schedule end** | When Scheduled is on, the panel is forced off **between** these house-local times. A button still wakes it. |
+| **Child lock** | Locks the physical buttons (cloud on/off works) |
 
 ---
 
@@ -92,8 +94,8 @@ Some sensors use Home Assistant’s **problem** style:
 Examples:
 
 - **Needs emptying** → Problem means empty/seal soon  
-- **Cover open** → Problem means close the cover  
-- **Drawer out of place** → Problem means push the drawer in  
+- **Cover open** → Problem means the **lid is off**  
+- **Drawer out of place** → stays OK; the cloud does **not** tell HA when the drawer is out. Look at the box. A jammed trash door is a different message (Device Failure E4).  
 
 ---
 
@@ -115,10 +117,32 @@ Examples:
 
 ---
 
-## 9. First-week checklist
+## 9. What resets bag age, litter age, and visit history
+
+These live in Home Assistant’s own file (not on the box): `.storage/furbulous.analytics_<config_entry_id>`.
+
+| What you do | Bag age / Litter age | Visit / clean / pack history (90 days) |
+|-------------|----------------------|----------------------------------------|
+| Restart HA or the Docker container (same config folder) | **Kept** | **Kept** |
+| Update the integration version (same config) | **Kept** | **Kept** |
+| Reload the Furbulous integration | **Kept** | **Kept** |
+| Press **I refilled the litter** | Litter age restarts | Litter-reset event added |
+| Press **Empty all litter** (after confirm) | Bag age restarts | Bag-replaced event added |
+| Press **Seal waste bag** | Bag age **not** restarted (pack event only) | Pack event added |
+| **Delete** the Furbulous integration / config entry | **Lost** | **Lost** |
+| New HA config / wipe `.storage` / new Docker volume | **Lost** | **Lost** |
+| Reconfigure (same entry) | **Kept** unless the entry is replaced | **Kept** |
+
+Cloud **Uses today** is from the Furbulous servers and can reset at their day boundary (not HA restart).
+
+**Cat inside** is *right now* on the 30s poll. A **running clean** (`completionStatus=3`) and a **jammed trash door (E4)** are not counted as a cat, even though the box still uses `workstatus=1`. Other `workstatus=1` moments can still look like a visit — that is a vendor limit.
+
+---
+
+## 10. First-week checklist
 
 1. Install via HACS → restart HA.  
-2. Add Furbulous with the **same email/password/region** as the app.  
+2. Add Furbulous with a **dedicated** Furbulous account (not your daily phone login).  
 3. Confirm **unit system** (US → lb, metric → kg).  
 4. Set **pet weights in the app**.  
 5. Glance **Last cat**, **Needs emptying**, **Bag age**, **Litter age**.  
@@ -126,6 +150,6 @@ Examples:
 
 ---
 
-## 10. Want more power?
+## 11. Want more power?
 
 Entity unique IDs stay stable when we improve names. Advanced automations, bus events, and raw codes are documented in [POWER_USER.md](POWER_USER.md). You can ignore that file forever and still use everything above.

@@ -1,0 +1,70 @@
+{
+  "captured_at": "2026-08-16T20:08:43.127443-07:00",
+  "now_min_local": 1208,
+  "note": "Upstairs full in app; HA Needs emptying was OK because errorReportEvent=32 not 16.",
+  "boxes": [
+    {
+      "name": "Downstairs",
+      "id": 3139,
+      "iotid": "849DC2F4F0F5",
+      "firmware": "zxc-111",
+      "errorReportEvent": 0,
+      "DisplaySwitch": 0,
+      "displayStartTime": 1380,
+      "displayEndTime": 420,
+      "masterSleepOnOff": 0,
+      "display_blank_now_model": false,
+      "handMode": 1,
+      "workstatus": 0,
+      "catWeight": 10687,
+      "wcheader": {
+        "times": 1,
+        "avg_duration": 47,
+        "times_diff": -2,
+        "avg_diff": 12
+      }
+    },
+    {
+      "name": "Upstairs",
+      "id": 4796,
+      "iotid": "80A036FC3559",
+      "firmware": "zvb-114",
+      "errorReportEvent": 32,
+      "DisplaySwitch": 1,
+      "displayStartTime": 1320,
+      "displayEndTime": 360,
+      "masterSleepOnOff": 0,
+      "display_blank_now_model": false,
+      "handMode": 3,
+      "workstatus": 0,
+      "catWeight": 4112,
+      "wcheader": {
+        "times": 6,
+        "avg_duration": 41,
+        "times_diff": -1,
+        "avg_diff": -34
+      }
+    },
+    {
+      "name": "Master",
+      "id": 3129,
+      "iotid": "849DC2F5027D",
+      "firmware": "zxc-111",
+      "errorReportEvent": 0,
+      "DisplaySwitch": 1,
+      "displayStartTime": 420,
+      "displayEndTime": 1380,
+      "masterSleepOnOff": 0,
+      "display_blank_now_model": true,
+      "handMode": 2,
+      "workstatus": 0,
+      "catWeight": 8540,
+      "wcheader": {
+        "times": 3,
+        "avg_duration": 35,
+        "times_diff": 0,
+        "avg_diff": -5
+      }
+    }
+  ]
+}

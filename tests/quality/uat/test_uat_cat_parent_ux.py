@@ -44,6 +44,8 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["switch"]["empty_confirm_ready"]["name"].startswith("Empty")
     assert s["select"]["cleaning_delay"]["name"].startswith("Auto-clean")
     assert s["select"]["screen_mode"]["name"] == "Screen mode"
+    assert s["select"]["screen_mode"]["state"]["always_on"] == "Always on"
+    assert s["select"]["screen_mode"]["state"]["scheduled"] == "Scheduled"
     assert s["time"]["screen_schedule_start"]["name"].startswith("Screen schedule")
     assert s["time"]["screen_schedule_end"]["name"].startswith("Screen schedule")
     assert s["time"]["quiet_hours_start"]["name"].startswith("Quiet hours")

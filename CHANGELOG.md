@@ -2,6 +2,44 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.10 — 2026-08-16
+
+### Cat inside vs clean
+
+- **Cat inside** and visit analytics ignore a **running clean** (`completionStatus=3`) and a **trash-door E4** (`524288`). Those used the same `workstatus=1` as a cat.
+
+### Litter reset (physical)
+
+- **I refilled the litter** now sends **`handMode=6`** (spread + tare, same as the on-box menu) and still records Litter age.
+
+### Auth / docs
+
+- Login token is reused for the HA session; re-login only on real auth/token errors (not every message that says “expired”).
+- Docs: dedicated Furbulous account (app looks single-session), bitwise `errorReportEvent`, display apply lag, timezone retrospective (UTC-only does not explain all three boxes).
+
+### Errors (live 2026-08-16)
+
+- **Needs emptying** treats **16 and 32** as full (Upstairs live full was **32**, not 16).
+- **Cover / lid off** is bit **512** (lid removed). Documented **128** still counts if it appears.
+- **Trash door blocked** is bit **524288** (with 64) — screen **Device Failure E4**. Not “drawer.”
+- **Drawer out of place** no longer uses bit 64 (physical drawer-out stayed `0` on the cloud).
+- Error text walks bits above 512 so E4 is not invisible.
+
+### Screen / Eco (live Downstairs)
+
+- **Always on** (`DisplaySwitch=0`) stays lit overnight.
+- **Scheduled / Eco** (`DisplaySwitch=1`) blanks **inside** start–end; minutes are **house-local** (PDT). Virginia/UTC windows did not match.
+- **Screen is off** is schedule intent, not live pixels. A button always wakes a dark Eco panel.
+- Cloud child lock on/off matches the locked screen / menu.
+
+### Cleanup after 1.3.9 review
+
+- Removed unused **Screen off** switch class (`masterSleepOnOff` is not the panel control).
+- Child lock / mode / delay / schedule / Clean now writes update the local snapshot immediately so the HA UI does not wait on a stale cloud GET.
+- **What the box is doing** and **Clean cycle status** now follow the 30-second properties poll.
+- **Screen mode** options are translation keys (`always_on` / `scheduled`) in all language packs.
+- API + cat-parent docs aligned with DisplaySwitch / Screen mode (no longer describe the old Screen off switch as current).
+
 ## 1.3.9 — 2026-08-16
 
 ### Display (physically verified API model)

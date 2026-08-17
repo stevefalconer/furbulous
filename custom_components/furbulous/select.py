@@ -17,7 +17,7 @@ from .entity_ids import (
     UID_SCREEN_MODE,
     box_uid,
 )
-from .helpers import async_add_devices_listener
+from .helpers import apply_write_to_runtime, async_add_devices_listener
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -28,8 +28,9 @@ PARALLEL_UPDATES = 0
 CLEAN_DELAY_OPTIONS = [str(i) for i in range(1, 31)]
 
 # Verified: DisplaySwitch 0 = force lit; 1 = blank inside display schedule
-SCREEN_MODE_ALWAYS_ON = "Always on"
-SCREEN_MODE_SCHEDULED = "Scheduled"
+# Option keys are translated via entity.select.screen_mode.state.*
+SCREEN_MODE_ALWAYS_ON = "always_on"
+SCREEN_MODE_SCHEDULED = "scheduled"
 SCREEN_MODE_OPTIONS = [SCREEN_MODE_ALWAYS_ON, SCREEN_MODE_SCHEDULED]
 
 
@@ -109,14 +110,13 @@ class FurbulousScreenModeSelect(FurbulousEntity, SelectEntity):
         if option not in SCREEN_MODE_OPTIONS:
             return
         value = 0 if option == SCREEN_MODE_ALWAYS_ON else 1
-        if not await self._api.set_device_property(
-            self._iotid, {"DisplaySwitch": value}
-        ):
+        items = {"DisplaySwitch": value}
+        if not await self._api.set_device_property(self._iotid, items):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
-        await self.coordinator.async_request_refresh()
+        apply_write_to_runtime(self.coordinator, self._iotid, items)
 
 
 class FurbulousCleanDelaySelect(FurbulousEntity, SelectEntity):
@@ -167,11 +167,10 @@ class FurbulousCleanDelaySelect(FurbulousEntity, SelectEntity):
         if not 1 <= delay_minutes <= 30:
             return
 
-        if not await self._api.set_device_property(
-            self._iotid, {"catCleanOnOff": delay_minutes}
-        ):
+        items = {"catCleanOnOff": delay_minutes}
+        if not await self._api.set_device_property(self._iotid, items):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
-        await self.coordinator.async_request_refresh()
+        apply_write_to_runtime(self.coordinator, self._iotid, items)
