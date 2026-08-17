@@ -12,6 +12,7 @@ from custom_components.furbulous.binary_sensor import (
     FurbulousWasteBinFullSensor,
 )
 from custom_components.furbulous.device_entities import (
+    binary_sensor_entities_for_device,
     button_entities_for_device,
     sensor_entities_for_device,
     switch_entities_for_device,
@@ -159,10 +160,21 @@ def test_problem_status_ok_semantics():
 
     coord_full = _coord({"errorReportEvent": 16})
     assert FurbulousWasteBinFullSensor(coord_full, 1).is_on is True
+    # Live Upstairs (2026-08-16): full bag reports 32, not 16
+    coord_full_32 = _coord({"errorReportEvent": 32})
+    assert FurbulousWasteBinFullSensor(coord_full_32, 1).is_on is True
     coord_cov = _coord({"errorReportEvent": 128})
     assert FurbulousCoverOpenSensor(coord_cov, 1).is_on is True
+    coord_lid = _coord({"errorReportEvent": 512})
+    assert FurbulousCoverOpenSensor(coord_lid, 1).is_on is True
+    # Drawer-out is not a cloud bit; 64 is not drawer (E4 uses 64|524288)
     coord_dr = _coord({"errorReportEvent": 64})
-    assert FurbulousDrawerNotInPlaceSensor(coord_dr, 1).is_on is True
+    assert FurbulousDrawerNotInPlaceSensor(coord_dr, 1).is_on is False
+    coord_e4 = _coord({"errorReportEvent": 64 | 524288})
+    assert FurbulousDrawerNotInPlaceSensor(coord_e4, 1).is_on is False
+    coord_combo = _coord({"errorReportEvent": 32 | 64})
+    assert FurbulousWasteBinFullSensor(coord_combo, 1).is_on is True
+    assert FurbulousDrawerNotInPlaceSensor(coord_combo, 1).is_on is False
 
 
 def test_box_action_labels():
@@ -173,10 +185,71 @@ def test_box_action_labels():
         (3, "Packing bag"),
         (4, "Paused"),
         (5, "Resuming"),
+        (6, "Resetting litter"),
     ):
         s = FurbulousHandModeSensor(_coord({"handMode": code}), 1)
         assert s.native_value == label
     assert FurbulousHandModeSensor(_coord({"handMode": 1}), 1).translation_key == "box_action"
+    idle_sticky = FurbulousHandModeSensor(
+        _coord({"handMode": 1, "workstatus": 0}), 1
+    )
+    assert idle_sticky.native_value == "Idle"
+    cleaning = FurbulousHandModeSensor(
+        _coord({"handMode": 1, "workstatus": 1, "completionStatus": 3}), 1
+    )
+    assert cleaning.native_value == "Cleaning"
+
+
+def test_box_action_and_cycle_status_use_presence_coordinator():
+    """Live cycle state belongs on the 30s properties poll, not the 5 min snapshot."""
+    full = _coord({"handMode": 0, "completionStatus": 1})
+    presence = _coord({"handMode": 1, "completionStatus": 2})
+    entities = sensor_entities_for_device(
+        full, presence, _analytics(), full.data["devices"][0]
+    )
+    hand = next(e for e in entities if e.translation_key == "box_action")
+    cycle = next(e for e in entities if e.translation_key == "cycle_completion")
+    assert hand.coordinator is presence
+    assert cycle.coordinator is presence
+    assert hand.native_value == "Cleaning"
+    assert cycle.native_value == "In progress"
+
+
+def test_safety_sensors_use_presence_coordinator():
+    full = _coord({"errorReportEvent": 0, "DisplaySwitch": 0})
+    presence = _coord(
+        {"errorReportEvent": 32, "DisplaySwitch": 1, "displayStartTime": 0, "displayEndTime": 0}
+    )
+    bins = binary_sensor_entities_for_device(
+        full, presence, full.data["devices"][0]
+    )
+    waste = next(e for e in bins if e.translation_key == "waste_bin_status")
+    cover = next(e for e in bins if e.translation_key == "cover_status")
+    screen = next(e for e in bins if e.translation_key == "energy_saving_active")
+    assert waste.coordinator is presence
+    assert cover.coordinator is presence
+    assert screen.coordinator is presence
+    sensors = sensor_entities_for_device(
+        full, presence, _analytics(), full.data["devices"][0]
+    )
+    err = next(e for e in sensors if e.translation_key == "error")
+    assert err.coordinator is presence
+
+
+def test_screen_mode_options_are_translation_keys():
+    from custom_components.furbulous.select import (
+        SCREEN_MODE_ALWAYS_ON,
+        SCREEN_MODE_OPTIONS,
+        SCREEN_MODE_SCHEDULED,
+        FurbulousScreenModeSelect,
+    )
+
+    assert SCREEN_MODE_OPTIONS == ["always_on", "scheduled"]
+    sel = FurbulousScreenModeSelect(_coord({"DisplaySwitch": 0}), MagicMock(), 1, "iot-1")
+    assert sel.current_option == SCREEN_MODE_ALWAYS_ON
+    assert sel.options == SCREEN_MODE_OPTIONS
+    sel.coordinator.data["devices"][0]["properties"]["DisplaySwitch"] = 1
+    assert sel.current_option == SCREEN_MODE_SCHEDULED
 
 
 def test_cycle_completion_mapping():
@@ -184,6 +257,10 @@ def test_cycle_completion_mapping():
     assert s.native_value == "Complete"
     assert s.extra_state_attributes["raw_completion_status"] == 1
     assert FurbulousCompletionStatusSensor(_coord({}), 1).native_value == "-"
+    assert (
+        FurbulousCompletionStatusSensor(_coord({"completionStatus": 5}), 1).native_value
+        == "Litter reset done"
+    )
 
 
 def test_screen_off_and_quiet_hours_time_entities_writable():

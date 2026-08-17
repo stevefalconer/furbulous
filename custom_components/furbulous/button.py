@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .entity import FurbulousEntity
 from .entity_ids import UID_LITTER_REFILLED, box_uid
-from .helpers import async_add_devices_listener
+from .helpers import apply_write_to_runtime, async_add_devices_listener
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -108,9 +108,8 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
         _LOGGER.debug(
             "handMode=%s iotid=%s", self._hand_mode, self._iotid
         )
-        if not await self._api.set_device_property(
-            self._iotid, {"handMode": self._hand_mode}
-        ):
+        items = {"handMode": self._hand_mode}
+        if not await self._api.set_device_property(self._iotid, items):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
@@ -120,17 +119,22 @@ class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
                 self._device_id, self._iotid, self._hand_mode, source="ha_button"
             )
             await self._analytics.async_flush()
-        await self.coordinator.async_request_refresh()
+        apply_write_to_runtime(self.coordinator, self._iotid, items)
+
+
+# Live-verified: same rotate/spread/tare as the on-box Litter Reset menu
+HAND_MODE_LITTER_RESET = 6
 
 
 class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
-    """Mark litter reset after topping up (analytics helper if API unknown)."""
+    """Spread litter and tare the scale (handMode 6), then mark refill time."""
 
     _attr_icon = "mdi:shovel"
 
     def __init__(
         self,
         coordinator,
+        api,
         device_id: int,
         iotid: str,
         analytics,
@@ -142,15 +146,36 @@ class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
             translation_key="mark_litter_reset",
             unique_id=box_uid(device_id, UID_LITTER_REFILLED),
         )
+        self._api = api
         self._iotid = iotid
         self._analytics = analytics
 
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "plain_english": (
+                "Spreads new litter and resets the scale so a pile is not a cat. "
+                "Also restarts Litter age."
+            ),
+            "audience": "chore",
+            "vendor_property": "handMode",
+            "raw_hand_mode": str(HAND_MODE_LITTER_RESET),
+        }
+
     async def async_press(self) -> None:
-        """Record a litter reset event for interval analytics."""
-        self._analytics.record_litter_reset(
-            self._device_id, self._iotid, source="ha_button"
-        )
-        await self._analytics.async_flush()
+        """Send litter reset to the box, then record the local refill timestamp."""
+        items = {"handMode": HAND_MODE_LITTER_RESET}
+        if not await self._api.set_device_property(self._iotid, items):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        apply_write_to_runtime(self.coordinator, self._iotid, items)
+        if self._analytics is not None:
+            self._analytics.record_litter_reset(
+                self._device_id, self._iotid, source="ha_button"
+            )
+            await self._analytics.async_flush()
         self.async_write_ha_state()
 
 

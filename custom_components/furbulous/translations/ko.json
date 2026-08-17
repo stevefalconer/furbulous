@@ -303,7 +303,11 @@
         "name": "Auto-clean minutes before"
       },
       "screen_mode": {
-        "name": "Screen mode"
+        "name": "Screen mode",
+        "state": {
+          "always_on": "항상 켜짐",
+          "scheduled": "예약"
+        }
       }
     },
     "time": {

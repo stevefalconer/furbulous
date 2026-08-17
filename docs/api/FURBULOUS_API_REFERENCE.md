@@ -1,7 +1,7 @@
 # Furbulous cloud API reference ( empirically verified )
 
 **Status:** Living document. Prefer this over code comments or prior assumptions.  
-**Last updated:** 2026-08-16 (PDT session)  
+**Last updated:** 2026-08-16 (PDT; jammed trash-door Clean + on-box OK)  
 **Primary device:** Downstairs (`device_id` 3139) — US region account  
 **Ground rules:** No Empty (`handMode` 2) or Pack (`handMode` 3) during discovery unless explicitly authorized.
 
@@ -9,6 +9,7 @@ Related:
 
 - Physical display checks: [`captures/physical_check_display_2026-08-15.jsonl`](captures/physical_check_display_2026-08-15.jsonl)
 - Redacted snapshot: [`captures/downstairs_snapshot_redacted.json`](captures/downstairs_snapshot_redacted.json)
+- Three-box compare (Upstairs full=`32`): [`captures/three_box_compare_2026-08-16.json`](captures/three_box_compare_2026-08-16.json)
 - Quality prompts: [`../../tests/quality/PROMPTS.md`](../../tests/quality/PROMPTS.md)
 
 ---
@@ -27,11 +28,21 @@ Related:
 | Item | Value (US) |
 |------|------------|
 | Client | iOS-style headers (`appid`, `version`, `platform`, `sign` = MD5(appid+path+ts)) |
-| Auth | `POST /app/v1/auth/login` with email/password/account_type |
-| Authenticated calls | Bearer/token from login (see `furbulous_api.py`) |
+| Auth | `POST /app/v1/auth/login` with email/password/account_type — **once per HA session** |
+| Authenticated calls | Reuse the login **token** on every request (`authorization` header). Cheap per-request `sign` is only MD5(appid+path+ts), not a new login. |
+| Re-login | Only if there is no token yet, HTTP 401, or an explicit token/auth error code (`10401`/`10402`/`10403`, “invalid/expired token”). Unrelated “expired” strings do **not** re-login. |
+| HTTP session | One shared `aiohttp` session per config entry (HA’s client session). |
 | Regions | `us` / `eu` / `asia` hosts (see `regions.py`) |
 
 Integration implementation: `custom_components/furbulous/furbulous_api.py`.
+
+**Efficiency:** HA does **not** log in on every poll. Typical path: 1 login at setup / after token death, then Bearer reuse for the 30s property polls and 5 min full snapshot.
+
+### 2.1 Dedicated Furbulous account (recommended)
+
+The mobile app appears to allow **only one active login** for an account. When Home Assistant authenticates (setup, restart, or rare token refresh), that can **kick the phone app** and force you to sign in again.
+
+Use a **dedicated Furbulous account** for this integration (create one in the app, share the boxes to it, put only those credentials in HA). Keep family phones on a different login. This is a user-observed vendor limitation, not something HA can fix.
 
 ---
 
@@ -84,7 +95,7 @@ Values flattened from `{ value, time }` wrappers.
 | Property | Example | Writable? | Notes |
 |----------|---------|-----------|--------|
 | **DisplaySwitch** | 0 or 1 | **Yes** | **Primary physical display control** — see §5.1 |
-| **masterSleepOnOff** | 0 or 1 | **Yes** | HA “Screen off” today; **did not change panel** in physical tests when DisplaySwitch=1 in window |
+| **masterSleepOnOff** | 0 or 1 | **Yes** | **Not used by HA** (1.3.9+). Did not change the panel in physical tests when DisplaySwitch=1 in window |
 | **displayStartTime** | 1380 | **Yes** | Minutes from midnight → **23:00** |
 | **displayEndTime** | 420 | **Yes** | Minutes from midnight → **07:00** (overnight window) |
 | **sleepTimeStart** | 720 | **Yes** | **12:00** — likely Quiet hours / night schedule start |
@@ -92,11 +103,11 @@ Values flattened from `{ value, time }` wrappers.
 | FullAutoModeSwitch | 1 | Yes (integration) | Auto-clean after visits |
 | catCleanOnOff | 4 | Yes | Minutes before auto-clean (1–30) |
 | childLockOnOff | 0 | Yes | Child lock |
-| workstatus | 0 | Read | 0 idle; 1 cat present (occupancy) |
+| workstatus | 0 / 1 / 3 / **5** / **6** / **8** | Read | **0** idle. **1** clean or cat (not occupancy-only). **3** pack. **5** pour / brief post-reset. **6** after on-box litter reset (tail). **8** on-box litter reset rotation (~1 min). |
 | catWeight | 10805 | Read | **Grams** (last measured / sticky) |
-| errorReportEvent | 0 | Read | Bitfield errors (16=full, 64=drawer, 128=cover, …) |
-| handMode | 0–5 | Write (momentary) | 1 clean, 2 empty, 3 pack, 4 pause, 5 resume — **do not use 2/3 without user OK** |
-| completionStatus | 1 | Read | Best-effort cycle complete |
+| errorReportEvent | 0 / **32** / **524352** | Read | **Bitwise** status. See §5.2. **0** = clear. **32** live-verified full. **524352** = 64\|524288 trash-door jam / screen **Device Failure E4**. **64 is not drawer-out.** **512** = lid off (not comms). |
+| handMode | 0–6 | Write (sticky last command) | 1 clean, 2 empty, 3 pack, 4 pause, 5 resume, **6 = physical litter reset** (spread + tare; live Master 2026-08-16). Sticks at last command. Do not use 2/3 without user OK. |
+| completionStatus | 1 / **3** / **5** | Read | **3** = clean running. **1** = clean finished. **5** = after on-box litter reset (not “Failed”). |
 | unitSwitch | 1 | Read | Device unit preference bit (see §7) |
 | ConnectType | online | Read | |
 | catLitterType | 0 | Read | |
@@ -125,9 +136,9 @@ Wall clock: **PDT**. Display window on device: **23:00–07:00** (`displayStartT
 
 | Desired UX | API |
 |------------|-----|
-| **Always on** (force lit) | `DisplaySwitch = 0` |
-| **Scheduled blanking** | `DisplaySwitch = 1` + `displayStartTime` / `displayEndTime` (minutes from midnight). Inside window → blank; outside → lit (expected; **daytime window not yet physically re-tested**) |
-| **Always off** | Not fully proven in isolation. Candidates: `DisplaySwitch=1` with full-day blank window, and/or `masterSleepOnOff=1`. **Needs a daytime physical test** (outside 23:00–07:00) to separate schedule from force-off. |
+| **Always on** (force lit) | `DisplaySwitch = 0`. **Stays lit overnight** with no button (Downstairs; owner next day). Not a timeout/wake mode. |
+| **Scheduled blanking** | `DisplaySwitch = 1` + `displayStartTime` / `displayEndTime` (minutes from midnight). Inside window → blank. **Outside the window does not auto-light** (Downstairs 2026-08-16 21:40–21:43 still dark). Any **button press wakes** the panel even while “off”; that wake is temporary. |
+| **Always off** | Still not isolated. `DisplaySwitch=1` already stays dark until a button; a full-day window may be indistinguishable from that. |
 
 #### What HA got wrong historically
 
@@ -136,18 +147,175 @@ Wall clock: **PDT**. Display window on device: **23:00–07:00** (`displayStartT
 - Looked for non-existent `masterSleepStartTime` keys; real keys are **`displayStartTime` / `displayEndTime`**.  
 - Assumed polarity “1 = screen power off” for DisplaySwitch — **opposite for force-on** (`0` = lit).
 
-#### Timezone note
+#### Apply lag
 
-During the night session, “inside window” was true for both **PDT wall clock** and a naïve **UTC wall clock** interpretation of the same minute numbers (because overnight windows overlap). **That does not prove times are UTC.**  
+After a `DisplaySwitch` / schedule write, the **physical panel can lag under a minute** (cloud → device). HA should treat that as expected, not as a failed write. Immediate `properties/get` can still show the old value; local snapshot + next poll is the right model.
 
-Treat `display*` / `sleep*` as **minutes from midnight in the house’s intended local schedule** until a controlled test proves otherwise:
+#### Timezone — GMT/UTC is **not** the Upstairs-off explanation
 
-**Recommended TZ test (when user available):**  
-1. Note PDT time and panel state with DisplaySwitch=1.  
-2. Temporarily set `displayStartTime`/`displayEndTime` to a **narrow 15-minute window that only makes sense in local time** (e.g. start = now+2 min local, end = now+17 min).  
-3. Observe blanking only in that window.  
-4. Restore previous times.  
-Do **not** leave experimental windows active overnight without user OK.
+HA **Screen blank now** compares schedule minutes to **Home Assistant’s local timezone** (this house: `America/Los_Angeles` / PDT).
+
+Overnight tests could not tell UTC from PDT because 23:00–07:00 overlaps both clocks. The **2026-08-16 20:08 PDT** three-box capture can:
+
+| Box | DisplaySwitch | Window (minutes) | 20:08 PDT (min 1208) | 03:08 UTC (min 188) | You saw |
+|-----|---------------|------------------|----------------------|---------------------|---------|
+| Downstairs | 0 Always on | 23:00–07:00 unused | lit | lit | **On** |
+| Upstairs | 1 Scheduled | 22:00–06:00 (1320–360) | **outside → should be lit** | inside → blank | **Off** |
+| Master | 1 Scheduled | 07:00–23:00 (420–1380) | **inside → blank** | outside → lit | **Off** |
+
+If every box used **UTC minutes**, Master would have been **lit** at 20:08 PDT. It was **off**. So **UTC-only is falsified** as the global rule.
+
+Upstairs being **off outside** its 22:00–06:00 local window is therefore **not** explained by GMT. Remaining hypotheses (do not code as fact): full-bag (`errorReportEvent=32`) blanks the panel; device clock ≠ HA TZ; firmware `zvb-114` differs from Downstairs/Master `zxc-111`.
+
+Treat schedule numbers as **house-local minutes** (this house: PDT). Narrow Eco window tests on 2026-08-16 (§5.8) **confirmed PDT** and **falsified Virginia/Eastern and UTC**.
+
+### 5.2 `errorReportEvent` is bitwise
+
+Values are powers of two. HA treats them as a **bit mask**, not a single exclusive enum.
+
+| Bit | Value | Meaning (current) | Evidence |
+|-----|-------|-------------------|----------|
+| — | 0 | Clear / not full | Downstairs + Master live, not full |
+| 4 | 16 | Litter full (documented) | Older map / decompile; **not seen live** on these boxes |
+| 5 | **32** | **Litter full** | **Live Upstairs 2026-08-16** while the bag was full. Was wrongly labeled “Normal operation.” |
+| 6 | 64 | **Not drawer-out.** Seen only **with 524288** during trash-door jam | Drawer physically out + “No trash box” screen: cloud stayed **0**. HA “Drawer” binary is wrong. |
+| 7 | 128 | Cover open (documented) | **Falsified as lid-off.** Lid removed → **512**, not 128. |
+| 9 | **512** | **Lid / cover off** | Live Downstairs 2026-08-16. Old map said “Communication error.” |
+| 12 | **4096** | Seen **only while pouring litter** (~2s), then 0 | Live Upstairs 2026-08-16; **not** Needs emptying |
+| 19 | **524288** | With **64** → trash-door blocked / screen **Device Failure E4** | Live Downstairs jam 2026-08-16. Not seen alone. |
+| others | 1, 2, 4, 8, 256 | Sensor / motor / temp | Documented; not re-verified |
+
+**Needs emptying** is on when `(code & 16) != 0` **or** `(code & 32) != 0`.
+
+HA **must** walk bits above 512. Combined **524352** is **Trash door blocked** (screen **Device Failure E4**), not drawer. **Cover / lid off** is **512** (and documented **128** if it ever appears). **Drawer-out is not in the cloud** — a physical drawer pull stayed `errorReportEvent=0`.
+
+We have **not** seen 16 and 32 set together. Both bits mean full so a combined value still works.
+
+### 5.3 Live Upstairs seal → bag change → app clean (2026-08-16 PDT)
+
+Physical: HA **Seal waste bag**, pull drawer, remove bag, drawer in (new bag inflated), then **app Clean**. Capture: [`captures/upstairs_seal_empty_2026-08-16.jsonl`](captures/upstairs_seal_empty_2026-08-16.jsonl). App login repeatedly returned **10403** (single session).
+
+| Local time | errorReportEvent | handMode | workstatus | completionStatus | Notes |
+|------------|------------------|----------|------------|------------------|-------|
+| 20:24:21 | **32** full | **3** pack | **3** | 1 | Seal / drawer |
+| 20:26:21 | **0** clear | **1** clean | **1** | **3** running | New bag up; app clean |
+| 20:27:56 | **0** | **1** | **1** | **3** | Still cleaning in API |
+| 20:27:58 | **0** | **1** (sticky) | **0** idle | **1** complete | **API** flipped idle (2s poll) |
+| after “finished” | | | | | Owner: box **still ran a few seconds** after they called it done |
+
+Do **not** treat a spoken “finished” as the API edge. The cloud went `workstatus=0` / `completionStatus=1` at **20:27:58**; the mechanism can keep moving a few seconds after that (same class of lag as display writes, opposite direction: **API can lead the hardware**).
+
+Learned:
+
+- Full **clears on bag replace** (`32` → `0`), not when clean finishes.  
+- `handMode` is **last command**, not “what it is doing now.” After clean it stayed **1** while idle.  
+- `workstatus` **3** = packing; **1** during clean (so **Cat inside** would have been true during a clean — do not treat 1 as cat-only); **0** when the cloud thinks the cycle is done.  
+- `completionStatus` **3** = running, **1** = finished (our old “Failed” label for 3 is **wrong**).  
+- Physical stop can lag the API by a few seconds.
+
+### 5.4 Live Upstairs litter pour (2026-08-16 ~20:37 PDT)
+
+Owner poured **5.29 lb** of litter into Upstairs. Capture: [`captures/upstairs_litter_add_2026-08-16.jsonl`](captures/upstairs_litter_add_2026-08-16.jsonl).
+
+| Local time | workstatus | errorReportEvent | catWeight | catLitterType |
+|------------|------------|------------------|-----------|---------------|
+| 20:36:16 | 0 | 0 | 4020 g | 0 |
+| 20:37:04 | **5** | 0 | 4020 g | 0 |
+| 20:37:06 | **5** | **4096** | 4020 g | 0 |
+| 20:37:08 | 0 | 0 | 4020 g | 0 |
+
+Learned:
+
+- Cloud does **not** record how much litter was added. **5.29 lb never appears.** `catWeight` stayed 4020 g (last visit, not bowl fill).  
+- Brief **`workstatus=5` + `errorReportEvent=4096`** is the only pour signature (~2–4 s). Do not treat 4096 as full.  
+- HA **I refilled the litter** is still required for Litter age / last refilled (local analytics). Pressed on Docker after this pour: age **0.0 h**, refills 30d **0 → 1**.
+
+### 5.5 Live Upstairs on-box Litter Reset (2026-08-16 ~20:41 PDT)
+
+Physical button on the box (rotate + spread + tare). **Not** the HA analytics button. Capture: [`captures/upstairs_litter_reset_physical_2026-08-16.jsonl`](captures/upstairs_litter_reset_physical_2026-08-16.jsonl).
+
+| Local time | workstatus | error | completionStatus | catWeight |
+|------------|------------|-------|------------------|-----------|
+| 20:40:33 | 0 | 0 | 1 | 4020 g |
+| 20:41:12 | **8** rotation | 0 | 1 | 4020 g |
+| 20:41:14 | **8** | **4096** ~2s | 1 | 4020 g |
+| 20:41:16–20:42:13 | **8** | 0 | 1 | 4020 g |
+| 20:42:13 | **0** | 0 | **5** | 4020 g |
+| 20:42:26 | **5** | **4096** | **5** | 4020 g |
+| 20:42:31+ | **6** tail | 0 | **5** | **4020 g** |
+
+Learned:
+
+- Physical on-box reset is **`workstatus=8`**. The on-box button does **not** change `handMode`.  
+- Cloud command **`handMode: 6`** (Master, two runs) produces the **same `workstatus=8` ~60s cycle** and **`completionStatus=5`**.  
+- **`catWeight` does not change** (still last-visit grams). Tare is internal.  
+- HA **I refilled the litter** still only timestamps analytics unless we wire it to `handMode: 6`.
+
+### 5.6 Live Downstairs jammed trash door + Clean (2026-08-16 ~21:18 PDT)
+
+Owner put a weight on the **trash-bin lid** so Clean could not open it. Then cloud **Clean only** (`handMode=1`). Capture: [`captures/downstairs_jammed_trash_door_clean_2026-08-16.jsonl`](captures/downstairs_jammed_trash_door_clean_2026-08-16.jsonl).
+
+| Local time | handMode | workstatus | errorReportEvent | completionStatus | Notes |
+|------------|----------|------------|------------------|------------------|-------|
+| 21:18:18 | 6 | 0 | 0 | 5 | Baseline (sticky litter-reset) |
+| 21:18:20 | **1** | **1** | **524352** = 64\|524288 | 5 | Clean accepted; **drum never moved** |
+| ~21:22 | 1 | 1 | 524352 | 5 | Screen **Device Failure E4** (owner; hard to read) |
+| 21:23:31 | **5** | 1 | 524352 | 5 | Cloud **Resume** `code=0` — **error stayed** |
+| 21:23:52 | **1** | 1 | 524352 | 5 | Cloud **retry Clean** `code=0` — **error stayed** |
+| 21:25:47 | 1 | 1 | 524352 | 5 | Still latched |
+| 21:25:49 | 1 | 1 | **0** | 5 | On-box **OK/Enter**; error cleared ~2s later |
+| 21:27:47 | 1 | 1 | 0 | **1** | Cloud: finishing |
+| 21:27:49 | 1 | **0** | 0 | **1** | Cloud idle |
+| after idle | | | | | Drum stopped; **screen spinner ~8–10s**; then checkbox **Complete** |
+
+Learned:
+
+- Trash-door jam during Clean is **`errorReportEvent=524352`**, not old bit **4** (motor blocked).  
+- Cloud **Resume** and **retry Clean** do **not** ack E4. The box stays `workstatus=1` with the bits latched until the **on-box OK/Enter**.  
+- After OK, clean **continues** (`work=1`, `err=0`) and finishes like a normal clean (`comp=1`, then `work=0`).  
+- HA has **no cloud write** that replaces the panel ack (do not invent `errorReportEvent=0`).  
+- **API leads the panel:** cloud was idle at 21:27:49; after the drum stopped the screen still spun **~8–10s** before the checkbox / Complete. Do not treat `workstatus=0` as “the box is done showing a cycle.”
+
+### 5.7 Live Downstairs child lock + narrow screen window (2026-08-16 ~21:33 PDT)
+
+Capture: [`captures/downstairs_childlock_screen_2026-08-16.jsonl`](captures/downstairs_childlock_screen_2026-08-16.jsonl). Restored to Always on (`DisplaySwitch=0`, 23:00–07:00 unused).
+
+**Child lock**
+
+| Step | API | Owner |
+|------|-----|-------|
+| `childLockOnOff=1` | `code=0`, GET `1` | **Locked screen** |
+| `childLockOnOff=0` | `code=0`, GET `0` | Unlocked; **menu moved** |
+
+**Narrow schedule** (`DisplaySwitch=1`, blank 21:37–21:40 = minutes 1297–1300)
+
+| Clock | Expected if “outside window = lit” | Observed |
+|-------|-------------------------------------|----------|
+| 21:36 | On (outside) | On — **after child-lock button presses** |
+| ~21:36:50 | Still on until 21:37 | **Off** (~10s early) |
+| 21:37–21:40 | Off | Off |
+| 21:40–21:43 | On again | **Still off** (3 min past end) |
+| Any button | — | Owner: screen **always wakes** on a press, even when off |
+
+Learned:
+
+- Cloud child lock **does** lock/unlock the panel.  
+- A button **always** lights a blank panel. The 21:36 “on” was **wake**, not proof of schedule.  
+- **Outside the blank window the panel did not come back on by itself.** HA **Screen blank now** is schedule *intent*, not physical pixels.  
+- House-local minutes still fit (UTC 21:37 PDT would be 04:37 UTC; a UTC box would not have used 1297). The early blank is timeout/clock slop, not UTC.
+
+### 5.8 Eco timezone windows (Downstairs, 2026-08-16 ~22:00 PDT)
+
+Capture: [`captures/downstairs_eco_tz_windows_2026-08-17.jsonl`](captures/downstairs_eco_tz_windows_2026-08-17.jsonl). Eco = `DisplaySwitch=1`. No live “pixels on” property; only the three settings change.
+
+| Test | Window | PDT 22:xx | Eastern 01:xx | UTC 05:xx | Panel |
+|------|--------|-----------|---------------|-----------|-------|
+| 1 | 21:59–22:09 | inside | outside | outside | **Off** |
+| 2 | 00:00–00:05 | outside | outside | outside | **On** |
+| 3 | 01:11–01:21 | outside | **inside** | outside | **Stayed on** (no button) |
+| 4 | 22:13–22:22 | **inside** | outside | outside | **Off** at ~22:15, still off 22:17 |
+
+Rule: Eco blanks **inside** `displayStartTime`–`displayEndTime`. Those minutes are **house-local (PDT)**, not Virginia/Eastern and not UTC. Restored Always on (`DisplaySwitch=0`, 23:00–07:00 unused).
 
 ---
 
@@ -188,7 +356,7 @@ HA should map Quiet hours **times** to `sleepTime*`, not invent 22:00–08:00 de
 - API after roster update: Jet **17**, Tigger **24**, Vinnie **7**, Paulie **10** (rounded).  
 - WC visits: **7882 g ≈ 17.4 lb**, **10805 g ≈ 23.8 lb** — match Jet/Tigger when roster is interpreted as **lb → g**.
 
-**Bug in current HA code:** `extract_pet_weight_grams` treats bare `weight < 80` as **kg** (`×1000`). That makes Jet 17 → 17000 g (wrong) or Vinnie 7 → 7000 g (wrong for lb). **Must use `unit` (and/or region) before matching.**
+**Fixed in 1.3.9:** `extract_pet_weight_grams` uses roster `unit` (`1` = lb on this US account) before matching. Do not treat bare `weight < 80` as kg.
 
 ### 7.3 Multi-account pets
 
@@ -252,6 +420,7 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 | Action | How | Safety |
 |--------|-----|--------|
 | Manual clean | `handMode: 1` | OK to test with user watching box |
+| **Litter reset (spread/tare)** | **`handMode: 6`** | Live-verified Master; same `workstatus=8` as on-box button |
 | Pause / Resume | `handMode: 4` / `5` | OK |
 | **Empty** | `handMode: 2` | **Destructive — user authorize only** |
 | **Pack / seal** | `handMode: 3` | **User authorize only** |
@@ -262,19 +431,17 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 
 ---
 
-## 11. Desired HA UX (product, not yet implemented)
-
-Agreed direction:
+## 11. HA UX (shipped 1.3.9+)
 
 **Screen mode** (one select):
 
 1. **Always on** → `DisplaySwitch=0`  
-2. **Always off** → TBD physical daytime test  
-3. **Scheduled** → `DisplaySwitch=1` + `displayStartTime`/`displayEndTime`  
+2. **Scheduled** → `DisplaySwitch=1` + `displayStartTime`/`displayEndTime`  
+3. **Always off** → still TBD (daytime physical test; not a shipped option)
 
 Keep power users’ raw attributes / events.
 
-**Do not ship** more Screen off = `masterSleepOnOff` as the only control.
+Do **not** map Screen off to `masterSleepOnOff`. The old switch class was removed in 1.3.10.
 
 ---
 
@@ -283,9 +450,16 @@ Keep power users’ raw attributes / events.
 | Topic | Status |
 |-------|--------|
 | DisplaySwitch 0 = lit | **Verified** (physical) |
+| DisplaySwitch 0 stays lit overnight | **Verified** owner (Downstairs still on the next day; Eco off) |
 | DisplaySwitch 1 + night window = dark | **Verified** (physical) |
+| DisplaySwitch 1 + outside window = auto lit | **Falsified** Downstairs 21:43 PDT — stayed dark; button wakes anyway |
 | masterSleepOnOff alone controls panel | **Falsified** in these tests |
-| displayStart/End minutes local wall | **Likely**; TZ not fully proven |
+| displayStart/End minutes local wall | **Likely house-local**; **UTC-only falsified** by Master off at 20:08 PDT (see §5.1) |
+| errorReportEvent 32 = full | **Verified** live (Upstairs zvb-114) |
+| errorReportEvent is a bitfield | **Strong** (powers of two; HA uses masks) |
+| error 64 = drawer out | **Falsified** — drawer out / “No trash box” stayed 0; 64 only seen with 524288 on trash-door jam |
+| error 512 = comms | **Falsified** — lid off was **512** |
+| error 524352 = trash-door jam / E4 | **Verified** Downstairs 2026-08-16; cloud Resume/Clean cannot ack |
 | sleepTime* = Quiet hours schedule | **Assumed** (writable; app not co-checked) |
 | disturb API enables quiet hours | **Uncertain** (bit didn’t stick) |
 | unit=1 → lb | **Strongly evidenced** this account |
@@ -309,18 +483,33 @@ Use with a human at the box. Log API before/after each step.
 
 ---
 
-## 14. Open questions (for next session)
+## 14. Retrospective — why the API was used wrongly
 
-1. **Always off:** Outside 23:00–07:00, with DisplaySwitch=1, is the panel lit? With DisplaySwitch=1 and a window that covers all 24h, does it stay dark?  
-2. **Daytime schedule:** Blank only in a 15-minute local window to prove TZ.  
-3. **masterSleepOnOff** app label vs DisplaySwitch.  
+These mistakes shipped because we trusted **one box, one night, and an inherited code map** instead of live multi-box captures.
+
+| What we assumed | What was true | Lesson |
+|-----------------|---------------|--------|
+| `errorReportEvent == 16` means full; **32 = “Normal operation”** | Full Upstairs reported **32**; not-full boxes reported **0**. 32 is full, not normal. | Never invent enum labels. Capture a **full** box before coding Needs emptying. Treat the field as a **bitfield**. |
+| One Downstairs snapshot is enough | Upstairs firmware **zvb-114** vs Downstairs/Master **zxc-111**; codes and schedules differ | Always compare **all boxes** when a field is “wrong on one.” |
+| Exclusive `==` is safer than bits | Combined errors (full+drawer) would miss **every** PROBLEM sensor | Use `&` masks for 16/32/64/128. |
+| `masterSleepOnOff` is Screen off | Panel follows **DisplaySwitch** + schedule | Physical check beats property names. |
+| Pet `weight < 80` is kg | US roster `unit=1` is **pounds** | Read the unit field. |
+| Overnight 23:00–07:00 proves local vs UTC | That window is true in **both** PDT and UTC at night | Use a **daytime-only** window to prove TZ. UTC-only is already **falsified** (Master). |
+| GET right after SET is truth | Cloud GET can stay stale; panel can lag **&lt; 1 min** | Optimistic local snapshot; do not snap the UI back. |
+| Shared family login is fine | App looks like **one session**; HA login kicks the phone | Dedicated Furbulous account for HA. |
+
+## 15. Open questions (for next session)
+
+1. **Always off:** Outside the scheduled window, with DisplaySwitch=1, is the panel lit?  
+2. **Narrow daytime window** to prove device clock vs HA local (do not leave it overnight).  
+3. Does **error 32** (full) also blank the panel? (Best remaining explanation for Upstairs off at 20:08 PDT.)  
 4. **DND:** App toggle vs `is_disturb` vs `sleepTime*`.  
 5. **Cleo** weight once first visit exists.  
-6. **Linked accounts:** whether both logins share identical pet list weights always.
+6. Confirm vendor **single-session** login (dedicated account).
 
 ---
 
-## 15. Integration implementation checklist
+## 16. Integration implementation checklist
 
 - [x] Screen mode select: **Always on** / **Scheduled** (`DisplaySwitch`)  
 - [x] Stop using masterSleepOnOff as sole “Screen off” (switch removed; mode select)  
@@ -331,6 +520,7 @@ Use with a human at the box. Log API before/after each step.
 - [x] Fix HA weight display for US Customary (lb) when unit system is US  
 - [x] UAT tests for screen mode + unit=1 lb matching  
 - [x] Quality PROMPTS point at this doc  
+- [x] Needs emptying: treat error bits **16 and 32** (live Upstairs full=32)
 
 ### WC history note (2026-08-16 ~00:00 PDT)
 
@@ -338,11 +528,17 @@ Use with a human at the box. Log API before/after each step.
 
 ---
 
-## 16. Capture index
+## 17. Capture index
 
 | File | Content |
 |------|---------|
 | `captures/physical_check_display_2026-08-15.jsonl` | Step log + API echoes |
 | `captures/downstairs_snapshot_redacted.json` | Properties, pets, WC visits (no secrets) |
+| `captures/three_box_compare_2026-08-16.json` | Downstairs / Upstairs / Master (Upstairs full=`32`) |
+| `captures/upstairs_seal_empty_2026-08-16.jsonl` | Upstairs seal + bag change + app clean |
+| `captures/upstairs_litter_add_2026-08-16.jsonl` | Upstairs 5.29 lb litter pour (`workstatus=5`, error `4096`) |
+| `captures/upstairs_litter_reset_physical_2026-08-16.jsonl` | On-box litter reset (`workstatus=8` → `6`, `completionStatus=5`) |
+| `captures/downstairs_jammed_trash_door_clean_2026-08-16.jsonl` | Weight on trash lid + Clean → `524352` / E4; on-box OK cleared and clean finished |
+| `captures/downstairs_childlock_screen_2026-08-16.jsonl` | Child lock on/off; narrow 21:37–21:40 blank; outside window stayed dark |
 
 **End of reference.** Update date and “Verified” tables when new physical or endpoint evidence lands.

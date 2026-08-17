@@ -18,6 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
+from ..error_report import is_waste_full
 from ..events import (
     EVENT_BAG_REPLACED,
     EVENT_LITTER_RESET,
@@ -46,24 +47,17 @@ BAG_EMPTY_DEBOUNCE_S = 300.0  # 5 min
 LITTER_RESET_DEBOUNCE_S = 600.0  # 10 min
 HAND_MODE_EMPTY = 2
 HAND_MODE_PACK = 3
-ERROR_WASTE_FULL = 16
 FLUSH_DEBOUNCE_S = 60.0
 
 
 def _is_full(props: dict[str, Any]) -> bool:
-    raw = extract_prop_value(props.get("errorReportEvent"))
-    try:
-        return int(raw) == ERROR_WASTE_FULL
-    except (TypeError, ValueError):
-        return False
+    return is_waste_full(props.get("errorReportEvent"))
 
 
 def _is_occupied(props: dict[str, Any]) -> bool:
-    raw = extract_prop_value(props.get("workstatus"))
-    try:
-        return int(raw) == 1
-    except (TypeError, ValueError):
-        return False
+    from ..helpers import is_cat_present
+
+    return is_cat_present(props)
 
 
 def _normalize_pet(pet: dict[str, Any]) -> dict[str, Any]:
@@ -403,6 +397,16 @@ class AnalyticsEngine:
             st["name"] = name
         if iotid:
             st["iotid"] = iotid
+
+        prev_work = st.get("last_workstatus")
+        try:
+            work_now = int(extract_prop_value(props.get("workstatus")))
+        except (TypeError, ValueError):
+            work_now = None
+        st["last_workstatus"] = work_now
+        if work_now == 8 and prev_work != 8:
+            self.record_litter_reset(did, iotid, source="device")
+            rank = 1
 
         # Collect weight samples while occupied; median at end resists noise
         if occupied and is_plausible_cat_weight(weight_now):

@@ -13,8 +13,8 @@ from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ERROR_CODES
 from .entity import FurbulousEntity, extract_prop_value
+from .error_report import describe_error, parse_error_code
 from .entity_ids import (
     UID_AVERAGE_VISIT_TODAY,
     UID_CAT_WEIGHT,
@@ -258,19 +258,14 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
         device = self.device_data
         if not device:
             return "-"
-        value = extract_prop_value(
-            device.get("properties", {}).get("errorReportEvent")
-        )
-        if value is None:
-            return "-"
-        return ERROR_CODES.get(value, f"Error {value}")
+        return describe_error(device.get("properties", {}).get("errorReportEvent"))
 
     def _entity_fingerprint(self) -> object:
         """Fingerprint on raw error code (not translated string only)."""
         device = self.device_data
         raw = None
         if device:
-            raw = extract_prop_value(
+            raw = parse_error_code(
                 device.get("properties", {}).get("errorReportEvent")
             )
         return ("err", raw, self.available)

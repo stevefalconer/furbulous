@@ -60,9 +60,9 @@ def sensor_entities_for_device(
                 FurbulousCatWeightSensor(coordinator, device_id),
                 FurbulousDailyUsesSensor(coordinator, device_id),
                 FurbulousAverageDurationSensor(coordinator, device_id),
-                FurbulousErrorSensor(coordinator, device_id),
-                FurbulousHandModeSensor(coordinator, device_id),
-                FurbulousCompletionStatusSensor(coordinator, device_id),
+                FurbulousErrorSensor(presence, device_id),
+                FurbulousHandModeSensor(presence, device_id),
+                FurbulousCompletionStatusSensor(presence, device_id),
                 FurbulousUsesVsYesterdaySensor(coordinator, device_id),
                 FurbulousDurationVsYesterdaySensor(coordinator, device_id),
             ]
@@ -83,11 +83,11 @@ def binary_sensor_entities_for_device(
         return []
     return [
         FurbulousConnectedSensor(coordinator, device_id),
-        FurbulousWasteBinFullSensor(coordinator, device_id),
-        FurbulousCoverOpenSensor(coordinator, device_id),
-        FurbulousDrawerNotInPlaceSensor(coordinator, device_id),
+        FurbulousWasteBinFullSensor(presence, device_id),
+        FurbulousCoverOpenSensor(presence, device_id),
+        FurbulousDrawerNotInPlaceSensor(presence, device_id),
         FurbulousChildLockBinarySensor(coordinator, device_id),
-        FurbulousSleepModeSensor(coordinator, device_id),
+        FurbulousSleepModeSensor(presence, device_id),
         FurbulousCatInBoxSensor(presence, device_id),
     ]
 
@@ -149,7 +149,9 @@ def button_entities_for_device(
         )
     if analytics is not None:
         entities.append(
-            FurbulousLitterResetButton(coordinator, device_id, iotid, analytics)
+            FurbulousLitterResetButton(
+                coordinator, api, device_id, iotid, analytics
+            )
         )
     return entities
 

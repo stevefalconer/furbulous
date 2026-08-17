@@ -102,8 +102,9 @@ def in_overnight_window(now_min: int, start: int | None, end: int | None) -> boo
 def is_display_blanked(properties: dict[str, Any] | None, hass=None) -> bool:
     """Whether the panel should be blank per verified DisplaySwitch model.
 
-    DisplaySwitch 0 → force on (never blank).
-    DisplaySwitch 1 → blank inside displayStartTime–displayEndTime (local minutes).
+    DisplaySwitch 0 → force on (never blank; stays lit overnight).
+    DisplaySwitch 1 → Eco: blank inside displayStartTime–displayEndTime
+    (house-local minutes; verified PDT, not UTC/Virginia). Not live pixels.
     """
     if not properties:
         return False

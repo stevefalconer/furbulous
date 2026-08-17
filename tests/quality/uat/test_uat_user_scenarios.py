@@ -45,7 +45,7 @@ def test_screen_mode_always_on_vs_scheduled():
     sel = FurbulousScreenModeSelect(coord, MagicMock(), 7, "iot-7")
     assert sel.current_option == SCREEN_MODE_ALWAYS_ON
     coord.data["devices"][0]["properties"]["DisplaySwitch"] = 1
-    assert sel.current_option == "Scheduled"
+    assert sel.current_option == "scheduled"
 
 
 def test_full_auto_vs_pause_docs():

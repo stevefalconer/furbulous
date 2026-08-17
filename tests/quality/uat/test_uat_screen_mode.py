@@ -1,7 +1,8 @@
 """UAT: Screen mode (DisplaySwitch) + schedule model."""
 from __future__ import annotations
 
-from datetime import time
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -67,6 +68,21 @@ async def test_screen_mode_writes_display_switch():
     api.set_device_property.assert_awaited_with("iot", {"DisplaySwitch": 1})
     await sel.async_select_option(SCREEN_MODE_ALWAYS_ON)
     api.set_device_property.assert_awaited_with("iot", {"DisplaySwitch": 0})
+    assert coord.data["devices"][0]["properties"]["DisplaySwitch"] == 0
+
+
+def test_all_language_packs_translate_screen_mode_options():
+    root = Path(__file__).resolve().parents[3] / "custom_components" / "furbulous" / "translations"
+    packs = list(root.glob("*.json"))
+    assert packs
+    for path in packs:
+        data = json.loads(path.read_text())
+        state = data["entity"]["select"]["screen_mode"]["state"]
+        assert set(state) == {"always_on", "scheduled"}
+        assert state["always_on"].strip()
+        assert state["scheduled"].strip()
+        if path.name != "en.json":
+            assert state["always_on"] != "Always on" or state["scheduled"] != "Scheduled"
 
 
 def test_pet_unit_1_is_pounds_for_us_roster():

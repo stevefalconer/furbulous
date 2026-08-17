@@ -24,6 +24,13 @@ link tests that guard the fix.
 | Q-017 | 1.3.7 | **resolved** 1.3.7 | bronze | unique_ids still vendor camelCase / iotid | Cat-parent slug scheme + one-shot purge | `test_all_box_unique_ids_use_cat_parent_scheme` |
 | Q-018 | 1.3.8 | **resolved** 1.3.8 | gold | Screen/Quiet schedules read-only / wrong names | Writable time entities named Screen off / Quiet hours start|end | `test_screen_off_and_quiet_hours_time_entities_writable` |
 | Q-019 | 1.3.8 | **resolved** 1.3.8 | gold | Secondary sensors + Screen is off disabled | All enabled by default + one-shot registry enable | `test_all_entities_enabled_by_default` |
+| Q-020 | 1.3.9 review | **resolved** 1.3.10 | silver | Dead `FurbulousEnergySavingSwitch` left in switch.py | Deleted unused class | `test_energy_saving_switch_removed` |
+| Q-021 | 1.3.9 review | **resolved** 1.3.10 | silver | Child lock HA UI lagged until later refresh | Optimistic local snapshot after write; skip immediate stale GET | `test_child_lock_write_updates_local_snapshot` |
+| Q-022 | 1.3.9 review | **resolved** 1.3.10 | gold | What the box is doing lagged on 5 min coordinator | Bind box action + cycle status to 30s presence | `test_box_action_and_cycle_status_use_presence_coordinator` |
+| Q-023 | 1.3.9 review | **resolved** 1.3.10 | gold/uat | Screen mode options English-only | Translation keys + all language packs | `test_screen_mode_options_are_translation_keys`, `test_all_language_packs_translate_screen_mode_options` |
+| Q-024 | 2026-08-16 field | **resolved** 1.3.10 | gold | Upstairs full but Needs emptying OK (`errorReportEvent=32`) | Treat 16 and 32 as full; bit masks for cover/drawer | `test_waste_full_accepts_16_and_32`, `test_needs_emptying_entity_on_for_upstairs_code_32` |
+| Q-025 | 2026-08-16 field | **resolved** 1.3.10 | gold | Error bits 64/128/512/524288 mislabeled | 512=lid; 524288=E4 trash door; drawer not a cloud bit; describe_error walks high bits | `test_cover_is_lid_off_or_documented_128`, `test_trash_door_e4`, `test_problem_status_ok_semantics` |
+| Q-026 | 2026-08-16 field | **documented** 1.3.10 | gold | Screen blank now ≠ physical panel | Eco blanks inside local window; entity is schedule intent; button wakes | CAT_PARENT + API §5.8 |
 
 ## How to use
 

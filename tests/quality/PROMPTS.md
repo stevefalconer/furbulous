@@ -53,7 +53,7 @@ cd furbulous
 
 ## UAT (user acceptance scenarios)
 
-**Prompt:** *As a multi-cat owner: Screen off is one toggle (ON=off); Empty requires Empty confirm ready; Full auto ≠ Pause; Last visit activity shows pet name when matched; status sensors show OK when healthy; secondary sensors default disabled.*
+**Prompt:** *As a multi-cat owner: Screen mode is Always on / Scheduled; Empty requires Empty confirm ready; Full auto ≠ Pause; Last visit activity shows pet name when matched; status sensors show OK when healthy; What the box is doing follows the 30s poll.*
 
 ```bash
 .venv/bin/pytest tests/quality/uat/ -v

@@ -16,17 +16,13 @@ from .entity_ids import (
     UID_CHILD_LOCK,
     UID_EMPTY_CONFIRM_READY,
     UID_QUIET_HOURS,
-    UID_SCREEN_OFF,
     box_uid,
 )
-from .helpers import async_add_devices_listener
+from .helpers import apply_write_to_runtime, async_add_devices_listener
 from .schedule_props import (
     DND_START_KEYS,
     DND_STOP_KEYS,
-    ECO_START_KEYS,
-    ECO_STOP_KEYS,
     first_prop,
-    schedule_probe_attributes,
 )
 
 if TYPE_CHECKING:
@@ -81,6 +77,21 @@ class _FurbulousSwitch(FurbulousEntity, SwitchEntity):
         self._api = api
         self._iotid = iotid
 
+    async def _async_set_items(
+        self,
+        items: dict[str, Any],
+        extra_device_fields: dict[str, Any] | None = None,
+    ) -> None:
+        """Write properties and update local snapshots (no immediate GET)."""
+        if not await self._api.set_device_property(self._iotid, items):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_property_failed",
+            )
+        apply_write_to_runtime(
+            self.coordinator, self._iotid, items, extra_device_fields
+        )
+
 
 class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
     """Full auto mode — after a visit, clean automatically (no manual start).
@@ -134,25 +145,11 @@ class FurbulousFullAutoModeSwitch(_FurbulousSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable full auto mode."""
-        if not await self._api.set_device_property(
-            self._iotid, {"FullAutoModeSwitch": 1}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
+        await self._async_set_items({"FullAutoModeSwitch": 1})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable full auto mode."""
-        if not await self._api.set_device_property(
-            self._iotid, {"FullAutoModeSwitch": 0}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
+        await self._async_set_items({"FullAutoModeSwitch": 0})
 
 
 class FurbulousDNDSwitch(_FurbulousSwitch):
@@ -216,7 +213,9 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
-        await self.coordinator.async_request_refresh()
+        apply_write_to_runtime(
+            self.coordinator, self._iotid, {}, extra_device_fields={"is_disturb": 1}
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable DND."""
@@ -225,107 +224,9 @@ class FurbulousDNDSwitch(_FurbulousSwitch):
                 translation_domain=DOMAIN,
                 translation_key="set_property_failed",
             )
-        await self.coordinator.async_request_refresh()
-
-
-class FurbulousEnergySavingSwitch(_FurbulousSwitch):
-    """Screen off toggle (energy-saving display dim/blank in standby).
-
-    Single control for the display (replaces legacy Screen on/off buttons):
-    - ON  = screen off / dimmed (masterSleepOnOff = 1)
-    - OFF = screen on / normal (masterSleepOnOff = 0)
-
-    Placed under Configuration with other settings-style switches.
-    """
-
-    _attr_icon = "mdi:monitor-off"
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, coordinator, api, device_id: int, iotid: str) -> None:
-        """Initialize."""
-        super().__init__(
-            coordinator,
-            api,
-            device_id,
-            iotid,
-            translation_key="screen_off",
-            unique_id=box_uid(device_id, UID_SCREEN_OFF),
+        apply_write_to_runtime(
+            self.coordinator, self._iotid, {}, extra_device_fields={"is_disturb": 0}
         )
-
-    @property
-    def is_on(self) -> bool:
-        """Return True when the display is in energy-saving / off mode."""
-        device = self.device_data
-        if not device:
-            return False
-        return (
-            extract_prop_value(
-                (device.get("properties") or {}).get("masterSleepOnOff")
-            )
-            == 1
-        )
-
-    @property
-    def available(self) -> bool:
-        """Available when the property is present on the device."""
-        device = self.device_data
-        if not device or not self.coordinator.last_update_success:
-            return False
-        return (device.get("properties") or {}).get("masterSleepOnOff") is not None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str]:
-        """Clarify semantics; surface eco schedule if API returns times."""
-        device = self.device_data or {}
-        props = device.get("properties") or {}
-        start, start_key = first_prop(props, ECO_START_KEYS)
-        stop, stop_key = first_prop(props, ECO_STOP_KEYS)
-        attrs: dict[str, str] = {
-            "effect": "display_dim_standby",
-            "when_on": "screen_off_or_dimmed",
-            "when_off": "screen_on_normal",
-            "plain_english": (
-                "ON blanks/dims the screen only inside Screen off start–end. "
-                "Set those times on this device or the display may stay on."
-            ),
-            "note": (
-                "ON blanks/dims the display. Daily window is Screen off start "
-                "and Screen off end (writable time entities)."
-            ),
-            "audience": "setting",
-        }
-        if start:
-            attrs["eco_start"] = start
-            if start_key:
-                attrs["eco_start_key"] = start_key
-        if stop:
-            attrs["eco_stop"] = stop
-            if stop_key:
-                attrs["eco_stop_key"] = stop_key
-        attrs.update(schedule_probe_attributes(props))
-        return attrs
-
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn screen off (energy saving on)."""
-        if not await self._api.set_device_property(
-            self._iotid, {"masterSleepOnOff": 1}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn screen on (energy saving off)."""
-        if not await self._api.set_device_property(
-            self._iotid, {"masterSleepOnOff": 0}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
 
 
 class FurbulousEmptyConfirmSwitch(_FurbulousSwitch):
@@ -419,22 +320,8 @@ class FurbulousChildLockSwitch(_FurbulousSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable child lock."""
-        if not await self._api.set_device_property(
-            self._iotid, {"childLockOnOff": 1}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
+        await self._async_set_items({"childLockOnOff": 1})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable child lock."""
-        if not await self._api.set_device_property(
-            self._iotid, {"childLockOnOff": 0}
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="set_property_failed",
-            )
-        await self.coordinator.async_request_refresh()
+        await self._async_set_items({"childLockOnOff": 0})

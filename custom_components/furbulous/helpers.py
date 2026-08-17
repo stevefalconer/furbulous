@@ -7,6 +7,72 @@ from typing import Any
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+
+def apply_local_properties(
+    coordinator: Any,
+    iotid: str,
+    items: dict[str, Any],
+    extra_device_fields: dict[str, Any] | None = None,
+) -> bool:
+    """Patch a coordinator snapshot after a successful cloud write.
+
+    A GET immediately after properties/set can still return the old value.
+    Updating local data keeps switches/selects from snapping back.
+    """
+    data = getattr(coordinator, "data", None)
+    if not isinstance(data, dict) or not iotid:
+        return False
+    devices = data.get("devices") or []
+    new_devices: list[dict[str, Any]] = []
+    changed = False
+    for device in devices:
+        if not isinstance(device, dict) or device.get("iotid") != iotid:
+            new_devices.append(device)
+            continue
+        updated = dict(device)
+        props = dict(updated.get("properties") or {})
+        for key, value in items.items():
+            existing = props.get(key)
+            if isinstance(existing, dict):
+                wrapped = dict(existing)
+                wrapped["value"] = value
+                props[key] = wrapped
+            else:
+                props[key] = value
+        updated["properties"] = props
+        if extra_device_fields:
+            updated.update(extra_device_fields)
+        new_devices.append(updated)
+        changed = True
+    if not changed:
+        return False
+    new_data = {**data, "devices": new_devices}
+    coordinator.data = new_data
+    setter = getattr(coordinator, "async_set_updated_data", None)
+    if callable(setter):
+        setter(new_data)
+    return True
+
+
+def apply_write_to_runtime(
+    coordinator: Any,
+    iotid: str,
+    items: dict[str, Any],
+    extra_device_fields: dict[str, Any] | None = None,
+) -> None:
+    """Patch the writing coordinator and the sibling full/presence snapshot."""
+    apply_local_properties(coordinator, iotid, items, extra_device_fields)
+    entry = getattr(coordinator, "config_entry", None)
+    runtime = getattr(entry, "runtime_data", None) if entry is not None else None
+    if runtime is None:
+        return
+    for other in (
+        getattr(runtime, "coordinator", None),
+        getattr(runtime, "presence_coordinator", None),
+    ):
+        if other is not None and other is not coordinator:
+            apply_local_properties(other, iotid, items, extra_device_fields)
+
 try:
     from homeassistant.core import callback as _ha_callback
 except ImportError:  # pragma: no cover - unit test stubs
@@ -42,3 +108,29 @@ def async_add_devices_listener(
             async_add_entities(new_entities)
 
     return _async_add_new
+
+
+def is_cat_present(properties: dict[str, Any] | None) -> bool:
+    """True when workstatus looks like a cat, not a clean/fault cycle.
+
+    Vendor ``workstatus=1`` is also used during Clean (and jammed Clean / E4).
+    Live 2026-08-16: completionStatus 3 = clean running; bit 524288 = trash-door
+    jam. Those must not count as Cat inside or a visit.
+    """
+    from .entity import extract_prop_value
+    from .error_report import is_trash_door_blocked
+
+    props = properties or {}
+    try:
+        if int(extract_prop_value(props.get("workstatus"))) != 1:
+            return False
+    except (TypeError, ValueError):
+        return False
+    if is_trash_door_blocked(props.get("errorReportEvent")):
+        return False
+    try:
+        if int(extract_prop_value(props.get("completionStatus"))) == 3:
+            return False
+    except (TypeError, ValueError):
+        pass
+    return True
