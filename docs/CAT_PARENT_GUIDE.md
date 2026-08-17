@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.10
+**Integration version:** 1.3.11
 
 **Sign-in tip:** Use a **separate Furbulous account** for Home Assistant. The phone app seems to allow only **one login at a time**, so using the same email as your daily app can keep kicking you out of the app.
 
@@ -95,7 +95,8 @@ Examples:
 
 - **Needs emptying** → Problem means empty/seal soon  
 - **Cover open** → Problem means the **lid is off**  
-- **Drawer out of place** → stays OK; the cloud does **not** tell HA when the drawer is out. Look at the box. A jammed trash door is a different message (Device Failure E4).  
+- **Drawer out of place** → stays OK; the cloud does **not** tell HA when the drawer is out. Look at the box.  
+- **Trash door jammed** → Problem means the waste door could not open (on-box **Device Failure E4**). Clear the lid and press OK on the box.  
 
 ---
 

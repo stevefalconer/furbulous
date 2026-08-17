@@ -172,6 +172,10 @@ def test_problem_status_ok_semantics():
     assert FurbulousDrawerNotInPlaceSensor(coord_dr, 1).is_on is False
     coord_e4 = _coord({"errorReportEvent": 64 | 524288})
     assert FurbulousDrawerNotInPlaceSensor(coord_e4, 1).is_on is False
+    from custom_components.furbulous.binary_sensor import FurbulousTrashDoorSensor
+
+    assert FurbulousTrashDoorSensor(coord_e4, 1).is_on is True
+    assert FurbulousTrashDoorSensor(_coord({"errorReportEvent": 0}), 1).is_on is False
     coord_combo = _coord({"errorReportEvent": 32 | 64})
     assert FurbulousWasteBinFullSensor(coord_combo, 1).is_on is True
     assert FurbulousDrawerNotInPlaceSensor(coord_combo, 1).is_on is False

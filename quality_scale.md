@@ -3,7 +3,7 @@
 Tracking against [HA Integration Quality Scale rules](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/).  
 Status: **PASS** | **EXEMPT** (with reason). Not a core submission claim.
 
-**Last reviewed:** 2026-08-16 (**v1.3.10**)
+**Last reviewed:** 2026-08-16 (**v1.3.11**)
 
 Automated tests:
 

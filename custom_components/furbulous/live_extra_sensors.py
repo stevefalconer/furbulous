@@ -81,35 +81,10 @@ class FurbulousHandModeSensor(FurbulousEntity, SensorEntity):
         device = self.device_data
         if not device:
             return "-"
-        props = device.get("properties") or {}
-        work = extract_prop_value(props.get("workstatus"))
-        try:
-            wcode = int(work)
-        except (TypeError, ValueError):
-            wcode = None
-        if wcode == 0:
-            return "Idle"
-        if wcode == 8 or wcode == 6:
-            return "Resetting litter"
-        if wcode == 3:
-            return "Packing bag"
-        if wcode == 5:
-            return "Adding litter"
-        if wcode == 1:
-            try:
-                if int(extract_prop_value(props.get("completionStatus"))) == 3:
-                    return "Cleaning"
-            except (TypeError, ValueError):
-                pass
-            return "In use"
-        raw = extract_prop_value(props.get("handMode"))
-        if raw is None:
-            return "-"
-        try:
-            code = int(raw)
-        except (TypeError, ValueError):
-            return str(raw)
-        return _BOX_ACTION_LABELS.get(code, str(code))
+        from .box_state import classify
+
+        state = classify(device.get("properties") or {})
+        return state.label
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

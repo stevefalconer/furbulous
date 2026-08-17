@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.10 |
+| **Version** | 1.3.11 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -266,7 +266,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.10**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.11**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  

@@ -261,6 +261,28 @@ async def test_engine_clean_and_e4_are_not_visits():
     assert eng.store.events_for_device(9, event_types={"visit_started"}) == []
 
 
+def test_full_recompute_does_not_open_a_visit():
+    """5 min snapshot must not invent occupancy (stale vs presence)."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-full-occ")
+    eng.store._loaded = True
+    eng.process_snapshot(
+        [
+            {
+                "id": 11,
+                "iotid": "iot-11",
+                "name": "Box",
+                "properties": {"workstatus": 1, "errorReportEvent": 0},
+            }
+        ],
+        full_recompute=True,
+    )
+    assert "11" not in eng._device_state or eng._device_state.get("11", {}).get(
+        "occupied"
+    ) in (None, False)
+    assert eng.store.events_for_device(11, event_types={"visit_started"}) == []
+
+
 @pytest.mark.asyncio
 async def test_engine_workstatus_8_records_device_litter_reset():
     hass = MagicMock()

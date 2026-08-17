@@ -31,6 +31,7 @@ link tests that guard the fix.
 | Q-024 | 2026-08-16 field | **resolved** 1.3.10 | gold | Upstairs full but Needs emptying OK (`errorReportEvent=32`) | Treat 16 and 32 as full; bit masks for cover/drawer | `test_waste_full_accepts_16_and_32`, `test_needs_emptying_entity_on_for_upstairs_code_32` |
 | Q-025 | 2026-08-16 field | **resolved** 1.3.10 | gold | Error bits 64/128/512/524288 mislabeled | 512=lid; 524288=E4 trash door; drawer not a cloud bit; describe_error walks high bits | `test_cover_is_lid_off_or_documented_128`, `test_trash_door_e4`, `test_problem_status_ok_semantics` |
 | Q-026 | 2026-08-16 field | **documented** 1.3.10 | gold | Screen blank now ≠ physical panel | Eco blanks inside local window; entity is schedule intent; button wakes | CAT_PARENT + API §5.8 |
+| Q-027 | 1.3.10 review | **resolved** 1.3.11 | gold | Dual coordinator + scattered workstatus ifs invented visits | `box_state.classify`; presence-only edges; trash-door entity; immediate flush | `test_box_state.py`, `test_full_recompute_does_not_open_a_visit` |
 
 ## How to use
 

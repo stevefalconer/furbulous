@@ -95,6 +95,7 @@ class AnalyticsEngine:
         self._pets_sig: tuple[tuple[Any, str], ...] = ()
         self._learned_weights: dict[str, float] = {}
         self._dirty = False
+        self._need_immediate_flush = False
         self._last_save = 0.0
         self._flush_task: Any | None = None
         self._delayed_flush_task: Any | None = None
@@ -241,12 +242,14 @@ class AnalyticsEngine:
         self._delayed_flush_task = self.hass.async_create_task(_later())
 
     def schedule_flush(self) -> None:
-        """Schedule a debounced disk flush (at most one immediate pending task)."""
+        """Flush now for visit/bag/litter edges; debounce idle rollups."""
         if not self._dirty:
             return
         if self._flush_task is not None and not self._flush_task.done():
             return
-        self._flush_task = self.hass.async_create_task(self.async_flush(force=False))
+        force = self._need_immediate_flush
+        self._need_immediate_flush = False
+        self._flush_task = self.hass.async_create_task(self.async_flush(force=force))
 
     def recompute_all(self) -> None:
         """Recompute metrics for all known devices + pets."""
@@ -331,10 +334,15 @@ class AnalyticsEngine:
                 self._pets_sig = sig
                 rank = 1
 
+        # Presence owns occupy / full / workstatus-8 edges. The 5 min snapshot
+        # can arrive stale and open a false visit after presence already
+        # classified a clean. Pets + WC history stay on the full path.
+        detect_edges = not full_recompute
         for device in devices:
             if device.get("id") is None:
                 continue
-            rank = max(rank, self._process_device(device))
+            if detect_edges:
+                rank = max(rank, self._process_device(device))
             # Hydrate Last cat from cloud visit history (full poll only)
             if full_recompute and device.get("wc_history") is not None:
                 if self.ingest_wc_history(device):
@@ -344,6 +352,7 @@ class AnalyticsEngine:
             self.recompute_all()
             if rank == 1:
                 self._dirty = True
+                self._need_immediate_flush = True
             self._notify()
             return rank == 1
 
@@ -690,6 +699,7 @@ class AnalyticsEngine:
             return
 
         self._dirty = True
+        self._need_immediate_flush = True
         self.recompute_all()
         self._notify()
 
@@ -717,6 +727,7 @@ class AnalyticsEngine:
             payload={"interval_s": interval_s},
             ts=now,
         )
+        self._need_immediate_flush = True
         emit_event(
             self.hass,
             EVENT_LITTER_RESET,

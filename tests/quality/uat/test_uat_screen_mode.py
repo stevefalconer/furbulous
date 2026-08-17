@@ -78,6 +78,7 @@ def test_all_language_packs_translate_screen_mode_options():
     for path in packs:
         data = json.loads(path.read_text())
         state = data["entity"]["select"]["screen_mode"]["state"]
+        assert data["entity"]["binary_sensor"]["trash_door_blocked"]["name"]
         assert set(state) == {"always_on", "scheduled"}
         assert state["always_on"].strip()
         assert state["scheduled"].strip()

@@ -111,26 +111,7 @@ def async_add_devices_listener(
 
 
 def is_cat_present(properties: dict[str, Any] | None) -> bool:
-    """True when workstatus looks like a cat, not a clean/fault cycle.
+    """True when the shared classifier says a cat is in the globe."""
+    from .box_state import classify
 
-    Vendor ``workstatus=1`` is also used during Clean (and jammed Clean / E4).
-    Live 2026-08-16: completionStatus 3 = clean running; bit 524288 = trash-door
-    jam. Those must not count as Cat inside or a visit.
-    """
-    from .entity import extract_prop_value
-    from .error_report import is_trash_door_blocked
-
-    props = properties or {}
-    try:
-        if int(extract_prop_value(props.get("workstatus"))) != 1:
-            return False
-    except (TypeError, ValueError):
-        return False
-    if is_trash_door_blocked(props.get("errorReportEvent")):
-        return False
-    try:
-        if int(extract_prop_value(props.get("completionStatus"))) == 3:
-            return False
-    except (TypeError, ValueError):
-        pass
-    return True
+    return classify(properties).cat_present

@@ -35,6 +35,7 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["sensor"]["occupying_pet"]["name"] == "Who is inside"
     assert s["binary_sensor"]["cat_in_litter_box"]["name"] == "Cat inside"
     assert s["binary_sensor"]["waste_bin_status"]["name"] == "Needs emptying"
+    assert s["binary_sensor"]["trash_door_blocked"]["name"] == "Trash door jammed"
     assert s["switch"]["full_auto_mode"]["name"] == "Auto-clean after visits"
     assert s["switch"]["do_not_disturb"]["name"] == "Quiet hours"
     assert s["button"]["manual_clean"]["name"] == "Clean now"

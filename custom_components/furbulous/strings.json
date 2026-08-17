@@ -137,6 +137,7 @@
       "cover_status": { "name": "Cover open" },
       "drawer_not_in_place": { "name": "Drawer out of place" },
       "drawer_status": { "name": "Drawer out of place" },
+      "trash_door_blocked": { "name": "Trash door jammed" },
       "child_lock": { "name": "Child lock on" },
       "sleep_mode": { "name": "Screen blank now" },
       "energy_saving_active": { "name": "Screen blank now" }
