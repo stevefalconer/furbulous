@@ -11,7 +11,10 @@ Live 2026-08-16 (do not “fix” without a new capture):
 - ``workstatus`` 0 idle, 1 clean *or* cat, 3 pack, 5 pour, 6 reset tail, 8 reset.
 - ``handMode`` is last command and sticks after the globe stops.
 - ``completionStatus`` 3 = clean running (2 treated the same if seen).
-- ``errorReportEvent`` is a bitfield; 524288 = trash-door E4; 512 = lid off.
+- ``errorReportEvent`` is a bitfield; 512 = lid off.
+- Bit **524288** (often with 64) = waste-door jammed by a clump that missed
+  the open bag. On-box **Device Failure E4**. Not a visit. Not drawer-out.
+  Cloud cannot ack; owner must clear the door and press OK on the box.
 """
 from __future__ import annotations
 

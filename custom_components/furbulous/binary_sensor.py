@@ -13,6 +13,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import FurbulousEntity, extract_prop_value
 from .error_report import (
+    TRASH_DOOR_CAUSE,
+    TRASH_DOOR_FIX,
     is_cover_open,
     is_drawer_out,
     is_trash_door_blocked,
@@ -360,9 +362,13 @@ class FurbulousTrashDoorSensor(FurbulousEntity, BinarySensorEntity):
             (device.get("properties") or {}).get("errorReportEvent")
         )
         return {
-            "when_ok": "Trash door can open",
-            "when_problem": "Clear the trash lid and press OK on the box",
-            "plain_english": "Problem = the waste door could not open (E4).",
+            "when_ok": "Waste door is clear",
+            "when_problem": TRASH_DOOR_FIX,
+            "likely_cause": TRASH_DOOR_CAUSE,
+            "plain_english": (
+                "Problem = a clump landed on the waste door. Not a cat visit. "
+                "Clear the door, then press OK on the box."
+            ),
             "error_code": str(raw) if raw is not None else "-",
             "vendor_property": "errorReportEvent",
             "audience": "primary",

@@ -160,6 +160,7 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 | Needs emptying | Bag has room | Empty / seal soon | 16 or 32 |
 | Cover open | Lid / cover on | Put the lid back on | 128 or **512** (live lid-off) |
 | Drawer out of place | Always OK | Cloud does **not** report drawer-out | — |
+| Trash door jammed | Waste door clear | Clump on the waste door (E4). Scoop it off, press **OK on the box** | **524288** |
 
 ### What the box is doing
 

@@ -60,6 +60,15 @@ def test_trash_door_e4():
     text = describe_error(jammed)
     assert "Trash door blocked" in text
     assert "Drawer" not in text
+    from custom_components.furbulous.binary_sensor import FurbulousTrashDoorSensor
+    from custom_components.furbulous.error_report import TRASH_DOOR_CAUSE, TRASH_DOOR_FIX
+
+    sensor = FurbulousTrashDoorSensor(_coord(jammed), 4796)
+    attrs = sensor.extra_state_attributes
+    assert "waste door" in attrs["likely_cause"].lower() or "clump" in attrs["likely_cause"].lower()
+    assert "OK" in attrs["when_problem"]
+    assert TRASH_DOOR_CAUSE in attrs["likely_cause"]
+    assert "Resume" in TRASH_DOOR_FIX or "Clean" in TRASH_DOOR_FIX
 
 
 def test_describe_error_maps_32_to_litter_full():
