@@ -55,7 +55,8 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
         """
         runtime = getattr(self.config_entry, "runtime_data", None)
         pause = getattr(runtime, "poll_pause", None) if runtime else None
-        if pause is not None and pause.is_paused:
+        # Use `is True` so test MagicMocks are not treated as paused.
+        if pause is not None and getattr(pause, "is_paused", False) is True:
             if self.data is not None:
                 return self.data
             return {"devices": [], "pets": []}
@@ -164,7 +165,7 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
         """
         runtime = getattr(self.config_entry, "runtime_data", None)
         pause = getattr(runtime, "poll_pause", None) if runtime else None
-        if pause is not None and pause.is_paused:
+        if pause is not None and getattr(pause, "is_paused", False) is True:
             if self.data is not None:
                 return self.data
             return {"devices": []}
