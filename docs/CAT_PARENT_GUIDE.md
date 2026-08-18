@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.12
+**Integration version:** 1.3.13
 
 **Sign-in tip (required recommendation):** Use a **dedicated Furbulous account** for this Home Assistant integration — not the same login you use daily in the phone app. The vendor app behaves like a **single active session**: HA polling with your everyday account can disrupt the app (and vice versa).
 
@@ -39,9 +39,12 @@ You’ll see sections roughly like:
 | **Cat inside** | Someone is in the box *right now* |
 | **Who is inside** | Name while occupied (else `-`) |
 | **Last cat** | Who finished the last visit (put this at the top of dashboards) |
-| **Last visit** | Compact time only: `21:57 8-17` (no year — fits phones; cat name is on **Last cat**) |
+| **Last visit** | Compact time only: `21:57 8-17` (pair with **Last cat** on dashboards) |
+| **Toilet status** | **Idle** after a barrel clean · pet name while in use or waiting · **Dirty** if 30+ minutes after a visit with no clean |
+| **Needs cleaning** | **Problem** when Toilet status is Dirty (good for phone alerts) |
+| **Last cleaned** | When the barrel last finished cleaning, and which cat that was for |
 | **Needs emptying** | **OK** = fine · **Problem** = time to empty/seal |
-| **Trash door jammed** | **Problem** = Device Failure **E4** — scoop clump, **OK on the box** |
+| **Trash door jammed** | **Problem** = waste/**litter door** jammed (E4) — not the pull-out drawer. Scoop clump, **OK on the box** |
 | **Cat weight** | Latest weight (lb or kg from HA settings) |
 | **Uses today** | How many uses the cloud counted today |
 | **Bag age (hours)** | How long since the **bag-full error cleared** (usual after you remove the sealed bag / drawer) or since **Empty all litter** |

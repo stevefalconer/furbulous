@@ -7,12 +7,12 @@
 #
 # Triggers to use per box (4 boxes → duplicate with each prefix):
 #   binary_sensor.<prefix>needs_emptying     → bag full / needs emptying
-#   binary_sensor.<prefix>trash_door_jammed  → Device Failure E4
+#   binary_sensor.<prefix>trash_door_jammed  → Device Failure E4 (litter door)
+#   binary_sensor.<prefix>needs_cleaning     → Dirty: ≥30 min after visit, no clean
+#   sensor.<prefix>toilet_status             → Idle / pet / Dirty (+ severity attr)
 #   sensor.<prefix>error_message             → any non-empty vendor error text
 #   event furbulous_waste_full               → edge when full is confirmed
-#
-# Optional: 30 minutes after a visit with no clean usually means full bag,
-# jammed door, or another fault — see "No clean after visit" at the bottom.
+#   event furbulous_needs_cleaning           → fired once when crossing 30 min dirty
 
 - id: furbulous_downstairs_bag_full
   alias: "Furbulous Downstairs — bag full"
@@ -137,33 +137,59 @@
         title: Litter box needs emptying
         message: "A Furbulous box reported a full waste bag (device {{ trigger.event.data.device_id }})."
 
-# Optional: 30 minutes after a visit, still a PROBLEM state → something blocked cleaning.
-# Duplicate per box; adjust entity_ids.
-- id: furbulous_downstairs_no_clean_after_visit
-  alias: "Furbulous Downstairs — no clean 30m after visit"
-  mode: restart
+- id: furbulous_downstairs_needs_cleaning
+  alias: "Furbulous Downstairs — Dirty (no clean 30m)"
+  mode: single
   trigger:
+    - platform: state
+      entity_id: binary_sensor.family_room_downstairs_needs_cleaning
+      to: "on"
     - platform: event
-      event_type: furbulous_visit_ended
-      event_data:
-        device_id: "REPLACE_WITH_DOWNSTAIRS_DEVICE_ID"
+      event_type: furbulous_needs_cleaning
   action:
-    - delay: "00:30:00"
-    - condition: or
-      conditions:
-        - condition: state
-          entity_id: binary_sensor.family_room_downstairs_needs_emptying
-          state: "on"
-        - condition: state
-          entity_id: binary_sensor.family_room_downstairs_trash_door_jammed
-          state: "on"
-        - condition: template
-          value_template: >-
-            {{ states('sensor.family_room_downstairs_error_message') not in
-               ['unknown', 'unavailable', 'none', '', 'OK', '-'] }}
     - service: notify.mobile_app_YOUR_PHONE
       data:
-        title: Downstairs may be stuck
+        title: Downstairs needs a clean
         message: >-
-          Visit ended 30+ minutes ago and the box still shows bag full, E4, or
-          an error — it likely could not run a clean cycle.
+          Visit was 30+ minutes ago and the barrel has not cleaned
+          ({{ trigger.event.data.pet_name if trigger.platform == 'event' else states('sensor.family_room_downstairs_last_cat') }}).
+          Check bag full / litter door error, or press Clean now.
+
+- id: furbulous_upstairs_needs_cleaning
+  alias: "Furbulous Upstairs — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_needs_cleaning
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Upstairs needs a clean
+        message: "30+ minutes since a visit with no barrel clean."
+
+- id: furbulous_master_needs_cleaning
+  alias: "Furbulous Master — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_needs_cleaning
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Master needs a clean
+        message: "30+ minutes since a visit with no barrel clean."
+
+- id: furbulous_cleo_needs_cleaning
+  alias: "Furbulous Cleo — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.cleo_needs_cleaning
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Cleo needs a clean
+        message: "30+ minutes since a visit with no barrel clean."

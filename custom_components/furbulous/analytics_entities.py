@@ -30,6 +30,7 @@ from .entity_ids import (
     UID_HOURS_SINCE_BAG_SEAL,
     UID_LAST_BAG_SEAL,
     UID_LAST_CAT,
+    UID_LAST_CLEANED,
     UID_LAST_VISIT,
     UID_LAST_VISIT_TIME,
     UID_LAST_VISIT_WEIGHT,
@@ -40,12 +41,14 @@ from .entity_ids import (
     UID_LITTER_LAST_REFILLED,
     UID_LITTER_REFILLS_30_DAYS,
     UID_LONGEST_WAIT_UNTIL_EMPTIED_30_DAYS,
+    UID_NEEDS_CLEANING,
     UID_PET_FAVORITE_BOX,
     UID_PET_LAST_SEEN,
     UID_PET_VISIT_LENGTH_AVG_30_DAYS,
     UID_PET_VISITS_30_DAYS,
     UID_PET_VISITS_7_DAYS,
     UID_TIMES_BAG_FILLED_30_DAYS,
+    UID_TOILET_STATUS,
     UID_VISIT_LENGTH_AVG_30_DAYS,
     UID_VISITS_30_DAYS,
     UID_VISITS_7_DAYS,
@@ -367,6 +370,111 @@ class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
         )
 
 
+class ToiletStatusSensor(CoordinatorEntity, SensorEntity):
+    """Idle / pet name / Dirty — for the dashboard toilet chip."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:toilet"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "toilet_status"
+        self._attr_unique_id = box_uid(self._device_id, UID_TOILET_STATUS)
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.extra_state_attributes.get("severity"))
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        return str(self._analytics.toilet_status(self._device_id).get("label") or "Idle")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        status = self._analytics.toilet_status(self._device_id)
+        return power_attrs(
+            role=ROLE_PRIMARY,
+            automation_hint=(
+                "severity=ok|occupied|attention|critical. Prefer binary "
+                "Needs cleaning or event furbulous_needs_cleaning for alerts."
+            ),
+            extra={
+                "severity": status.get("severity"),
+                "awaiting_clean": status.get("awaiting_clean"),
+                "seconds_since_visit": status.get("seconds_since_visit"),
+                "pet_name": status.get("pet_name"),
+            },
+        )
+
+
+class LastCleanedSensor(CoordinatorEntity, SensorEntity):
+    """Last barrel clean: ``Paulie · 21:57 8-17`` (or time only / ``-``)."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:rotate-3d-variant"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "last_cleaned"
+        self._attr_unique_id = box_uid(self._device_id, UID_LAST_CLEANED)
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.native_value, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        ts = self._analytics.last_clean_ts(self._device_id)
+        dt_val = _ts_to_dt(ts)
+        if dt_val is None:
+            return EMPTY_LABEL
+        stamp = _format_visit_stamp(dt_val)
+        cat = self._analytics.last_clean_cat(self._device_id)
+        if cat and cat != EMPTY_LABEL:
+            return f"{cat} · {stamp}"
+        return stamp
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return power_attrs(
+            role=ROLE_PRIMARY,
+            automation_hint="Barrel clean finished; not seal/empty.",
+            extra={
+                "last_clean_cat": self._analytics.last_clean_cat(self._device_id),
+            },
+        )
+
+
 class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):
     """When the last visit ended, as HA local time string (or ``-``).
 
@@ -555,6 +663,8 @@ def box_analytics_entities(
         OccupyingPetSensor(presence, analytics, device),
         LastVisitorSensor(coordinator, analytics, device),
         LastVisitActivitySensor(coordinator, analytics, device),
+        ToiletStatusSensor(coordinator, analytics, device),
+        LastCleanedSensor(coordinator, analytics, device),
         LastVisitTimeSensor(coordinator, analytics, device),
         LastVisitWeightSensor(coordinator, analytics, device),
         # Names use 7d/30d prefixes so period averages group alphabetically.

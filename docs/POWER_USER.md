@@ -34,6 +34,8 @@ Fired on the HA event bus (Settings → Automations → trigger type **Event**).
 | `furbulous_bag_replaced` | Empty completed a bag cycle | `device_id`, `lifetime_s`, `source` |
 | `furbulous_pack` | Seal waste bag recorded | `device_id`, `source` |
 | `furbulous_litter_reset` | “I refilled the litter” | `device_id`, `interval_s`, `source` |
+| `furbulous_cleaned` | Barrel clean cycle finished | `device_id`, `pet_name`, `source` |
+| `furbulous_needs_cleaning` | ≥30 min after visit, no clean | `device_id`, `pet_name`, `seconds_since_visit` |
 
 All include `config_entry_id` and `domain`.
 
@@ -126,9 +128,11 @@ Bag age restarts on **Empty** (`bag_replaced`) and when a confirmed **waste-full
 | Goal | Prefer |
 |------|--------|
 | Bag full | `binary_sensor.<box>_needs_emptying` → `on`, or event `furbulous_waste_full` |
-| Trash door E4 | `binary_sensor.<box>_trash_door_jammed` → `on` |
+| Litter door E4 | `binary_sensor.<box>_trash_door_jammed` → `on` |
+| Dirty (no clean 30m) | `binary_sensor.<box>_needs_cleaning` → `on`, or event `furbulous_needs_cleaning` |
+| Toilet chip state | `sensor.<box>_toilet_status` (+ `severity` attr) |
+| Last cleaned | `sensor.<box>_last_cleaned` |
 | Any error text | `sensor.<box>_error_message` not empty / not OK |
-| Visit without clean (~30m) | event `furbulous_visit_ended` → delay → still PROBLEM on needs_emptying / trash_door / error |
 
 Example YAML: [`docs/dashboards/notifications.yaml`](dashboards/notifications.yaml).
 

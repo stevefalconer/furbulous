@@ -19,9 +19,16 @@ from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
 from ..error_report import is_waste_full
+from ..box_state import (
+    PHASE_CLEANING,
+    PHASE_IDLE,
+    classify,
+)
 from ..events import (
     EVENT_BAG_REPLACED,
+    EVENT_CLEANED,
     EVENT_LITTER_RESET,
+    EVENT_NEEDS_CLEANING,
     EVENT_PACK,
     EVENT_VISIT_ENDED,
     EVENT_WASTE_CLEARED,
@@ -45,9 +52,13 @@ VISIT_DEBOUNCE_S = 20.0
 FULL_CONFIRM_POLLS = 2
 BAG_EMPTY_DEBOUNCE_S = 300.0  # 5 min
 LITTER_RESET_DEBOUNCE_S = 600.0  # 10 min
+DIRTY_AFTER_S = 1800.0  # 30 min without a barrel clean after a visit
+HAND_MODE_CLEAN = 1
 HAND_MODE_EMPTY = 2
 HAND_MODE_PACK = 3
 FLUSH_DEBOUNCE_S = 60.0
+STATUS_IDLE = "Idle"
+STATUS_DIRTY = "Dirty"
 
 
 def _is_full(props: dict[str, Any]) -> bool:
@@ -144,9 +155,14 @@ class AnalyticsEngine:
             last_visit_id = None
             last_visit_ts = None
             last_visit_weight = None
+            last_clean_ts = None
+            last_clean_cat = None
+            awaiting_since = None
+            awaiting_cat = None
             for ev in events:
                 et = ev.get("event_type")
                 ts = float(ev.get("ts", 0))
+                payload = ev.get("payload") or {}
                 if et == "bag_replaced":
                     last_bag = ts
                 elif et == "litter_reset":
@@ -156,16 +172,24 @@ class AnalyticsEngine:
                 elif et == "waste_full_off":
                     last_full_off = ts
                 elif et == "visit_ended":
-                    payload = ev.get("payload") or {}
                     pname = payload.get("pet_name")
                     last_visit_name = pname if pname else UNKNOWN_LABEL
                     last_visit_id = payload.get("pet_id")
                     last_visit_ts = ts
+                    awaiting_since = ts
+                    awaiting_cat = last_visit_name
                     if payload.get("weight_g") is not None:
                         try:
                             last_visit_weight = float(payload["weight_g"])
                         except (TypeError, ValueError):
                             pass
+                elif et == "clean":
+                    last_clean_ts = ts
+                    cname = payload.get("pet_name")
+                    last_clean_cat = cname if cname else last_clean_cat
+                    if awaiting_since is not None and ts >= float(awaiting_since):
+                        awaiting_since = None
+                        awaiting_cat = None
                 iotid = ev.get("iotid")
                 if iotid:
                     st["iotid"] = iotid
@@ -178,6 +202,11 @@ class AnalyticsEngine:
                 st["last_visit_weight_g"] = last_visit_weight
                 st["last_visitor_name"] = last_visit_name or UNKNOWN_LABEL
                 st["last_visitor_id"] = last_visit_id
+            if last_clean_ts is not None:
+                st["last_clean_ts"] = last_clean_ts
+                st["last_clean_cat"] = last_clean_cat
+            st["awaiting_clean_since"] = awaiting_since
+            st["awaiting_clean_cat"] = awaiting_cat
             # Open full episode if last transition was to full
             if last_full_on is not None and (
                 last_full_off is None or last_full_on > last_full_off
@@ -527,6 +556,9 @@ class AnalyticsEngine:
                 st["last_match_method"] = end_method
                 st["last_match_confidence"] = end_conf
                 st["last_match_delta_g"] = end_delta
+                st["awaiting_clean_since"] = now
+                st["awaiting_clean_cat"] = end_pet_name
+                st["dirty_notified"] = False
                 if end_weight is not None and end_pet_name not in (
                     None,
                     UNKNOWN_LABEL,
@@ -539,6 +571,44 @@ class AnalyticsEngine:
                         end_pet_name,
                         float(end_weight),
                     )
+                rank = 1
+
+        # --- barrel clean cycle (not seal / empty) ---
+        box = classify(props)
+        prev_phase = st.get("last_phase")
+        prev_completion = st.get("last_completion")
+        st["last_phase"] = box.phase
+        st["last_completion"] = box.completion
+        if box.phase == PHASE_CLEANING:
+            st["clean_in_progress"] = True
+        finished_clean = False
+        if st.get("clean_in_progress") and box.phase == PHASE_IDLE and not occupied:
+            finished_clean = True
+        if (
+            st.get("awaiting_clean_since") is not None
+            and prev_completion in (2, 3)
+            and box.completion == 1
+        ):
+            finished_clean = True
+        if finished_clean:
+            self._record_clean_finished(did, iotid, source="presence", now=now)
+            st["clean_in_progress"] = False
+            rank = 1
+        elif st.get("awaiting_clean_since") is not None and not occupied:
+            age = now - float(st["awaiting_clean_since"])
+            if age >= DIRTY_AFTER_S and not st.get("dirty_notified"):
+                st["dirty_notified"] = True
+                emit_event(
+                    self.hass,
+                    EVENT_NEEDS_CLEANING,
+                    {
+                        "device_id": did,
+                        "iotid": iotid,
+                        "config_entry_id": self.entry_id,
+                        "pet_name": st.get("awaiting_clean_cat"),
+                        "seconds_since_visit": age,
+                    },
+                )
                 rank = 1
 
         # --- waste full episodes ---
@@ -646,6 +716,49 @@ class AnalyticsEngine:
         st["last_bag_ts"] = now
         return True
 
+    def _record_clean_finished(
+        self,
+        device_id: str,
+        iotid: str | None,
+        *,
+        source: str,
+        now: float | None = None,
+    ) -> None:
+        """Barrel clean finished — clear awaiting-clean and store last cleaned."""
+        did = str(device_id)
+        now = time.time() if now is None else now
+        st = self._device_state.setdefault(did, {})
+        pet_name = st.get("awaiting_clean_cat") or st.get("last_visitor_name")
+        if pet_name in (None, "", "-", UNKNOWN_LABEL):
+            pet_name = None
+        self.store.append(
+            "clean",
+            device_id=did,
+            iotid=iotid,
+            source=source,
+            payload={"pet_name": pet_name},
+            ts=now,
+        )
+        emit_event(
+            self.hass,
+            EVENT_CLEANED,
+            {
+                "device_id": did,
+                "iotid": iotid,
+                "config_entry_id": self.entry_id,
+                "pet_name": pet_name,
+                "source": source,
+            },
+        )
+        st["last_clean_ts"] = now
+        st["last_clean_cat"] = pet_name
+        st["awaiting_clean_since"] = None
+        st["awaiting_clean_cat"] = None
+        st["dirty_notified"] = False
+        st["clean_in_progress"] = False
+        self._dirty = True
+        self._need_immediate_flush = True
+
     def record_hand_mode(
         self,
         device_id: str | int,
@@ -654,10 +767,16 @@ class AnalyticsEngine:
         *,
         source: str = "ha_button",
     ) -> None:
-        """Record Empty/Pack (and bag close on Empty)."""
+        """Record Empty/Pack/Clean (and bag close on Empty)."""
         did = str(device_id)
         now = time.time()
         st = self._device_state.setdefault(did, {})
+        if hand_mode == HAND_MODE_CLEAN:
+            # Clean now pressed — wait for idle/completion to mark finished.
+            st["clean_in_progress"] = True
+            self._dirty = True
+            self._notify()
+            return
         if hand_mode == HAND_MODE_PACK:
             self.store.append(
                 "pack",
@@ -975,6 +1094,81 @@ class AnalyticsEngine:
             return float(raw)
         except (TypeError, ValueError):
             return None
+
+    def toilet_status(self, device_id: str | int) -> dict[str, Any]:
+        """Dashboard toilet chip: Idle / pet name / Dirty + color severity.
+
+        - occupied → pet name, severity ``occupied`` (green)
+        - awaiting clean < 30 min → pet name, severity ``attention`` (yellow)
+        - awaiting clean ≥ 30 min → Dirty, severity ``critical`` (red)
+        - else → Idle, severity ``ok`` (green)
+        """
+        st = self._device_state.get(str(device_id), {})
+        now = time.time()
+        if st.get("occupied"):
+            name = st.get("last_pet_name") or st.get("last_visitor_name")
+            if not name or name == UNKNOWN_LABEL:
+                name = "In use"
+            return {
+                "label": str(name),
+                "severity": "occupied",
+                "awaiting_clean": bool(st.get("awaiting_clean_since")),
+                "seconds_since_visit": None,
+            }
+        awaiting = st.get("awaiting_clean_since")
+        if awaiting is not None:
+            age = max(0.0, now - float(awaiting))
+            cat = st.get("awaiting_clean_cat") or st.get("last_visitor_name")
+            if age >= DIRTY_AFTER_S:
+                return {
+                    "label": STATUS_DIRTY,
+                    "severity": "critical",
+                    "awaiting_clean": True,
+                    "seconds_since_visit": age,
+                    "pet_name": cat,
+                }
+            label = cat if cat and cat != UNKNOWN_LABEL else "Needs clean"
+            return {
+                "label": str(label),
+                "severity": "attention",
+                "awaiting_clean": True,
+                "seconds_since_visit": age,
+                "pet_name": cat,
+            }
+        return {
+            "label": STATUS_IDLE,
+            "severity": "ok",
+            "awaiting_clean": False,
+            "seconds_since_visit": None,
+        }
+
+    def last_clean_ts(self, device_id: str | int) -> float | None:
+        """Unix time of last finished barrel clean."""
+        st = self._device_state.get(str(device_id), {})
+        if st.get("last_clean_ts") is not None:
+            return float(st["last_clean_ts"])
+        events = self.store.events_for_device(device_id, event_types={"clean"})
+        if not events:
+            return None
+        return float(events[-1].get("ts", 0)) or None
+
+    def last_clean_cat(self, device_id: str | int) -> str:
+        """Pet name associated with the visit before the last clean (or ``-``)."""
+        st = self._device_state.get(str(device_id), {})
+        name = st.get("last_clean_cat")
+        if name and name != UNKNOWN_LABEL:
+            return str(name)
+        events = self.store.events_for_device(device_id, event_types={"clean"})
+        if not events:
+            return UNKNOWN_LABEL
+        pname = (events[-1].get("payload") or {}).get("pet_name")
+        if not pname or pname == UNKNOWN_LABEL:
+            return UNKNOWN_LABEL
+        return str(pname)
+
+    def needs_cleaning(self, device_id: str | int) -> bool:
+        """True when ≥30 minutes since last visit with no barrel clean."""
+        return self.toilet_status(device_id).get("severity") == "critical"
 
     def metrics_for_device(self, device_id: str | int) -> dict[str, Any]:
         """Cached metrics for a box."""

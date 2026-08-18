@@ -57,13 +57,24 @@ def test_all_box_unique_ids_use_cat_parent_scheme():
     analytics.last_visitor.return_value = "-"
     analytics.last_visit_ts.return_value = None
     analytics.last_visit_weight_g.return_value = None
+    analytics.last_clean_ts.return_value = None
+    analytics.last_clean_cat.return_value = "-"
+    analytics.toilet_status.return_value = {
+        "label": "Idle",
+        "severity": "ok",
+        "awaiting_clean": False,
+        "seconds_since_visit": None,
+    }
+    analytics.needs_cleaning.return_value = False
     analytics.async_add_listener = MagicMock(return_value=lambda: None)
     analytics._device_state = {}
     device = coord.data["devices"][0]
 
     entities = []
     entities += sensor_entities_for_device(coord, coord, analytics, device)
-    entities += binary_sensor_entities_for_device(coord, coord, device)
+    entities += binary_sensor_entities_for_device(
+        coord, coord, device, analytics=analytics
+    )
     entities += switch_entities_for_device(coord, MagicMock(), device)
     entities += button_entities_for_device(coord, MagicMock(), device, analytics)
     entities += select_entities_for_device(coord, MagicMock(), device)
@@ -72,6 +83,9 @@ def test_all_box_unique_ids_use_cat_parent_scheme():
     expected_slugs = {
         "last_cat",
         "needs_emptying",
+        "needs_cleaning",
+        "toilet_status",
+        "last_cleaned",
         "cat_inside",
         "clean_now",
         "empty_waste",

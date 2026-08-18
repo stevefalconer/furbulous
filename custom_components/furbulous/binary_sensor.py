@@ -8,9 +8,11 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device import get_device_info
 from .entity import FurbulousEntity, extract_prop_value
 from .error_report import (
     TRASH_DOOR_CAUSE,
@@ -26,6 +28,7 @@ from .entity_ids import (
     UID_CHILD_LOCK_ON,
     UID_COVER_OPEN,
     UID_DRAWER_OUT_OF_PLACE,
+    UID_NEEDS_CLEANING,
     UID_NEEDS_EMPTYING,
     UID_ONLINE,
     UID_SCREEN_IS_OFF,
@@ -33,6 +36,7 @@ from .entity_ids import (
     box_uid,
 )
 from .helpers import async_add_devices_listener
+from .ux import ROLE_PRIMARY, power_attrs
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -51,10 +55,13 @@ async def async_setup_entry(
     runtime = config_entry.runtime_data
     coordinator = runtime.coordinator
     presence = runtime.presence_coordinator
+    analytics = runtime.analytics
     known: set = set()
 
     def build(device: dict) -> list:
-        return binary_sensor_entities_for_device(coordinator, presence, device)
+        return binary_sensor_entities_for_device(
+            coordinator, presence, device, analytics=analytics
+        )
 
     listener = async_add_devices_listener(
         coordinator, async_add_entities, build, known
@@ -373,3 +380,56 @@ class FurbulousTrashDoorSensor(FurbulousEntity, BinarySensorEntity):
             "vendor_property": "errorReportEvent",
             "audience": "primary",
         }
+
+
+class FurbulousNeedsCleaningSensor(CoordinatorEntity, BinarySensorEntity):
+    """PROBLEM when ≥30 minutes since a visit with no barrel clean cycle."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:toilet"
+
+    def __init__(self, coordinator, analytics, device: dict) -> None:
+        super().__init__(coordinator)
+        self._analytics = analytics
+        self._device_id = device.get("id")
+        self._attr_translation_key = "needs_cleaning"
+        self._attr_unique_id = box_uid(self._device_id, UID_NEEDS_CLEANING)
+        self._attr_device_info = get_device_info(device)
+        self._last_fingerprint: object | None = object()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._analytics.async_add_listener(self._handle_analytics)
+        )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        fingerprint = (self.is_on, self.available)
+        if fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        self.async_write_ha_state()
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._analytics.needs_cleaning(self._device_id))
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        status = self._analytics.toilet_status(self._device_id)
+        return power_attrs(
+            role=ROLE_PRIMARY,
+            automation_hint=(
+                "on = Dirty (≥30 min after visit, no clean). "
+                "Event: furbulous_needs_cleaning."
+            ),
+            extra={
+                "toilet_status": status.get("label"),
+                "severity": status.get("severity"),
+                "seconds_since_visit": status.get("seconds_since_visit"),
+                "pet_name": status.get("pet_name"),
+            },
+        )
