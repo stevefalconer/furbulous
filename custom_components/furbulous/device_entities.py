@@ -12,6 +12,7 @@ from .binary_sensor import (
     FurbulousConnectedSensor,
     FurbulousCoverOpenSensor,
     FurbulousDrawerNotInPlaceSensor,
+    FurbulousNeedsCleaningSensor,
     FurbulousSleepModeSensor,
     FurbulousTrashDoorSensor,
     FurbulousWasteBinFullSensor,
@@ -75,14 +76,17 @@ def sensor_entities_for_device(
 
 
 def binary_sensor_entities_for_device(
-    coordinator: Any, presence: Any, device: dict
+    coordinator: Any,
+    presence: Any,
+    device: dict,
+    analytics: Any = None,
 ) -> list[Entity]:
     """Binary sensors for one device."""
     device_id = device.get("id")
     iotid = device.get("iotid")
     if device_id is None or not iotid:
         return []
-    return [
+    entities: list[Entity] = [
         FurbulousConnectedSensor(coordinator, device_id),
         FurbulousWasteBinFullSensor(presence, device_id),
         FurbulousCoverOpenSensor(presence, device_id),
@@ -92,6 +96,11 @@ def binary_sensor_entities_for_device(
         FurbulousSleepModeSensor(presence, device_id),
         FurbulousCatInBoxSensor(presence, device_id),
     ]
+    if analytics is not None:
+        entities.append(
+            FurbulousNeedsCleaningSensor(coordinator, analytics, device)
+        )
+    return entities
 
 
 def switch_entities_for_device(

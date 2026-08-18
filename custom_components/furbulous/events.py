@@ -11,6 +11,8 @@ Events (domain ``furbulous`` prefix is applied by the bus as event type):
 - ``furbulous_bag_replaced`` — Empty closed a bag cycle
 - ``furbulous_litter_reset`` — user marked litter refilled
 - ``furbulous_pack`` — Seal waste bag pressed / recorded
+- ``furbulous_cleaned`` — Barrel clean cycle finished after a visit
+- ``furbulous_needs_cleaning`` — ≥30 minutes since last visit with no clean
 """
 from __future__ import annotations
 
@@ -29,6 +31,8 @@ EVENT_WASTE_CLEARED = f"{DOMAIN}_waste_cleared"
 EVENT_BAG_REPLACED = f"{DOMAIN}_bag_replaced"
 EVENT_LITTER_RESET = f"{DOMAIN}_litter_reset"
 EVENT_PACK = f"{DOMAIN}_pack"
+EVENT_CLEANED = f"{DOMAIN}_cleaned"
+EVENT_NEEDS_CLEANING = f"{DOMAIN}_needs_cleaning"
 
 
 def emit_event(

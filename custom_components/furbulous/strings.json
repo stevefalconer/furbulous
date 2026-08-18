@@ -96,6 +96,8 @@
       "occupying_pet": { "name": "Who is inside" },
       "last_visitor": { "name": "Last cat" },
       "last_visit_activity": { "name": "Last visit" },
+      "toilet_status": { "name": "Toilet status" },
+      "last_cleaned": { "name": "Last cleaned" },
       "last_visit_time": { "name": "Last visit time" },
       "last_visit_weight": { "name": "Last visit weight" },
       "visits_7_days": { "name": "Visits (7 days)" },
@@ -138,6 +140,7 @@
       "drawer_not_in_place": { "name": "Drawer out of place" },
       "drawer_status": { "name": "Drawer out of place" },
       "trash_door_blocked": { "name": "Trash door jammed" },
+      "needs_cleaning": { "name": "Needs cleaning" },
       "child_lock": { "name": "Child lock on" },
       "sleep_mode": { "name": "Screen blank now" },
       "energy_saving_active": { "name": "Screen blank now" }

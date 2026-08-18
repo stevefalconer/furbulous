@@ -17,7 +17,7 @@ Example: `binary_sensor.cleo_needs_emptying`
 
 Your prefixes will differ if the boxes are in other areas, have other names, or you renamed entities.
 
-**Needs:** Furbulous **1.3.12+**, restart after update, and [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend). Mushroom is not a Python dependency.
+**Needs:** Furbulous **1.3.13+**, restart after update, and [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend). Mushroom is not a Python dependency.
 
 ## How to adapt it to your house
 
@@ -35,11 +35,11 @@ If a card says *Entity not available*, the ID in the YAML does not match States.
 
 | Zone | Meaning | Color |
 |------|---------|--------|
-| Header icon + chips | **Status only** (bag full, E4, cat inside) | Green = OK · Red = act |
-| Visit / Litter / Bag line | **Status** ages and last use time | Full-width text (no `…` truncation) |
-| **Actions** chips | **Buttons** — Clean now, Seal bag, Refilled | Tap to run |
+| Header | **Last/current cat · visit time** (once — not repeated). Litter/Bag age + **Last cleaned** | Red header if bag full / Dirty / litter-door error |
+| Chips | Bag OK · **No errors** / **Litter door error** · **Toilet** | Toilet: green Idle/in-use · orange &lt;30m waiting · red **Dirty** |
+| **Actions** | **Buttons** — Clean now, Seal bag, Refilled | Tap to run |
 
-Do **not** read “Yesterday” on a button as Litter age. Glance cards on buttons show *last pressed time*, which is easy to confuse with chore age.
+**Toilet status** (`sensor.*_toilet_status`): Idle after a barrel clean; pet name while occupied or waiting &lt;30m; **Dirty** at ≥30m with no clean. Automate on `binary_sensor.*_needs_cleaning` or event `furbulous_needs_cleaning`.
 
 ## What the waste-door chip means
 

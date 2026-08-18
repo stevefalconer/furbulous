@@ -224,6 +224,66 @@ async def test_engine_full_accepts_32():
 
 
 @pytest.mark.asyncio
+async def test_toilet_status_idle_dirty_and_clean():
+    """Visit → awaiting (attention) → Dirty after 30m → Idle after barrel clean."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-toilet")
+    eng.store._loaded = True
+    # Occupy then leave (visit)
+    in_box = {
+        "id": 21,
+        "iotid": "iot-21",
+        "name": "Box",
+        "properties": {
+            "workstatus": 1,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+            "catWeight": 5000,
+        },
+    }
+    idle = {
+        "id": 21,
+        "iotid": "iot-21",
+        "name": "Box",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([in_box])
+    eng._device_state["21"]["occupy_since"] = time.time() - 60
+    eng._device_state["21"]["last_pet_name"] = "Paulie"
+    eng.process_snapshot([idle])
+    status = eng.toilet_status(21)
+    assert status["severity"] == "attention"
+    assert status["label"] == "Paulie"
+    assert eng.needs_cleaning(21) is False
+
+    eng._device_state["21"]["awaiting_clean_since"] = time.time() - 2000
+    status = eng.toilet_status(21)
+    assert status["severity"] == "critical"
+    assert status["label"] == "Dirty"
+    assert eng.needs_cleaning(21) is True
+
+    cleaning = {
+        "id": 21,
+        "iotid": "iot-21",
+        "name": "Box",
+        "properties": {
+            "workstatus": 1,
+            "completionStatus": 3,
+            "errorReportEvent": 0,
+        },
+    }
+    eng.process_snapshot([cleaning])
+    assert eng._device_state["21"].get("clean_in_progress") is True
+    eng.process_snapshot([idle])
+    assert eng.toilet_status(21)["label"] == "Idle"
+    assert eng.needs_cleaning(21) is False
+    assert eng.last_clean_cat(21) == "Paulie"
+    assert eng.last_clean_ts(21) is not None
+    cleans = eng.store.events_for_device(21, event_types={"clean"})
+    assert len(cleans) == 1
+
+
+@pytest.mark.asyncio
 async def test_engine_full_clear_restarts_bag_age():
     """When bag-full error clears in the cloud, Bag age restarts (bag_replaced)."""
     hass = MagicMock()

@@ -123,6 +123,12 @@
       "last_visitor": {
         "name": "Last cat"
       },
+      "toilet_status": {
+        "name": "Toilet status"
+      },
+      "last_cleaned": {
+        "name": "Last cleaned"
+      },
       "last_visit_activity": {
         "name": "Last visit"
       },
@@ -247,6 +253,9 @@
       },
       "trash_door_blocked": {
         "name": "Trash door jammed"
+      },
+      "needs_cleaning": {
+        "name": "Needs cleaning"
       },
       "child_lock": {
         "name": "Child lock on"

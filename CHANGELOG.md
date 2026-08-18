@@ -2,6 +2,21 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.13 — 2026-08-17
+
+### Toilet status / Dirty after visit
+
+- **Toilet status** sensor: `Idle` (green) · pet name while in use or &lt;30m waiting for a barrel clean (orange) · **Dirty** (red) at ≥30 minutes with no clean.
+- **Needs cleaning** PROBLEM binary + event `furbulous_needs_cleaning` for Companion alerts.
+- **Last cleaned** sensor: `Paulie · 21:57 8-17` (cat from the visit before the clean).
+- Barrel clean detection via live cleaning phase / completionStatus finish (and Clean now arming).
+
+### Dashboard
+
+- Combined header: cat · visit time (no Idle on that line; no name repeat).
+- Toilet chip uses Toilet status colors; error chip **No errors** / **Litter door error** (not “Door OK”).
+- Shows **Last cleaned** on the status line.
+
 ## 1.3.12 — 2026-08-17
 
 ### Dashboard / Last visit
