@@ -124,6 +124,7 @@
       "last_litter_interval": { "name": "Litter last interval" },
       "avg_litter_interval_30d": { "name": "Litter average interval (30 days)" },
       "litter_resets_30d": { "name": "Litter refills (30 days)" },
+      "polling_status": { "name": "Cloud polling" },
       "pet_visits_7d": { "name": "Visits (7 days)" },
       "pet_visits_30d": { "name": "Visits (30 days)" },
       "pet_avg_duration_30d": { "name": "Visit length average (30 days)" },
@@ -141,6 +142,7 @@
       "drawer_status": { "name": "Drawer out of place" },
       "trash_door_blocked": { "name": "Trash door jammed" },
       "needs_cleaning": { "name": "Needs cleaning" },
+      "polling_paused": { "name": "Cloud polling paused" },
       "child_lock": { "name": "Child lock on" },
       "sleep_mode": { "name": "Screen blank now" },
       "energy_saving_active": { "name": "Screen blank now" }
@@ -152,7 +154,8 @@
       "screen_off": { "name": "Screen off" },
       "child_lock": { "name": "Child lock" },
       "confirm_empty_ready": { "name": "Empty — confirm ready" },
-      "empty_confirm_ready": { "name": "Empty — confirm ready" }
+      "empty_confirm_ready": { "name": "Empty — confirm ready" },
+      "pause_cloud_polling": { "name": "Pause cloud polling" }
     },
     "button": {
       "manual_clean": { "name": "Clean now" },
@@ -160,7 +163,8 @@
       "resume_cleaning": { "name": "Resume cleaning" },
       "empty": { "name": "Empty all litter" },
       "pack": { "name": "Seal waste bag" },
-      "mark_litter_reset": { "name": "I refilled the litter" }
+      "mark_litter_reset": { "name": "I refilled the litter" },
+      "pause_polling_1_hour": { "name": "Pause polling 1 hour" }
     },
     "select": {
       "cleaning_delay": { "name": "Auto-clean minutes before" },

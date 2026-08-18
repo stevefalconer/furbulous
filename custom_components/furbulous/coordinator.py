@@ -53,6 +53,12 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
         not need sub-minute freshness. Keeps cloud QPS and Pi wake work low.
         Entities never call the API; they read coordinator.data only.
         """
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        pause = getattr(runtime, "poll_pause", None) if runtime else None
+        if pause is not None and pause.is_paused:
+            if self.data is not None:
+                return self.data
+            return {"devices": [], "pets": []}
         try:
             data = await self.api.async_get_full_snapshot()
         except FurbulousCatAuthError as err:
@@ -65,7 +71,6 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
         self._mark_available()
         self._async_prune_stale_devices(data)
         # Analytics: full recompute on 5 min path (hours-since gauges, pets)
-        runtime = getattr(self.config_entry, "runtime_data", None)
         if runtime is not None:
             eng = getattr(runtime, "analytics", None)
             if eng is not None:
@@ -157,6 +162,12 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
         Calls properties/get per known iotid; pet/list at most every 60 s
         (cached). No device list or daily stats (5 min full poll).
         """
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        pause = getattr(runtime, "poll_pause", None) if runtime else None
+        if pause is not None and pause.is_paused:
+            if self.data is not None:
+                return self.data
+            return {"devices": []}
         if not self.api.known_devices:
             return {"devices": []}
         try:
@@ -176,7 +187,6 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
             self._unavailable_logged = False
 
         # Visit / full edges + pet roster (properties already ~30s; pets added)
-        runtime = getattr(self.config_entry, "runtime_data", None)
         if runtime is not None:
             eng = getattr(runtime, "analytics", None)
             if eng is not None:

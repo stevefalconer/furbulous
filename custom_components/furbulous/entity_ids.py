@@ -27,6 +27,18 @@ def pet_uid(pet_key: str, slug: str) -> str:
     return f"furbulous_pet_{pet_key}_{slug}"
 
 
+def hub_uid(entry_id: str, slug: str) -> str:
+    """Stable unique_id for entry-level (hub) entities."""
+    return f"furbulous_hub_{entry_id}_{slug}"
+
+
+# Hub / account-level
+UID_PAUSE_CLOUD_POLLING = "pause_cloud_polling"
+UID_PAUSE_POLLING_1H = "pause_polling_1_hour"
+UID_POLLING_STATUS = "polling_status"
+UID_POLLING_PAUSED = "polling_paused"
+
+
 # --- Box slugs (aligned with friendly names) ---
 UID_DEVICE_LAST_ACTIVE = "device_last_active"
 UID_CAT_WEIGHT = "cat_weight"

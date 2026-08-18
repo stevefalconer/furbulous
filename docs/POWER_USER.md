@@ -7,7 +7,7 @@ Cat-parent **names** are friendly. Power-user **contracts** stay stable:
 - Analytics `metric_key` on rollup sensors  
 - Domain **bus events** for edge-triggered automations  
 
-**Version:** 1.3.12+
+**Version:** 1.3.14+
 
 ### Unique IDs (cat-parent scheme)
 
@@ -135,6 +135,17 @@ Bag age restarts on **Empty** (`bag_replaced`) and when a confirmed **waste-full
 | Any error text | `sensor.<box>_error_message` not empty / not OK |
 
 Example YAML: [`docs/dashboards/notifications.yaml`](dashboards/notifications.yaml).
+
+### Pause cloud polling (same account as the phone app)
+
+| Control | Entity / service |
+|---------|------------------|
+| Toggle pause | `switch.furbulous_pause_cloud_polling` (ON = stop polls) |
+| Pause 1 hour | `button.furbulous_pause_polling_1_hour` (auto-resume) |
+| Status text | `sensor.furbulous_cloud_polling` → Active / Paused / Paused until … |
+| Services | `furbulous.pause_polling` (`duration_minutes` optional), `furbulous.resume_polling` |
+
+While paused, both the 30s presence and 5min full coordinators stop hitting the API. Turning the switch off (or waiting out a timed pause) resumes and refreshes once.
 
 ---
 

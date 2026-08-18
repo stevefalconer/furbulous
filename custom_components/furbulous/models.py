@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .analytics.engine import AnalyticsEngine
     from .coordinator import FurbulousDataUpdateCoordinator, FurbulousPresenceCoordinator
     from .furbulous_api import FurbulousCatAPI
+    from .poll_pause import PollPauseController
 
 
 @dataclass(slots=True)
@@ -18,3 +19,4 @@ class FurbulousRuntimeData:
     coordinator: FurbulousDataUpdateCoordinator
     presence_coordinator: FurbulousPresenceCoordinator
     analytics: AnalyticsEngine
+    poll_pause: PollPauseController

@@ -45,6 +45,12 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(listener))
     listener()
 
+    from .hub import FurbulousPausePolling1hButton
+
+    async_add_entities(
+        [FurbulousPausePolling1hButton(entry, runtime.poll_pause)]
+    )
+
 
 class FurbulousHandModeButton(FurbulousEntity, ButtonEntity):
     """Button that sets a handMode property value via shared API."""

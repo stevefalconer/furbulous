@@ -2,6 +2,16 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.14 — 2026-08-17
+
+### Pause cloud polling (phone app / same account)
+
+- Hub switch **Pause cloud polling** — stops 30s + 5min Furbulous API traffic until turned off.
+- Button **Pause polling 1 hour** — same pause with automatic resume.
+- Sensor **Cloud polling** status: Active / Paused / Paused until …
+- Services `furbulous.pause_polling` / `furbulous.resume_polling`.
+- Example dashboard header controls for pause + 1 hour.
+
 ## 1.3.13 — 2026-08-17
 
 ### Toilet status / Dirty after visit
