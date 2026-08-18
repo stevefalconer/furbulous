@@ -1,0 +1,33 @@
+pause_polling:
+  name: Pause cloud polling
+  description: >-
+    Stop Home Assistant from calling the Furbulous cloud so the phone app can
+    use the same account (or edit pets/weights). Omit duration for indefinite
+    pause; set duration_minutes for a timed pause that auto-resumes.
+  fields:
+    duration_minutes:
+      name: Duration (minutes)
+      description: Optional. If set, resume automatically after this many minutes.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+    config_entry_id:
+      name: Config entry ID
+      description: Required only if you have more than one Furbulous integration.
+      required: false
+      selector:
+        text:
+
+resume_polling:
+  name: Resume cloud polling
+  description: Resume normal Furbulous cloud polling (cancel any timed pause).
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: Required only if you have more than one Furbulous integration.
+      required: false
+      selector:
+        text:

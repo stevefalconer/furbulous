@@ -82,6 +82,12 @@ async def async_setup_entry(
     )
     _add_devices_and_pets()
 
+    from .hub import FurbulousPollingStatusSensor
+
+    async_add_entities(
+        [FurbulousPollingStatusSensor(config_entry, runtime.poll_pause)]
+    )
+
 
 class FurbulousLastActivitySensor(FurbulousEntity, SensorEntity):
     """Timestamp of last device activity."""

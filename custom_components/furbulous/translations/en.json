@@ -129,6 +129,9 @@
       "last_cleaned": {
         "name": "Last cleaned"
       },
+      "polling_status": {
+        "name": "Cloud polling"
+      },
       "last_visit_activity": {
         "name": "Last visit"
       },
@@ -257,6 +260,9 @@
       "needs_cleaning": {
         "name": "Needs cleaning"
       },
+      "polling_paused": {
+        "name": "Cloud polling paused"
+      },
       "child_lock": {
         "name": "Child lock on"
       },
@@ -288,6 +294,9 @@
       },
       "empty_confirm_ready": {
         "name": "Empty — confirm ready"
+      },
+      "pause_cloud_polling": {
+        "name": "Pause cloud polling"
       }
     },
     "button": {
@@ -308,6 +317,9 @@
       },
       "mark_litter_reset": {
         "name": "I refilled the litter"
+      },
+      "pause_polling_1_hour": {
+        "name": "Pause polling 1 hour"
       }
     },
     "select": {

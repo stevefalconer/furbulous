@@ -53,6 +53,12 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(listener))
     listener()
 
+    from .hub import FurbulousPausePollingSwitch
+
+    async_add_entities(
+        [FurbulousPausePollingSwitch(entry, runtime.poll_pause)]
+    )
+
 
 class _FurbulousSwitch(FurbulousEntity, SwitchEntity):
     """Switch that uses shared API for commands; state from coordinator."""

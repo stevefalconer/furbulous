@@ -69,6 +69,12 @@ async def async_setup_entry(
     config_entry.async_on_unload(coordinator.async_add_listener(listener))
     listener()
 
+    from .hub import FurbulousPollingPausedBinary
+
+    async_add_entities(
+        [FurbulousPollingPausedBinary(config_entry, runtime.poll_pause)]
+    )
+
 
 class FurbulousConnectedSensor(FurbulousEntity, BinarySensorEntity):
     """Device online / connectivity."""
