@@ -7,7 +7,7 @@ Cat-parent **names** are friendly. Power-user **contracts** stay stable:
 - Analytics `metric_key` on rollup sensors  
 - Domain **bus events** for edge-triggered automations  
 
-**Version:** 1.3.8+
+**Version:** 1.3.12+
 
 ### Unique IDs (cat-parent scheme)
 
@@ -89,8 +89,8 @@ Many entities expose:
 | Friendly name | Capability |
 |---------------|------------|
 | Last cat | Text state = pet name; attrs for match quality |
-| Last visit | `Name · local time` for logbook |
-| Needs emptying | PROBLEM binary; error **16 or 32** (bitfield); events full/cleared |
+| Last visit | Compact local stamp `H:MM M-D` (cat name attribute `last_cat`; primary name on **Last cat**) |
+| Needs emptying | PROBLEM binary; error **16 or 32** (bitfield); events full/cleared; clear → `bag_replaced` |
 | What the box is doing | handMode enum labels + `raw_hand_mode` |
 | Clean cycle status | completionStatus labels + raw |
 | Auto-clean after visits | FullAutoModeSwitch 0/1 |
@@ -119,7 +119,18 @@ Events are append-only in `config/.storage/furbulous.analytics_<entry_id>` (`STO
 | Delete config entry / wipe `.storage` / new volume | Gone |
 | Reconfigure (same `entry_id`) | Survives |
 
-Bag age restarts on **Empty** (`bag_replaced`). Litter age restarts on **I refilled the litter**. Pack does not reset bag age. Cloud `Uses today` is vendor-day, not this file.
+Bag age restarts on **Empty** (`bag_replaced`) and when a confirmed **waste-full** condition clears in the cloud (`waste_full_off` / `furbulous_waste_cleared` with `cleared_how=error_cleared` also records `bag_replaced`). Litter age restarts on **I refilled the litter** (or device `workstatus=8`). **Seal / pack does not** reset bag age by itself. Cloud `Uses today` is vendor-day, not this file.
+
+### Notify entities (Companion app)
+
+| Goal | Prefer |
+|------|--------|
+| Bag full | `binary_sensor.<box>_needs_emptying` → `on`, or event `furbulous_waste_full` |
+| Trash door E4 | `binary_sensor.<box>_trash_door_jammed` → `on` |
+| Any error text | `sensor.<box>_error_message` not empty / not OK |
+| Visit without clean (~30m) | event `furbulous_visit_ended` → delay → still PROBLEM on needs_emptying / trash_door / error |
+
+Example YAML: [`docs/dashboards/notifications.yaml`](dashboards/notifications.yaml).
 
 ---
 

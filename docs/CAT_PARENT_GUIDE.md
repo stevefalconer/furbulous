@@ -3,9 +3,11 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.11
+**Integration version:** 1.3.12
 
-**Sign-in tip:** Use a **separate Furbulous account** for Home Assistant. The phone app seems to allow only **one login at a time**, so using the same email as your daily app can keep kicking you out of the app.
+**Sign-in tip (required recommendation):** Use a **dedicated Furbulous account** for this Home Assistant integration — not the same login you use daily in the phone app. The vendor app behaves like a **single active session**: HA polling with your everyday account can disrupt the app (and vice versa).
+
+**Pets:** Keep every cat on **that same account**. Pets that only appear because another account *shared* them with you are **not tested / not verified** with this integration (they may show in the app but not match correctly in HA).
 
 ---
 
@@ -36,13 +38,14 @@ You’ll see sections roughly like:
 |----------------|---------------|
 | **Cat inside** | Someone is in the box *right now* |
 | **Who is inside** | Name while occupied (else `-`) |
-| **Last cat** | Who finished the last visit |
-| **Last visit** | `Luna · 2026-08-15 14:32` — great for Activity history |
+| **Last cat** | Who finished the last visit (put this at the top of dashboards) |
+| **Last visit** | Compact time only: `21:57 8-17` (no year — fits phones; cat name is on **Last cat**) |
 | **Needs emptying** | **OK** = fine · **Problem** = time to empty/seal |
+| **Trash door jammed** | **Problem** = Device Failure **E4** — scoop clump, **OK on the box** |
 | **Cat weight** | Latest weight (lb or kg from HA settings) |
 | **Uses today** | How many uses the cloud counted today |
-| **Bag age (hours)** | How long since you last emptied (bag change) |
-| **Litter age (hours)** | How long since you marked a litter refill |
+| **Bag age (hours)** | How long since the **bag-full error cleared** (usual after you remove the sealed bag / drawer) or since **Empty all litter** |
+| **Litter age (hours)** | How long since you pressed **I refilled the litter** (or on-box litter reset). **Unknown** until the first mark |
 
 **Tip:** After install, set **accurate weights for every cat in the Furbulous app**. That’s how multi-cat matching works.
 
@@ -50,23 +53,26 @@ You’ll see sections roughly like:
 
 ## 4. Chores (Controls)
 
-### Clean the litter bed
+### Clean the litter bed (**Clean** = barrel moved)
 
-- **Clean now** — run a clean cycle once.  
+- **Clean now** — run a **barrel clean cycle** once (not the same as removing the bag).  
 - **Auto-clean after visits** (Configuration) — ON means the box cleans itself after visits.  
 - **Pause cleaning** / **Resume cleaning** — only for a cycle *already running*.  
 - **Auto-clean minutes before** — wait time after a visit before cleaning starts.
 
-### Empty / seal the waste
+### Seal bag vs emptied bag vs Bag age
 
-1. Close the litter drum / globe.  
-2. Turn **ON** **Empty — confirm ready**.  
-3. Within **90 seconds**, press **Empty all litter**.  
-4. Or use **Seal waste bag** when you only want to pack/seal (no full dump).
+| Action | What it does | Bag age |
+|--------|----------------|---------|
+| **Seal waste bag** | Packs/seals the waste on the box | Does **not** restart by itself |
+| Remove sealed bag + put drawer back | Clears the box “full” error in the cloud | **Restarts** Bag age when **Needs emptying** goes back to OK |
+| **Empty all litter** | Dumps **all** litter (safety confirm required) | Also restarts Bag age |
+
+If the box stays full / errored, it often **will not clean** after visits — that is why phone alerts on **Needs emptying** and **Trash door jammed** matter.
 
 ### After you add litter
 
-After you pour litter, press **I refilled the litter**. The box **rotates to spread it and resets the scale** (so a pile is not a cat). Litter age also restarts.
+After you pour litter, press **I refilled the litter** in HA (or use the on-box litter reset). The box **rotates to spread it and resets the scale** (so a pile is not a cat). **Litter age** restarts. If you only pour litter and never mark it, Litter age stays **Unknown**.
 
 ---
 
@@ -137,7 +143,8 @@ These live in Home Assistant’s own file (not on the box): `.storage/furbulous.
 | Reload the Furbulous integration | **Kept** | **Kept** |
 | Press **I refilled the litter** | Litter age restarts | Litter-reset event added |
 | Press **Empty all litter** (after confirm) | Bag age restarts | Bag-replaced event added |
-| Press **Seal waste bag** | Bag age **not** restarted (pack event only) | Pack event added |
+| Press **Seal waste bag** | Bag age **not** restarted yet (pack event only) | Pack event added |
+| **Needs emptying** returns to OK (full error cleared in cloud) | Bag age restarts | Bag-replaced event added |
 | **Delete** the Furbulous integration / config entry | **Lost** | **Lost** |
 | New HA config / wipe `.storage` / new Docker volume | **Lost** | **Lost** |
 | Reconfigure (same entry) | **Kept** unless the entry is replaced | **Kept** |

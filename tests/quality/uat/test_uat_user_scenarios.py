@@ -86,16 +86,27 @@ async def test_empty_requires_confirm_ready():
     api.set_device_property.assert_awaited()
 
 
-def test_last_visit_activity_includes_pet():
-    """UAT: Activity-friendly sensor includes pet name when identified."""
+def test_last_visit_activity_is_compact_time():
+    """UAT: Last visit is a short local stamp; cat name stays on Last cat."""
+    from datetime import datetime, timezone
+
     coord = _coord()
     analytics = MagicMock()
     analytics.last_visitor.return_value = "Luna"
+    # 2023-11-14 22:13:20 UTC — format is H:MM M-D in local TZ
     analytics.last_visit_ts.return_value = 1_700_000_000.0
     analytics.async_add_listener = MagicMock(return_value=lambda: None)
     sensor = LastVisitActivitySensor(coord, analytics, coord.data["devices"][0])
-    # May include timezone formatting; pet name must appear
-    assert "Luna" in str(sensor.native_value)
+    value = str(sensor.native_value)
+    assert "Luna" not in value
+    assert "2023" not in value and "2026" not in value
+    assert "-" in value  # month-day
+    assert ":" in value
+    attrs = sensor.extra_state_attributes
+    assert attrs.get("last_cat") == "Luna"
+    # Sanity: formatter helper round-trip
+    stamp = datetime.fromtimestamp(1_700_000_000.0, tz=timezone.utc)
+    assert stamp.year == 2023
 
 
 def test_controls_only_chore_buttons_and_empty_arm():

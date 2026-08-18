@@ -1,0 +1,169 @@
+# EXAMPLE Home Assistant automations — iOS / Android Companion notifications.
+#
+# Edit entity_id prefixes for each box. Replace notify.mobile_app_YOUR_PHONE
+# with your Companion notify service (Developer tools → Services → search notify).
+#
+# Paste into automations.yaml, or Settings → Automations → Create → ⋮ → Edit in YAML.
+#
+# Triggers to use per box (4 boxes → duplicate with each prefix):
+#   binary_sensor.<prefix>needs_emptying     → bag full / needs emptying
+#   binary_sensor.<prefix>trash_door_jammed  → Device Failure E4
+#   sensor.<prefix>error_message             → any non-empty vendor error text
+#   event furbulous_waste_full               → edge when full is confirmed
+#
+# Optional: 30 minutes after a visit with no clean usually means full bag,
+# jammed door, or another fault — see "No clean after visit" at the bottom.
+
+- id: furbulous_downstairs_bag_full
+  alias: "Furbulous Downstairs — bag full"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.family_room_downstairs_needs_emptying
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Downstairs litter box
+        message: "Bag is full — seal and remove the waste bag."
+        data:
+          push:
+            interruption-level: time-sensitive
+
+- id: furbulous_downstairs_e4
+  alias: "Furbulous Downstairs — trash door jammed (E4)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.family_room_downstairs_trash_door_jammed
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Downstairs litter box
+        message: "Trash door jammed (E4). Scoop the clump off the door, then press OK on the box."
+        data:
+          push:
+            interruption-level: time-sensitive
+
+- id: furbulous_upstairs_bag_full
+  alias: "Furbulous Upstairs — bag full"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_needs_emptying
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Upstairs litter box
+        message: "Bag is full — seal and remove the waste bag."
+
+- id: furbulous_upstairs_e4
+  alias: "Furbulous Upstairs — trash door jammed (E4)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_trash_door_jammed
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Upstairs litter box
+        message: "Trash door jammed (E4). Scoop the clump, then OK on the box."
+
+- id: furbulous_master_bag_full
+  alias: "Furbulous Master — bag full"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_needs_emptying
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Master litter box
+        message: "Bag is full — seal and remove the waste bag."
+
+- id: furbulous_master_e4
+  alias: "Furbulous Master — trash door jammed (E4)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_trash_door_jammed
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Master litter box
+        message: "Trash door jammed (E4). Scoop the clump, then OK on the box."
+
+- id: furbulous_cleo_bag_full
+  alias: "Furbulous Cleo — bag full"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.cleo_needs_emptying
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Cleo litter box
+        message: "Bag is full — seal and remove the waste bag."
+
+- id: furbulous_cleo_e4
+  alias: "Furbulous Cleo — trash door jammed (E4)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.cleo_trash_door_jammed
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Cleo litter box
+        message: "Trash door jammed (E4). Scoop the clump, then OK on the box."
+
+# Edge-style (any box) via bus event — good when entity IDs change:
+- id: furbulous_any_waste_full_event
+  alias: "Furbulous — any box bag full (event)"
+  mode: queued
+  trigger:
+    - platform: event
+      event_type: furbulous_waste_full
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Litter box needs emptying
+        message: "A Furbulous box reported a full waste bag (device {{ trigger.event.data.device_id }})."
+
+# Optional: 30 minutes after a visit, still a PROBLEM state → something blocked cleaning.
+# Duplicate per box; adjust entity_ids.
+- id: furbulous_downstairs_no_clean_after_visit
+  alias: "Furbulous Downstairs — no clean 30m after visit"
+  mode: restart
+  trigger:
+    - platform: event
+      event_type: furbulous_visit_ended
+      event_data:
+        device_id: "REPLACE_WITH_DOWNSTAIRS_DEVICE_ID"
+  action:
+    - delay: "00:30:00"
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: binary_sensor.family_room_downstairs_needs_emptying
+          state: "on"
+        - condition: state
+          entity_id: binary_sensor.family_room_downstairs_trash_door_jammed
+          state: "on"
+        - condition: template
+          value_template: >-
+            {{ states('sensor.family_room_downstairs_error_message') not in
+               ['unknown', 'unavailable', 'none', '', 'OK', '-'] }}
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: Downstairs may be stuck
+        message: >-
+          Visit ended 30+ minutes ago and the box still shows bag full, E4, or
+          an error — it likely could not run a clean cycle.
