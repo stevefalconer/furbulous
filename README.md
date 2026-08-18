@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.3.11 |
+| **Version** | 1.3.12 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -119,7 +119,7 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 | Binary sensor | **Cat inside**; **Needs emptying** / **Cover open** / **Drawer out of place** (OK or Problem); Online*; Child lock on*; Screen is off*‡ | Sensors / Diagnostic |
 | Sensor (live) | Cat weight; **Uses today**; Average visit today; Error message*; Firmware*; **What the box is doing***; **Clean cycle status***; day-over-day‡ | Sensors / Diagnostic |
 | Time | **Screen schedule start** / **Screen schedule end**; **Quiet hours start** / **Quiet hours end** (writable daily window) | **Configuration** |
-| Sensor (analytics) | **Last cat**; **Last visit** (`Name · time`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
+| Sensor (analytics) | **Last cat**; **Last visit** (`H:MM M-D`); Last visit time/weight; **Who is inside**; Visits (7/30 days); **Bag age** / **Litter age**; bag/litter/pack metrics | Sensors |
 | Switch | **Auto-clean after visits**; **Quiet hours**; Child lock | **Configuration** |
 | Switch | **Empty — confirm ready** (safety) | **Controls** |
 | Button | **Clean now**; Pause / Resume cleaning; **Empty all litter** (needs confirm); **Seal waste bag**; **I refilled the litter** | **Controls** |
@@ -195,7 +195,7 @@ Bus events for automations (do not depend on display names):
 
 1. Set accurate **pet weights in the Furbulous app** (multi-cat closest-weight match).  
 2. Prefer **Last cat** / **Last visit** after a use; **Who is inside** only while occupied.  
-3. **Bag age** and **Litter age** are your “is it overdue?” gauges — press **I refilled the litter** after topping up.  
+3. **Bag age** and **Litter age** are your “is it overdue?” gauges — press **I refilled the litter** after topping up. Bag age also restarts when a bag-full error clears in the cloud.  
 4. Properties ~**30s**; pets ≤**1 min**; full stats **5 min**.
 
 ---
@@ -267,7 +267,7 @@ After upgrade, **restart Home Assistant** once so weight units and new entities 
 **Include:**
 
 - Home Assistant version  
-- Integration version (see `manifest.json` / HACS, e.g. **1.3.11**)  
+- Integration version (see `manifest.json` / HACS, e.g. **1.3.12**)  
 - Account **region** selected  
 - Steps to reproduce  
 - Symptom (auth, no devices, unavailable entities, wrong units)  

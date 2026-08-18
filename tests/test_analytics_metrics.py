@@ -224,6 +224,40 @@ async def test_engine_full_accepts_32():
 
 
 @pytest.mark.asyncio
+async def test_engine_full_clear_restarts_bag_age():
+    """When bag-full error clears in the cloud, Bag age restarts (bag_replaced)."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-bag-clear")
+    eng.store._loaded = True
+    full = {
+        "id": 11,
+        "iotid": "iot-11",
+        "name": "Box",
+        "properties": {"workstatus": 0, "errorReportEvent": 32},
+    }
+    clear = {
+        "id": 11,
+        "iotid": "iot-11",
+        "name": "Box",
+        "properties": {"workstatus": 0, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([full])
+    eng.process_snapshot([full])
+    assert eng._device_state["11"].get("is_full") is True
+    eng.process_snapshot([clear])
+    assert eng._device_state["11"].get("is_full") is False
+    offs = eng.store.events_for_device(11, event_types={"waste_full_off"})
+    bags = eng.store.events_for_device(11, event_types={"bag_replaced"})
+    assert len(offs) == 1
+    assert offs[0]["payload"].get("cleared_how") == "error_cleared"
+    assert len(bags) == 1
+    eng.recompute_all()
+    assert eng.metrics_for_device(11)["hours_since_bag_replaced"] == pytest.approx(
+        0.0, abs=0.05
+    )
+
+
+@pytest.mark.asyncio
 async def test_engine_clean_and_e4_are_not_visits():
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "entry-clean")

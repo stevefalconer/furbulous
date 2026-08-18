@@ -301,11 +301,22 @@ class LastVisitorSensor(CoordinatorEntity, SensorEntity):
         return attrs
 
 
-class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
-    """Combined last-visit line for Activity/Logbook: “Fluffy · 2026-08-15 14:32”.
+def _format_visit_stamp(dt_val: datetime) -> str:
+    """Compact local stamp for phone cards: ``21:57 8-17`` (no year, no leading zeros)."""
+    try:
+        from homeassistant.util import dt as dt_util
 
-    Prefer this over raw Last activity (device active_time) when you care about
-    which cat used the box.
+        local = dt_util.as_local(dt_val)
+    except Exception:  # pylint: disable=broad-except
+        local = dt_val
+    return f"{local.hour}:{local.minute:02d} {local.month}-{local.day}"
+
+
+class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
+    """Last visit time for dashboards: ``21:57 8-17``.
+
+    Cat name lives on **Last cat** (shown at the top of each box card) so this
+    sensor stays short enough for glance / phone layouts.
     """
 
     _attr_has_entity_name = True
@@ -337,24 +348,23 @@ class LastVisitActivitySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        name = self._analytics.last_visitor(self._device_id) or EMPTY_LABEL
         ts = self._analytics.last_visit_ts(self._device_id)
         dt_val = _ts_to_dt(ts)
-        if dt_val is None and (not name or name == EMPTY_LABEL):
+        if dt_val is None:
             return EMPTY_LABEL
-        time_str = EMPTY_LABEL
-        if dt_val is not None:
-            try:
-                from homeassistant.util import dt as dt_util
+        return _format_visit_stamp(dt_val)
 
-                time_str = dt_util.as_local(dt_val).strftime("%Y-%m-%d %H:%M")
-            except Exception:  # pylint: disable=broad-except
-                time_str = dt_val.strftime("%Y-%m-%d %H:%M UTC")
-        if name and name != EMPTY_LABEL:
-            if time_str != EMPTY_LABEL:
-                return f"{name} · {time_str}"
-            return str(name)
-        return time_str
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        name = self._analytics.last_visitor(self._device_id) or EMPTY_LABEL
+        return power_attrs(
+            role=ROLE_PRIMARY,
+            automation_hint=(
+                "State is local time stamp (H:MM M-D). Cat name is on Last cat; "
+                "also in attribute last_cat."
+            ),
+            extra={"last_cat": name},
+        )
 
 
 class LastVisitTimeSensor(CoordinatorEntity, SensorEntity):

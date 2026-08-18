@@ -2,6 +2,28 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.12 — 2026-08-17
+
+### Dashboard / Last visit
+
+- **Last visit** is a compact local stamp (`21:57 8-17`) — no year, no cat name (name stays on **Last cat** so phone cards do not truncate).
+- Example Mushroom dashboard adds **Cleo**, separates **Status** (green/red) from **Actions** (Clean now / Seal bag / Refilled), and shows Litter/Bag age as hours or days without glance truncation.
+- Example Companion notification automations: `docs/dashboards/notifications.yaml`.
+
+### Bag age
+
+- When a confirmed **bag-full** condition clears in the cloud (`Needs emptying` → OK), analytics records **`bag_replaced`** so **Bag age** restarts after you remove the sealed bag / clear the full error (Seal alone still does not).
+
+### Docs
+
+- Dedicated Furbulous account for HA; pets shared from other accounts are **not verified**.
+- Clean = barrel cycle; Seal vs emptied bag vs Bag age clarified; Litter age **Unknown** until **I refilled**.
+
+### Known follow-ups
+
+- Master **Screen mode Scheduled**: overnight blank verified; mid-day unexpected off noted for later eco/schedule troubleshooting.
+- Shared-account pets: investigate later.
+
 ## 1.3.11 — 2026-08-16
 
 ### One box-state classifier

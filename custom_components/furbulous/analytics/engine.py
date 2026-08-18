@@ -580,7 +580,7 @@ class AnalyticsEngine:
                     device_id=did,
                     iotid=iotid,
                     source="presence",
-                    payload={"time_full_s": time_full, "cleared_how": "unknown"},
+                    payload={"time_full_s": time_full, "cleared_how": "error_cleared"},
                     ts=now,
                 )
                 emit_event(
@@ -591,14 +591,60 @@ class AnalyticsEngine:
                         "iotid": iotid,
                         "config_entry_id": self.entry_id,
                         "time_full_s": time_full,
-                        "cleared_how": "unknown",
+                        "cleared_how": "error_cleared",
                     },
+                )
+                # Bag-full clear on the device usually means the sealed bag was
+                # removed and the drawer put back — restart Bag age.
+                self._record_bag_replaced(
+                    did, iotid, source="presence", now=now
                 )
                 rank = 1
 
         if rank == 0 and identity_changed and occupied:
             return 2
         return rank
+
+    def _record_bag_replaced(
+        self,
+        device_id: str,
+        iotid: str | None,
+        *,
+        source: str,
+        now: float | None = None,
+    ) -> bool:
+        """Append bag_replaced + update last_bag_ts. Returns False if debounced."""
+        did = str(device_id)
+        now = time.time() if now is None else now
+        st = self._device_state.setdefault(did, {})
+        last_bag = st.get("last_bag_ts")
+        if last_bag is not None and (now - float(last_bag)) < BAG_EMPTY_DEBOUNCE_S:
+            _LOGGER.debug("Ignoring debounced bag_replaced device=%s", did)
+            return False
+        lifetime_s = None
+        if last_bag is not None:
+            lifetime_s = now - float(last_bag)
+        self.store.append(
+            "bag_replaced",
+            device_id=did,
+            iotid=iotid,
+            source=source,
+            payload={"lifetime_s": lifetime_s},
+            ts=now,
+        )
+        emit_event(
+            self.hass,
+            EVENT_BAG_REPLACED,
+            {
+                "device_id": did,
+                "iotid": iotid,
+                "config_entry_id": self.entry_id,
+                "lifetime_s": lifetime_s,
+                "source": source,
+            },
+        )
+        st["last_bag_ts"] = now
+        return True
 
     def record_hand_mode(
         self,
@@ -644,29 +690,7 @@ class AnalyticsEngine:
                     payload={},
                     ts=now,
                 )
-                lifetime_s = None
-                if last_bag is not None:
-                    lifetime_s = now - float(last_bag)
-                self.store.append(
-                    "bag_replaced",
-                    device_id=did,
-                    iotid=iotid,
-                    source=source,
-                    payload={"lifetime_s": lifetime_s},
-                    ts=now,
-                )
-                emit_event(
-                    self.hass,
-                    EVENT_BAG_REPLACED,
-                    {
-                        "device_id": did,
-                        "iotid": iotid,
-                        "config_entry_id": self.entry_id,
-                        "lifetime_s": lifetime_s,
-                        "source": source,
-                    },
-                )
-                st["last_bag_ts"] = now
+                self._record_bag_replaced(did, iotid, source=source, now=now)
                 if st.get("is_full"):
                     start = st.get("full_episode_start") or now
                     time_full = max(0.0, now - float(start))

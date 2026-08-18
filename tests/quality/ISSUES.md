@@ -12,7 +12,7 @@ link tests that guard the fix.
 | Q-005 | 1.3.4 feedback | **resolved** 1.3.5 | uat | PROBLEM sensors look odd with OK | Rename to *status*; attributes explain OK vs Problem | `test_problem_status_ok_semantics` |
 | Q-006 | 1.3.4 feedback | **resolved** 1.3.5 | uat | Hand mode jargon | Rename **Box action** + cat-friendly labels | `test_box_action_labels` |
 | Q-007 | 1.3.4 feedback | **resolved** 1.3.5 | gold | Eco start/stop times missing | Read-only Eco mode start/stop (+ DND times disabled-by-default) when API keys present; app-write until keys confirmed | `test_eco_mode_time_sensors` |
-| Q-008 | 1.3.4 feedback | **resolved** 1.3.5 | uat | Activity lacks pet names | **Last visit activity** sensor `Name · time` | `test_last_visit_activity_includes_pet` |
+| Q-008 | 1.3.4 feedback | **resolved** 1.3.12 | uat | Last visit truncation on phones | Compact `H:MM M-D`; cat on **Last cat** + attr | `test_last_visit_activity_is_compact_time` |
 | Q-009 | 1.3.4 feedback | **documented** 1.3.5 | gold | Many sensors show Unknown | Counts → 0; text → `-`; DURATION/WEIGHT/TIMESTAMP must use None (HA unknown) — documented | `test_empty_state_policy` |
 | Q-010 | 1.3.4 feedback | **documented** 1.3.5 | gold | 11 sensors disabled | Expected: secondary analytics + day-over-day + DND times + screen mirror | `test_disabled_by_default_count` |
 | Q-011 | 1.3.4 feedback | **documented** 1.3.5 | uat | Completion status meaning unclear | Renamed Cycle completion; best-effort map + raw attribute | `test_cycle_completion_mapping` |
@@ -32,6 +32,9 @@ link tests that guard the fix.
 | Q-025 | 2026-08-16 field | **resolved** 1.3.10 | gold | Error bits 64/128/512/524288 mislabeled | 512=lid; 524288=E4 trash door; drawer not a cloud bit; describe_error walks high bits | `test_cover_is_lid_off_or_documented_128`, `test_trash_door_e4`, `test_problem_status_ok_semantics` |
 | Q-026 | 2026-08-16 field | **documented** 1.3.10 | gold | Screen blank now ≠ physical panel | Eco blanks inside local window; entity is schedule intent; button wakes | CAT_PARENT + API §5.8 |
 | Q-027 | 1.3.10 review | **resolved** 1.3.11 | gold | Dual coordinator + scattered workstatus ifs invented visits | `box_state.classify`; presence-only edges; trash-door entity; immediate flush | `test_box_state.py`, `test_full_recompute_does_not_open_a_visit` |
+| Q-028 | 2026-08-17 field | **resolved** 1.3.12 | uat | Clean/Seal/Bag age confusion; Litter Unknown after pour | Docs + dashboard Status vs Actions; bag age on full-clear | CAT_PARENT + dashboard README |
+| Q-029 | 2026-08-17 field | **open** | gold | Master Scheduled screen off mid-day unexpectedly | Overnight OK; mid-day blank noted — eco/schedule follow-up | — |
+| Q-030 | 2026-08-17 field | **documented** | uat | Pets shared from another Furbulous account | Not verified; recommend all pets on HA account | CAT_PARENT |
 
 ## How to use
 
