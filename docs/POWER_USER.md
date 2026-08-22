@@ -134,7 +134,7 @@ Bag age restarts on **Empty** (`bag_replaced`) and when a confirmed **waste-full
 | Last cleaned | `sensor.<box>_last_cleaned` |
 | Any error text | `sensor.<box>_error_message` not empty / not OK |
 
-Example YAML: [`docs/dashboards/notifications.yaml`](dashboards/notifications.yaml).
+Example YAML: [`docs/dashboards/mobile_notifications.yaml`](dashboards/mobile_notifications.yaml).
 
 ### Pause cloud polling (same account as the phone app)
 

@@ -2,7 +2,7 @@
 
 [`furbulous.yaml`](furbulous.yaml) is the **full pasteable Lovelace dashboard** for **this house** (four Furbulous boxes). Sidebar name: **Furbulous**. It is not a universal import that works unchanged on every install.
 
-[`mobile_notifications.yaml`](mobile_notifications.yaml) is a separate **automations** pack (not a dashboard) for bag full, **No Bag**, E4, and Dirty alerts. Docker testing uses `persistent_notification`; on a phone HA swap to `notify.mobile_app_*`. Do **not** paste notifications into the dashboard editor.
+[`mobile_notifications.yaml`](mobile_notifications.yaml) is the **only** notifications pack (automations, not a dashboard): bag full, **No Bag**, 15‑min chore reminder, E4, and Dirty — for all four boxes, plus account-wide events. Docker testing uses `persistent_notification`; on a phone HA swap to `notify.mobile_app_*`. Do **not** paste it into the dashboard editor.
 
 Home Assistant builds entity IDs from the **area** plus the **box name**. This file uses:
 

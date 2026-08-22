@@ -1,8 +1,0 @@
-# DEPRECATED filename — see mobile_notifications.yaml
-#
-# This is **not** a Lovelace dashboard. It was an early name for Companion /
-# notification *automations*. Use:
-#
-#   docs/dashboards/mobile_notifications.yaml
-#
-# Install as automations (automations.yaml), never as a dashboard paste.

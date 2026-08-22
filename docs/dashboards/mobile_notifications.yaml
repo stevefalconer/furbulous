@@ -14,15 +14,25 @@
 #   service: persistent_notification.create
 # to:
 #   service: notify.mobile_app_YOUR_PHONE
-# and put title/message under data: (see Companion docs).
+# and put title/message under data: (see Companion docs). Optional iOS:
+#   data:
+#     push:
+#       interruption-level: time-sensitive
 #
 # Critical path after bag full → seal:
 #   needs_emptying ON  → "Bag full — seal and remove"
 #   no_bag ON          → "No Bag — remove sealed bag / install new bag"
 #   (No Bag is why cleans get blocked if you miss the full-bag alert)
+#
+# Entity prefixes (this house):
+#   Downstairs → family_room_downstairs_
+#   Master     → master_bedroom_master_
+#   Cleo       → cleo_  (+ middle_bedroom_cleo_ for no_bag / bag_status / needs_cleaning)
+#   Upstairs   → front_bedroom_upstairs_
 
 # --- Docker / UI-visible test target (swap for mobile_app on phone HA) ---
-# Helper anchors via repeated blocks below.
+
+# ===== Downstairs =====
 
 - id: furbulous_downstairs_bag_full
   alias: "Furbulous Downstairs — bag full"
@@ -63,7 +73,7 @@
           new one (drawer out → new bag → drawer in → cover on → OK on box
           if shown).
 
-- id: furbulous_downstairs_bag_full_reminder
+- id: furbulous_downstairs_bag_chore_reminder
   alias: "Furbulous Downstairs — bag chore still open (15 min)"
   description: "Reminder if bag full or No Bag is still on after 15 minutes."
   mode: single
@@ -115,6 +125,8 @@
           30+ minutes since a visit with no barrel clean. Check No Bag / bag
           full / litter door, or press Clean now.
 
+# ===== Master =====
+
 - id: furbulous_master_bag_full
   alias: "Furbulous Master — bag full"
   mode: single
@@ -127,7 +139,9 @@
       data:
         notification_id: furbulous_master_bag_full
         title: "Master — bag full"
-        message: "Seal if needed, then remove and replace the waste bag."
+        message: >-
+          Waste bag is full. Seal if needed, then remove and replace the waste
+          bag.
 
 - id: furbulous_master_no_bag
   alias: "Furbulous Master — No Bag"
@@ -146,6 +160,27 @@
         title: "Master — No Bag"
         message: "Remove sealed bag / install new bag so the box can clean again."
 
+- id: furbulous_master_bag_chore_reminder
+  alias: "Furbulous Master — bag chore still open (15 min)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_needs_emptying
+      to: "on"
+      for: "00:15:00"
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_no_bag
+      to: "on"
+      for: "00:15:00"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_master_bag_chore_reminder
+        title: "Master — still needs bag change"
+        message: >-
+          Bag full and/or No Bag has been on for 15+ minutes. Cleans will stay
+          blocked until the waste bag is replaced.
+
 - id: furbulous_master_e4
   alias: "Furbulous Master — litter door jammed (E4)"
   mode: single
@@ -160,6 +195,26 @@
         title: "Master — litter door error"
         message: "Scoop the clump, then OK on the box."
 
+- id: furbulous_master_needs_cleaning
+  alias: "Furbulous Master — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.master_bedroom_master_needs_cleaning
+      to: "on"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_master_dirty
+        title: "Master — needs a clean"
+        message: >-
+          30+ minutes since a visit with no barrel clean. Check No Bag / bag
+          full / litter door, or press Clean now.
+
+# ===== Cleo =====
+# needs_emptying / trash_door often use cleo_; no_bag / bag_status / needs_cleaning
+# may be middle_bedroom_cleo_ on this install — both covered where applicable.
+
 - id: furbulous_cleo_bag_full
   alias: "Furbulous Cleo — bag full"
   mode: single
@@ -172,7 +227,9 @@
       data:
         notification_id: furbulous_cleo_bag_full
         title: "Cleo — bag full"
-        message: "Seal if needed, then remove and replace the waste bag."
+        message: >-
+          Waste bag is full. Seal if needed, then remove and replace the waste
+          bag.
 
 - id: furbulous_cleo_no_bag
   alias: "Furbulous Cleo — No Bag"
@@ -182,7 +239,13 @@
       entity_id: binary_sensor.cleo_no_bag
       to: "on"
     - platform: state
+      entity_id: binary_sensor.middle_bedroom_cleo_no_bag
+      to: "on"
+    - platform: state
       entity_id: sensor.cleo_bag_status
+      to: "No Bag"
+    - platform: state
+      entity_id: sensor.middle_bedroom_cleo_bag_status
       to: "No Bag"
   action:
     - service: persistent_notification.create
@@ -190,6 +253,31 @@
         notification_id: furbulous_cleo_no_bag
         title: "Cleo — No Bag"
         message: "Remove sealed bag / install new bag so the box can clean again."
+
+- id: furbulous_cleo_bag_chore_reminder
+  alias: "Furbulous Cleo — bag chore still open (15 min)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.cleo_needs_emptying
+      to: "on"
+      for: "00:15:00"
+    - platform: state
+      entity_id: binary_sensor.cleo_no_bag
+      to: "on"
+      for: "00:15:00"
+    - platform: state
+      entity_id: binary_sensor.middle_bedroom_cleo_no_bag
+      to: "on"
+      for: "00:15:00"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_cleo_bag_chore_reminder
+        title: "Cleo — still needs bag change"
+        message: >-
+          Bag full and/or No Bag has been on for 15+ minutes. Cleans will stay
+          blocked until the waste bag is replaced.
 
 - id: furbulous_cleo_e4
   alias: "Furbulous Cleo — litter door jammed (E4)"
@@ -205,6 +293,27 @@
         title: "Cleo — litter door error"
         message: "Scoop the clump, then OK on the box."
 
+- id: furbulous_cleo_needs_cleaning
+  alias: "Furbulous Cleo — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.cleo_needs_cleaning
+      to: "on"
+    - platform: state
+      entity_id: binary_sensor.middle_bedroom_cleo_needs_cleaning
+      to: "on"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_cleo_dirty
+        title: "Cleo — needs a clean"
+        message: >-
+          30+ minutes since a visit with no barrel clean. Check No Bag / bag
+          full / litter door, or press Clean now.
+
+# ===== Upstairs =====
+
 - id: furbulous_upstairs_bag_full
   alias: "Furbulous Upstairs — bag full"
   mode: single
@@ -217,7 +326,9 @@
       data:
         notification_id: furbulous_upstairs_bag_full
         title: "Upstairs — bag full"
-        message: "Seal if needed, then remove and replace the waste bag."
+        message: >-
+          Waste bag is full. Seal if needed, then remove and replace the waste
+          bag.
 
 - id: furbulous_upstairs_no_bag
   alias: "Furbulous Upstairs — No Bag"
@@ -236,6 +347,27 @@
         title: "Upstairs — No Bag"
         message: "Remove sealed bag / install new bag so the box can clean again."
 
+- id: furbulous_upstairs_bag_chore_reminder
+  alias: "Furbulous Upstairs — bag chore still open (15 min)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_needs_emptying
+      to: "on"
+      for: "00:15:00"
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_no_bag
+      to: "on"
+      for: "00:15:00"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_upstairs_bag_chore_reminder
+        title: "Upstairs — still needs bag change"
+        message: >-
+          Bag full and/or No Bag has been on for 15+ minutes. Cleans will stay
+          blocked until the waste bag is replaced.
+
 - id: furbulous_upstairs_e4
   alias: "Furbulous Upstairs — litter door jammed (E4)"
   mode: single
@@ -250,6 +382,24 @@
         title: "Upstairs — litter door error"
         message: "Scoop the clump, then OK on the box."
 
+- id: furbulous_upstairs_needs_cleaning
+  alias: "Furbulous Upstairs — Dirty (no clean 30m)"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.front_bedroom_upstairs_needs_cleaning
+      to: "on"
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: furbulous_upstairs_dirty
+        title: "Upstairs — needs a clean"
+        message: >-
+          30+ minutes since a visit with no barrel clean. Check No Bag / bag
+          full / litter door, or press Clean now.
+
+# ===== Account-wide events =====
+
 - id: furbulous_any_waste_full_event
   alias: "Furbulous — any box bag full (event)"
   mode: queued
@@ -262,3 +412,18 @@
         notification_id: "furbulous_waste_full_{{ trigger.event.data.device_id }}"
         title: "Litter box — bag full"
         message: "Device {{ trigger.event.data.device_id }} reported a full waste bag."
+
+- id: furbulous_any_needs_cleaning_event
+  alias: "Furbulous — any box Dirty (event)"
+  mode: queued
+  trigger:
+    - platform: event
+      event_type: furbulous_needs_cleaning
+  action:
+    - service: persistent_notification.create
+      data:
+        notification_id: "furbulous_dirty_{{ trigger.event.data.device_id }}"
+        title: "Litter box — needs a clean"
+        message: >-
+          Device {{ trigger.event.data.device_id }} has been Dirty (≥30 min
+          after a visit with no clean).

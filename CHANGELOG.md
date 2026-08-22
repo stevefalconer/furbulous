@@ -23,7 +23,7 @@ All notable changes to this fork are documented here.
 
 - Live bag-replace capture: **No Bag = error bit 128**; lid off = **512**; cleared to **0** after new bag then clean ran.
 - New **No Bag** PROBLEM binary; bag-status / error text updated.
-- `mobile_notifications.yaml` = **automations** (not a dashboard) for bag full, No Bag, 15‑min reminder, E4 — Docker uses persistent notifications.
+- `mobile_notifications.yaml` = **automations** (not a dashboard) for bag full, No Bag, 15‑min reminder, E4, Dirty — Docker uses persistent notifications.
 - Pause UI: show **Pause / Pause 1 hr** only while polling; **Resume** only while paused (conditional). Pause/resume driven by the switch so cycles repeat reliably.
 
 ## 1.3.16 — 2026-08-17
@@ -74,7 +74,7 @@ All notable changes to this fork are documented here.
 
 - **Last visit** is a compact local stamp (`21:57 8-17`) — no year, no cat name (name stays on **Last cat** so phone cards do not truncate).
 - Example Mushroom dashboard adds **Cleo**, separates **Status** (green/red) from **Actions** (Clean now / Seal bag / Refilled), and shows Litter/Bag age as hours or days without glance truncation.
-- Example Companion notification automations: `docs/dashboards/notifications.yaml`.
+- Example Companion notification automations: `docs/dashboards/mobile_notifications.yaml`.
 
 ### Bag age
 
