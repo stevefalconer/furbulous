@@ -133,3 +133,45 @@ async def test_presence_empty_when_no_known_devices(mock_hass, mock_entry):
     data = await coord._async_update_data()
     assert data == {"devices": []}
     api.async_get_presence_snapshot.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_prune_keeps_hub_device(mock_hass, mock_entry):
+    """Hub pause device must survive full snapshot prune (not in cloud list)."""
+    api = MagicMock()
+    api.region_id = "us"
+    coord = FurbulousDataUpdateCoordinator(mock_hass, api, mock_entry)
+
+    hub = MagicMock()
+    hub.id = "hub-dev"
+    hub.identifiers = {("furbulous", "hub_test-entry")}
+
+    stale_box = MagicMock()
+    stale_box.id = "gone-box"
+    stale_box.identifiers = {("furbulous", "9999")}
+
+    live_box = MagicMock()
+    live_box.id = "live-box"
+    live_box.identifiers = {("furbulous", "3139")}
+
+    device_reg = MagicMock()
+    device_reg.async_update_device = MagicMock()
+
+    with (
+        patch(
+            "custom_components.furbulous.coordinator.dr.async_get",
+            return_value=device_reg,
+        ),
+        patch(
+            "custom_components.furbulous.coordinator.dr.async_entries_for_config_entry",
+            return_value=[hub, stale_box, live_box],
+        ),
+    ):
+        coord._async_prune_stale_devices(
+            {"devices": [{"id": 3139, "iotid": "x"}], "pets": []}
+        )
+
+    # Only the missing box is detached; hub is preserved.
+    device_reg.async_update_device.assert_called_once_with(
+        "gone-box", remove_config_entry_id=mock_entry.entry_id
+    )

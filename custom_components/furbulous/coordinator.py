@@ -102,9 +102,11 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
             self._unavailable_logged = False
 
     def _async_prune_stale_devices(self, data: dict[str, Any]) -> None:
-        """Remove HA box devices no longer reported by the cloud.
+        """Remove HA box/pet devices no longer reported by the cloud.
 
-        Pet devices use identifiers ``pet_*`` and are never pruned here.
+        Never prune the account **hub** device (``hub_<entry_id>``): it is not
+        in the cloud device list. Pruning it deleted Pause / Resume entities
+        on the first full refresh after Resume.
         """
         entry = self.config_entry
         if entry is None:
@@ -129,6 +131,9 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
                 for ident in device_entry.identifiers
                 if ident[0] == DOMAIN
             }
+            # Hub is local-only (pause polling controls) — never a cloud box/pet.
+            if any(str(ident).startswith("hub_") for ident in furbulous_ids):
+                continue
             # Prune boxes and pets no longer on the account
             if furbulous_ids and furbulous_ids.isdisjoint(current_ids):
                 device_reg.async_update_device(

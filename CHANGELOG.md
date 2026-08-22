@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.19 — 2026-08-22
+
+### Pause buttons vanish after Resume
+
+- **Bug:** full-poll device prune treated the local **hub** device as a removed box, so Resume’s refresh deleted `switch.furbulous_pause_cloud_polling` (and the other pause entities). Pause/Pause 1 hr then never reappeared (Spook: unknown entity).
+- Hub identifiers (`hub_<entry_id>`) are excluded from prune.
+- Dashboard: Pause chips use `state_not: on` so they return whenever polling is not paused.
+
 ## 1.3.18 — 2026-08-22
 
 ### Stuck Dirty after missed auto-clean
