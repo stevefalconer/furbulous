@@ -1,8 +1,8 @@
 # Furbulous dashboard (example)
 
-[`furbulous.yaml`](furbulous.yaml) is an **example** built for **one house** (four Furbulous boxes). It is not a universal import that works unchanged on every install.
+[`furbulous.yaml`](furbulous.yaml) is the **full pasteable Lovelace dashboard** for **this house** (four Furbulous boxes). Sidebar name: **Furbulous**. It is not a universal import that works unchanged on every install.
 
-[`mobile_notifications.yaml`](mobile_notifications.yaml) is an example **automations** pack (not a dashboard) for bag full, **No Bag**, E4, and Dirty alerts. Docker testing uses `persistent_notification`; on a phone HA swap to `notify.mobile_app_*`.
+[`mobile_notifications.yaml`](mobile_notifications.yaml) is a separate **automations** pack (not a dashboard) for bag full, **No Bag**, E4, and Dirty alerts. Docker testing uses `persistent_notification`; on a phone HA swap to `notify.mobile_app_*`. Do **not** paste notifications into the dashboard editor.
 
 Home Assistant builds entity IDs from the **area** plus the **box name**. This file uses:
 
@@ -19,7 +19,7 @@ Example: `binary_sensor.cleo_needs_emptying`
 
 Your prefixes will differ if the boxes are in other areas, have other names, or you renamed entities.
 
-**Needs:** Furbulous **1.3.16+**, restart after update, [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend), and optionally [card-mod](https://github.com/thomasloven/lovelace-card-mod) for borderless status chips and equal-width columns.
+**Needs:** Furbulous **1.3.19+**, reload integration after update, [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend), and optionally [card-mod](https://github.com/thomasloven/lovelace-card-mod) for borderless status chips and equal-width columns.
 
 **Box order in the example:** Downstairs → Master → Cleo → Upstairs.
 

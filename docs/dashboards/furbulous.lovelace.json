@@ -1,5 +1,5 @@
 {
-  "title": "Litter boxes",
+  "title": "Furbulous",
   "views": [
     {
       "title": "Boxes",
@@ -368,7 +368,7 @@
         },
         {
           "type": "markdown",
-          "content": "> **If Pause buttons show Unavailable:** update Furbulous to **1.3.17+** (HACS) and restart HA so `switch.furbulous_pause_cloud_polling` is created. Box cards above use your area entity IDs and should work now."
+          "content": "> **If Pause buttons show Unavailable:** update Furbulous to **1.3.19+** (HACS) and reload the integration so `switch.furbulous_pause_cloud_polling` exists and survives Resume. Box cards above use your area entity IDs."
         },
         {
           "type": "custom:mushroom-title-card",
@@ -464,7 +464,7 @@
         },
         {
           "type": "markdown",
-          "content": "## Instructions\n\n### Why values were Unknown\nThis dashboard must use your HA entity IDs (area + box name). Wrong prefixes show as Unknown.\n\n### Pause polling\n**Pause** / **Pause 1 hr** when polling; **Resume** only when paused.\n\n### Litter / Bag ages\nUnknown until first **Refilled litter** or bag-replace event is recorded in HA.\n\n### Bag status\nBag OK \u00b7 Bag full \u00b7 No Bag (bit 128 after seal \u2014 remove bag so cleans can run).\n\n### Notifications\n`mobile_notifications.yaml` is **automations**, not a dashboard. Use Companion `notify.mobile_app_*` or persistent notifications.\n"
+          "content": "## Instructions\n\n### Why values were Unknown\nThis dashboard must use your HA entity IDs (area + box name). Wrong prefixes show as Unknown.\n\n### Pause polling\n**Pause** / **Pause 1 hr** when polling; **Resume** only when paused.\nNeeds Furbulous **1.3.19+** so the pause switch is not deleted on Resume.\n\n### Litter / Bag ages\nUnknown until first **Refilled litter** or bag-replace event is recorded in HA.\n\n### Bag status\nBag OK \u00b7 Bag full \u00b7 No Bag (bit 128 after seal \u2014 remove bag so cleans can run).\n\n### Notifications\n`mobile_notifications.yaml` is **automations**, not a dashboard. Use Companion `notify.mobile_app_*` or persistent notifications.\n"
         }
       ]
     }

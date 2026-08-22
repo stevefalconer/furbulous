@@ -2,6 +2,7 @@
 #
 # This file is Home Assistant *automations YAML*, not a dashboard view.
 # Do NOT paste it into a dashboard Raw configuration editor (that will fail).
+# The dashboard lives in furbulous.yaml (sidebar name: Furbulous).
 #
 # How to install:
 #   1. Replace notify targets below (Docker test uses persistent_notification).
