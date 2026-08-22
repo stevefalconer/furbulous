@@ -1,14 +1,12 @@
 # EXAMPLE dashboard — four boxes (edit entity prefixes for your house).
 #
 # Requires Mushroom (HACS) + Furbulous 1.3.15+.
-# Hub entities (search States for pause_polling if IDs differ):
-#   sensor.furbulous_cloud_polling
-#   button.furbulous_pause_polling
-#   button.furbulous_pause_polling_1_hour
-#   button.furbulous_resume_polling
+# Optional: card-mod (HACS) — used so status chips have no border/edge
+# (status looks flat; action chips below keep the normal button look).
 #
-# Status row (markdown): Toilet | Bag | Errors — green/red markers, no tap.
-# Action chips sit directly under that row (Clean now / Seal bag / Refilled litter).
+# Hub: sensor.furbulous_cloud_polling + Pause / Pause 1 hr / Resume buttons.
+# Status chips (borderless via card-mod): Toilet | Bag | Errors
+# Action chips (normal button edges): Clean now | Seal bag | Refilled litter
 
 title: Litter boxes
 views:
@@ -87,33 +85,61 @@ views:
             tap_action:
               action: more-info
               entity: sensor.family_room_downstairs_last_cat
-          - type: markdown
-            content: >-
-              {% set toilet = states('sensor.family_room_downstairs_toilet_status') %}
-              {% set tsev = state_attr('sensor.family_room_downstairs_toilet_status','severity') %}
-              {% set bag = states('sensor.family_room_downstairs_bag_status') %}
-              {% set err = states('sensor.family_room_downstairs_error_message') %}
-              {% set ns = namespace(err_txt=err) %}
-              {% if is_state('binary_sensor.family_room_downstairs_trash_door_jammed','on') %}{% set ns.err_txt = 'Litter door error' %}
-              {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}{% set ns.err_txt = 'No errors' %}
-              {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}{% set ns.err_txt = 'No errors' %}
-              {% endif %}
-
-              <table width="100%"><tr>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if tsev == 'critical' %}🔴{% elif tsev == 'attention' %}🟠{% else %}🟢{% endif %}
-              **{{ toilet }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if bag in ['Bag full','No Bag'] %}🔴{% else %}🟢{% endif %}
-              **{{ bag }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if ns.err_txt == 'No errors' %}🟢{% else %}🔴{% endif %}
-              **{{ ns.err_txt }}**
-              </td>
-              </tr></table>
           - type: custom:mushroom-chips-card
+            alignment: start
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-background: transparent;
+                  --chip-border-width: 0;
+                  --chip-box-shadow: none;
+                  --chip-padding: 0 4px;
+                  background: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+            chips:
+              - type: template
+                entity: sensor.family_room_downstairs_toilet_status
+                icon: mdi:toilet
+                icon_color: >-
+                  {% set sev = state_attr('sensor.family_room_downstairs_toilet_status','severity') %}
+                  {% if sev == 'critical' or is_state('binary_sensor.family_room_downstairs_needs_cleaning','on') %}red
+                  {% elif sev == 'attention' %}orange
+                  {% else %}green{% endif %}
+                content: "{{ states('sensor.family_room_downstairs_toilet_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.family_room_downstairs_bag_status
+                icon: mdi:delete-outline
+                icon_color: >-
+                  {% set bag = states('sensor.family_room_downstairs_bag_status') %}
+                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
+                content: "{{ states('sensor.family_room_downstairs_bag_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.family_room_downstairs_error_message
+                icon: mdi:alert-octagon
+                icon_color: >-
+                  {% set err = states('sensor.family_room_downstairs_error_message') %}
+                  {% set bag = states('sensor.family_room_downstairs_bag_status') %}
+                  {% if is_state('binary_sensor.family_room_downstairs_trash_door_jammed','on') %}red
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
+                  {% else %}red{% endif %}
+                content: >-
+                  {% set err = states('sensor.family_room_downstairs_error_message') %}
+                  {% set bag = states('sensor.family_room_downstairs_bag_status') %}
+                  {% if is_state('binary_sensor.family_room_downstairs_trash_door_jammed','on') %}Litter door error
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
+                  {% else %}{{ err }}{% endif %}
+                tap_action:
+                  action: none
+          - type: custom:mushroom-chips-card
+            alignment: start
             chips:
               - type: entity
                 entity: button.family_room_downstairs_clean_now
@@ -163,33 +189,61 @@ views:
             tap_action:
               action: more-info
               entity: sensor.front_bedroom_upstairs_last_cat
-          - type: markdown
-            content: >-
-              {% set toilet = states('sensor.front_bedroom_upstairs_toilet_status') %}
-              {% set tsev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
-              {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
-              {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
-              {% set ns = namespace(err_txt=err) %}
-              {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}{% set ns.err_txt = 'Litter door error' %}
-              {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}{% set ns.err_txt = 'No errors' %}
-              {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}{% set ns.err_txt = 'No errors' %}
-              {% endif %}
-
-              <table width="100%"><tr>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if tsev == 'critical' %}🔴{% elif tsev == 'attention' %}🟠{% else %}🟢{% endif %}
-              **{{ toilet }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if bag in ['Bag full','No Bag'] %}🔴{% else %}🟢{% endif %}
-              **{{ bag }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if ns.err_txt == 'No errors' %}🟢{% else %}🔴{% endif %}
-              **{{ ns.err_txt }}**
-              </td>
-              </tr></table>
           - type: custom:mushroom-chips-card
+            alignment: start
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-background: transparent;
+                  --chip-border-width: 0;
+                  --chip-box-shadow: none;
+                  --chip-padding: 0 4px;
+                  background: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+            chips:
+              - type: template
+                entity: sensor.front_bedroom_upstairs_toilet_status
+                icon: mdi:toilet
+                icon_color: >-
+                  {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
+                  {% if sev == 'critical' or is_state('binary_sensor.front_bedroom_upstairs_needs_cleaning','on') %}red
+                  {% elif sev == 'attention' %}orange
+                  {% else %}green{% endif %}
+                content: "{{ states('sensor.front_bedroom_upstairs_toilet_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.front_bedroom_upstairs_bag_status
+                icon: mdi:delete-outline
+                icon_color: >-
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
+                content: "{{ states('sensor.front_bedroom_upstairs_bag_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.front_bedroom_upstairs_error_message
+                icon: mdi:alert-octagon
+                icon_color: >-
+                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}red
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
+                  {% else %}red{% endif %}
+                content: >-
+                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}Litter door error
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
+                  {% else %}{{ err }}{% endif %}
+                tap_action:
+                  action: none
+          - type: custom:mushroom-chips-card
+            alignment: start
             chips:
               - type: entity
                 entity: button.front_bedroom_upstairs_clean_now
@@ -239,33 +293,61 @@ views:
             tap_action:
               action: more-info
               entity: sensor.master_bedroom_master_last_cat
-          - type: markdown
-            content: >-
-              {% set toilet = states('sensor.master_bedroom_master_toilet_status') %}
-              {% set tsev = state_attr('sensor.master_bedroom_master_toilet_status','severity') %}
-              {% set bag = states('sensor.master_bedroom_master_bag_status') %}
-              {% set err = states('sensor.master_bedroom_master_error_message') %}
-              {% set ns = namespace(err_txt=err) %}
-              {% if is_state('binary_sensor.master_bedroom_master_trash_door_jammed','on') %}{% set ns.err_txt = 'Litter door error' %}
-              {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}{% set ns.err_txt = 'No errors' %}
-              {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}{% set ns.err_txt = 'No errors' %}
-              {% endif %}
-
-              <table width="100%"><tr>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if tsev == 'critical' %}🔴{% elif tsev == 'attention' %}🟠{% else %}🟢{% endif %}
-              **{{ toilet }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if bag in ['Bag full','No Bag'] %}🔴{% else %}🟢{% endif %}
-              **{{ bag }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if ns.err_txt == 'No errors' %}🟢{% else %}🔴{% endif %}
-              **{{ ns.err_txt }}**
-              </td>
-              </tr></table>
           - type: custom:mushroom-chips-card
+            alignment: start
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-background: transparent;
+                  --chip-border-width: 0;
+                  --chip-box-shadow: none;
+                  --chip-padding: 0 4px;
+                  background: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+            chips:
+              - type: template
+                entity: sensor.master_bedroom_master_toilet_status
+                icon: mdi:toilet
+                icon_color: >-
+                  {% set sev = state_attr('sensor.master_bedroom_master_toilet_status','severity') %}
+                  {% if sev == 'critical' or is_state('binary_sensor.master_bedroom_master_needs_cleaning','on') %}red
+                  {% elif sev == 'attention' %}orange
+                  {% else %}green{% endif %}
+                content: "{{ states('sensor.master_bedroom_master_toilet_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.master_bedroom_master_bag_status
+                icon: mdi:delete-outline
+                icon_color: >-
+                  {% set bag = states('sensor.master_bedroom_master_bag_status') %}
+                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
+                content: "{{ states('sensor.master_bedroom_master_bag_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.master_bedroom_master_error_message
+                icon: mdi:alert-octagon
+                icon_color: >-
+                  {% set err = states('sensor.master_bedroom_master_error_message') %}
+                  {% set bag = states('sensor.master_bedroom_master_bag_status') %}
+                  {% if is_state('binary_sensor.master_bedroom_master_trash_door_jammed','on') %}red
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
+                  {% else %}red{% endif %}
+                content: >-
+                  {% set err = states('sensor.master_bedroom_master_error_message') %}
+                  {% set bag = states('sensor.master_bedroom_master_bag_status') %}
+                  {% if is_state('binary_sensor.master_bedroom_master_trash_door_jammed','on') %}Litter door error
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
+                  {% else %}{{ err }}{% endif %}
+                tap_action:
+                  action: none
+          - type: custom:mushroom-chips-card
+            alignment: start
             chips:
               - type: entity
                 entity: button.master_bedroom_master_clean_now
@@ -315,33 +397,61 @@ views:
             tap_action:
               action: more-info
               entity: sensor.cleo_last_cat
-          - type: markdown
-            content: >-
-              {% set toilet = states('sensor.cleo_toilet_status') %}
-              {% set tsev = state_attr('sensor.cleo_toilet_status','severity') %}
-              {% set bag = states('sensor.cleo_bag_status') %}
-              {% set err = states('sensor.cleo_error_message') %}
-              {% set ns = namespace(err_txt=err) %}
-              {% if is_state('binary_sensor.cleo_trash_door_jammed','on') %}{% set ns.err_txt = 'Litter door error' %}
-              {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}{% set ns.err_txt = 'No errors' %}
-              {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}{% set ns.err_txt = 'No errors' %}
-              {% endif %}
-
-              <table width="100%"><tr>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if tsev == 'critical' %}🔴{% elif tsev == 'attention' %}🟠{% else %}🟢{% endif %}
-              **{{ toilet }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if bag in ['Bag full','No Bag'] %}🔴{% else %}🟢{% endif %}
-              **{{ bag }}**
-              </td>
-              <td width="33%" style="text-align:left;vertical-align:top">
-              {% if ns.err_txt == 'No errors' %}🟢{% else %}🔴{% endif %}
-              **{{ ns.err_txt }}**
-              </td>
-              </tr></table>
           - type: custom:mushroom-chips-card
+            alignment: start
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-background: transparent;
+                  --chip-border-width: 0;
+                  --chip-box-shadow: none;
+                  --chip-padding: 0 4px;
+                  background: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+            chips:
+              - type: template
+                entity: sensor.cleo_toilet_status
+                icon: mdi:toilet
+                icon_color: >-
+                  {% set sev = state_attr('sensor.cleo_toilet_status','severity') %}
+                  {% if sev == 'critical' or is_state('binary_sensor.cleo_needs_cleaning','on') %}red
+                  {% elif sev == 'attention' %}orange
+                  {% else %}green{% endif %}
+                content: "{{ states('sensor.cleo_toilet_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.cleo_bag_status
+                icon: mdi:delete-outline
+                icon_color: >-
+                  {% set bag = states('sensor.cleo_bag_status') %}
+                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
+                content: "{{ states('sensor.cleo_bag_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.cleo_error_message
+                icon: mdi:alert-octagon
+                icon_color: >-
+                  {% set err = states('sensor.cleo_error_message') %}
+                  {% set bag = states('sensor.cleo_bag_status') %}
+                  {% if is_state('binary_sensor.cleo_trash_door_jammed','on') %}red
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
+                  {% else %}red{% endif %}
+                content: >-
+                  {% set err = states('sensor.cleo_error_message') %}
+                  {% set bag = states('sensor.cleo_bag_status') %}
+                  {% if is_state('binary_sensor.cleo_trash_door_jammed','on') %}Litter door error
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
+                  {% else %}{{ err }}{% endif %}
+                tap_action:
+                  action: none
+          - type: custom:mushroom-chips-card
+            alignment: start
             chips:
               - type: entity
                 entity: button.cleo_clean_now
@@ -368,6 +478,10 @@ views:
           Status shows **Polling (30s / 5min)**, **Paused**, or **Paused until HH:MM**.
           - **30s** poll: live status and actions (cat inside, toilet/dirty, bag, errors, Clean now).
           - **5min** poll: analytics and reporting rollups (ages, visit history refresh).
+
+          ### Status vs actions
+          Status chips (toilet / bag / errors) are **borderless** — display only.
+          Action chips below keep the normal button edge — tap to run.
 
           ### Refilled litter
           Press **Refilled litter** after you pour litter. That restarts **Litter age**

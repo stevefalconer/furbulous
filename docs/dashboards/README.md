@@ -17,7 +17,7 @@ Example: `binary_sensor.cleo_needs_emptying`
 
 Your prefixes will differ if the boxes are in other areas, have other names, or you renamed entities.
 
-**Needs:** Furbulous **1.3.15+**, restart after update, and [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend). Mushroom is not a Python dependency.
+**Needs:** Furbulous **1.3.15+**, restart after update, [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend), and optionally [card-mod](https://github.com/thomasloven/lovelace-card-mod) so **status** chips render without a button edge (action chips keep the normal border).
 
 **Cloud polling (top):** `button.furbulous_pause_polling`, `button.furbulous_pause_polling_1_hour`, `button.furbulous_resume_polling`, status on `sensor.furbulous_cloud_polling`. Search States for `pause_polling` if IDs differ. Instructions live at the **bottom** of the dashboard YAML.
 
