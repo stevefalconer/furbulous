@@ -17,9 +17,11 @@ Example: `binary_sensor.cleo_needs_emptying`
 
 Your prefixes will differ if the boxes are in other areas, have other names, or you renamed entities.
 
-**Needs:** Furbulous **1.3.15+**, restart after update, [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend), and optionally [card-mod](https://github.com/thomasloven/lovelace-card-mod) so **status** chips render without a button edge (action chips keep the normal border).
+**Needs:** Furbulous **1.3.16+**, restart after update, [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend), and optionally [card-mod](https://github.com/thomasloven/lovelace-card-mod) for borderless status chips and equal-width columns.
 
-**Cloud polling (top):** `button.furbulous_pause_polling`, `button.furbulous_pause_polling_1_hour`, `button.furbulous_resume_polling`, status on `sensor.furbulous_cloud_polling`. Search States for `pause_polling` if IDs differ. Instructions live at the **bottom** of the dashboard YAML.
+**Box order in the example:** Downstairs → Master → Cleo → Upstairs.
+
+**Cloud polling (after the boxes):** `button.furbulous_pause_polling`, `button.furbulous_pause_polling_1_hour`, `button.furbulous_resume_polling`, status on `sensor.furbulous_cloud_polling`. After updating 1.3.16, restart HA once so entity IDs are normalized. Instructions stay at the bottom of the YAML.
 
 ## How to adapt it to your house
 

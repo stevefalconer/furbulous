@@ -40,6 +40,7 @@ from .poll_pause import PollPauseController
 from .registry import (
     async_clear_display_overrides,
     async_enable_all_entry_entities,
+    async_ensure_hub_pause_entity_ids,
     async_purge_config_entry_entities,
     async_remove_legacy_schedule_sensors,
     async_remove_orphan_entities,
@@ -121,6 +122,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
 
     # Drop leftover Screen on/off buttons and Screen off switch (DisplaySwitch mode)
     await async_remove_orphan_entities(hass, entry)
+
+    # Stable dashboard entity_ids for Pause / Pause 1 hr / Resume / status
+    await async_ensure_hub_pause_entity_ids(hass, entry)
 
     # One-shot: enable entities that were created disabled-by-default earlier
     data = dict(entry.data)

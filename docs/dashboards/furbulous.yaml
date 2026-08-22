@@ -1,12 +1,11 @@
 # EXAMPLE dashboard — four boxes (edit entity prefixes for your house).
 #
-# Requires Mushroom (HACS) + Furbulous 1.3.15+.
-# Optional: card-mod (HACS) — used so status chips have no border/edge
-# (status looks flat; action chips below keep the normal button look).
+# Requires Mushroom + Furbulous 1.3.16+. Optional: card-mod (equal-width /
+# borderless status chips).
 #
-# Hub: sensor.furbulous_cloud_polling + Pause / Pause 1 hr / Resume buttons.
-# Status chips (borderless via card-mod): Toilet | Bag | Errors
-# Action chips (normal button edges): Clean now | Seal bag | Refilled litter
+# Box order: Downstairs, Master, Cleo, Upstairs.
+# Pause polling is after the boxes. Instructions at the bottom.
+# Status + action rows use a 3-column grid so columns line up.
 
 title: Litter boxes
 views:
@@ -14,45 +13,6 @@ views:
     path: boxes
     icon: mdi:cat
     cards:
-      - type: custom:mushroom-title-card
-        title: Pause Polling for Furbulous App Use
-      - type: custom:mushroom-template-card
-        primary: "{{ states('sensor.furbulous_cloud_polling') }}"
-        secondary: >-
-          {% if is_state('binary_sensor.furbulous_cloud_polling_paused','on')
-             or is_state('switch.furbulous_pause_cloud_polling','on') %}
-          HA is not calling Furbulous — use the phone app / edit pets
-          {% else %}
-          30s = status & actions · 5min = analytics & reporting
-          {% endif %}
-        icon: >-
-          {% if is_state('switch.furbulous_pause_cloud_polling','on')
-             or is_state('binary_sensor.furbulous_cloud_polling_paused','on') %}mdi:cloud-off-outline{% else %}mdi:cloud-sync-outline{% endif %}
-        icon_color: >-
-          {% if is_state('switch.furbulous_pause_cloud_polling','on')
-             or is_state('binary_sensor.furbulous_cloud_polling_paused','on') %}orange{% else %}green{% endif %}
-        layout: horizontal
-        tap_action:
-          action: more-info
-          entity: sensor.furbulous_cloud_polling
-      - type: custom:mushroom-chips-card
-        chips:
-          - type: entity
-            entity: button.furbulous_pause_polling
-            name: Pause
-            icon: mdi:cloud-off-outline
-            content_info: name
-          - type: entity
-            entity: button.furbulous_pause_polling_1_hour
-            name: Pause 1 hr
-            icon: mdi:timer-pause-outline
-            content_info: name
-          - type: entity
-            entity: button.furbulous_resume_polling
-            name: Resume
-            icon: mdi:cloud-sync-outline
-            content_info: name
-
       - type: vertical-stack
         cards:
           - type: custom:mushroom-title-card
@@ -86,17 +46,27 @@ views:
               action: more-info
               entity: sensor.family_room_downstairs_last_cat
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
             card_mod:
               style: |
                 ha-card {
                   --chip-background: transparent;
                   --chip-border-width: 0;
                   --chip-box-shadow: none;
-                  --chip-padding: 0 4px;
+                  --chip-height: 42px;
                   background: none !important;
                   box-shadow: none !important;
                   border: none !important;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: flex-start !important;
                 }
             chips:
               - type: template
@@ -139,7 +109,22 @@ views:
                 tap_action:
                   action: none
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-height: 42px;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: center !important;
+                }
             chips:
               - type: entity
                 entity: button.family_room_downstairs_clean_now
@@ -153,110 +138,6 @@ views:
                 content_info: name
               - type: entity
                 entity: button.family_room_downstairs_i_refilled_the_litter
-                name: Refilled litter
-                icon: mdi:shovel
-                content_info: name
-
-      - type: vertical-stack
-        cards:
-          - type: custom:mushroom-title-card
-            title: Upstairs
-          - type: custom:mushroom-template-card
-            primary: >-
-              {% set cat = states('sensor.front_bedroom_upstairs_last_cat') %}
-              {% set t = states('sensor.front_bedroom_upstairs_last_visit') %}
-              {% if cat not in ['unknown','unavailable','none','','-'] %}{{ cat }}{% if t not in ['unknown','unavailable','none','','-'] %} · {{ t }}{% endif %}
-              {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
-              {% else %}—{% endif %}
-            secondary: >-
-              {% set h = states('sensor.front_bedroom_upstairs_litter_age_hours') %}
-              {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
-              {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-              ·
-              {% set bag = states('sensor.front_bedroom_upstairs_bag_age_hours') %}
-              {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
-              {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-              · Cleaned {{ states('sensor.front_bedroom_upstairs_last_cleaned') }}
-            icon: mdi:cat
-            icon_color: >-
-              {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
-              {% if sev == 'critical' or is_state('binary_sensor.front_bedroom_upstairs_needs_cleaning','on') %}red
-              {% elif is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') or states('sensor.front_bedroom_upstairs_bag_status') in ['Bag full','No Bag'] %}red
-              {% elif is_state('binary_sensor.front_bedroom_upstairs_cat_inside','on') or sev == 'occupied' %}green
-              {% elif sev == 'attention' %}orange
-              {% else %}blue{% endif %}
-            layout: horizontal
-            tap_action:
-              action: more-info
-              entity: sensor.front_bedroom_upstairs_last_cat
-          - type: custom:mushroom-chips-card
-            alignment: start
-            card_mod:
-              style: |
-                ha-card {
-                  --chip-background: transparent;
-                  --chip-border-width: 0;
-                  --chip-box-shadow: none;
-                  --chip-padding: 0 4px;
-                  background: none !important;
-                  box-shadow: none !important;
-                  border: none !important;
-                }
-            chips:
-              - type: template
-                entity: sensor.front_bedroom_upstairs_toilet_status
-                icon: mdi:toilet
-                icon_color: >-
-                  {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
-                  {% if sev == 'critical' or is_state('binary_sensor.front_bedroom_upstairs_needs_cleaning','on') %}red
-                  {% elif sev == 'attention' %}orange
-                  {% else %}green{% endif %}
-                content: "{{ states('sensor.front_bedroom_upstairs_toilet_status') }}"
-                tap_action:
-                  action: none
-              - type: template
-                entity: sensor.front_bedroom_upstairs_bag_status
-                icon: mdi:delete-outline
-                icon_color: >-
-                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
-                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
-                content: "{{ states('sensor.front_bedroom_upstairs_bag_status') }}"
-                tap_action:
-                  action: none
-              - type: template
-                entity: sensor.front_bedroom_upstairs_error_message
-                icon: mdi:alert-octagon
-                icon_color: >-
-                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
-                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
-                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}red
-                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
-                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
-                  {% else %}red{% endif %}
-                content: >-
-                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
-                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
-                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}Litter door error
-                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
-                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
-                  {% else %}{{ err }}{% endif %}
-                tap_action:
-                  action: none
-          - type: custom:mushroom-chips-card
-            alignment: start
-            chips:
-              - type: entity
-                entity: button.front_bedroom_upstairs_clean_now
-                name: Clean now
-                icon: mdi:rotate-3d-variant
-                content_info: name
-              - type: entity
-                entity: button.front_bedroom_upstairs_seal_waste_bag
-                name: Seal bag
-                icon: mdi:package-variant
-                content_info: name
-              - type: entity
-                entity: button.front_bedroom_upstairs_i_refilled_the_litter
                 name: Refilled litter
                 icon: mdi:shovel
                 content_info: name
@@ -294,17 +175,27 @@ views:
               action: more-info
               entity: sensor.master_bedroom_master_last_cat
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
             card_mod:
               style: |
                 ha-card {
                   --chip-background: transparent;
                   --chip-border-width: 0;
                   --chip-box-shadow: none;
-                  --chip-padding: 0 4px;
+                  --chip-height: 42px;
                   background: none !important;
                   box-shadow: none !important;
                   border: none !important;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: flex-start !important;
                 }
             chips:
               - type: template
@@ -347,7 +238,22 @@ views:
                 tap_action:
                   action: none
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-height: 42px;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: center !important;
+                }
             chips:
               - type: entity
                 entity: button.master_bedroom_master_clean_now
@@ -398,17 +304,27 @@ views:
               action: more-info
               entity: sensor.cleo_last_cat
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
             card_mod:
               style: |
                 ha-card {
                   --chip-background: transparent;
                   --chip-border-width: 0;
                   --chip-box-shadow: none;
-                  --chip-padding: 0 4px;
+                  --chip-height: 42px;
                   background: none !important;
                   box-shadow: none !important;
                   border: none !important;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: flex-start !important;
                 }
             chips:
               - type: template
@@ -451,7 +367,22 @@ views:
                 tap_action:
                   action: none
           - type: custom:mushroom-chips-card
-            alignment: start
+            alignment: end
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-height: 42px;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: center !important;
+                }
             chips:
               - type: entity
                 entity: button.cleo_clean_now
@@ -469,45 +400,234 @@ views:
                 icon: mdi:shovel
                 content_info: name
 
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Upstairs
+          - type: custom:mushroom-template-card
+            primary: >-
+              {% set cat = states('sensor.front_bedroom_upstairs_last_cat') %}
+              {% set t = states('sensor.front_bedroom_upstairs_last_visit') %}
+              {% if cat not in ['unknown','unavailable','none','','-'] %}{{ cat }}{% if t not in ['unknown','unavailable','none','','-'] %} · {{ t }}{% endif %}
+              {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
+              {% else %}—{% endif %}
+            secondary: >-
+              {% set h = states('sensor.front_bedroom_upstairs_litter_age_hours') %}
+              {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
+              {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
+              ·
+              {% set bag = states('sensor.front_bedroom_upstairs_bag_age_hours') %}
+              {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
+              {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
+              · Cleaned {{ states('sensor.front_bedroom_upstairs_last_cleaned') }}
+            icon: mdi:cat
+            icon_color: >-
+              {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
+              {% if sev == 'critical' or is_state('binary_sensor.front_bedroom_upstairs_needs_cleaning','on') %}red
+              {% elif is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') or states('sensor.front_bedroom_upstairs_bag_status') in ['Bag full','No Bag'] %}red
+              {% elif is_state('binary_sensor.front_bedroom_upstairs_cat_inside','on') or sev == 'occupied' %}green
+              {% elif sev == 'attention' %}orange
+              {% else %}blue{% endif %}
+            layout: horizontal
+            tap_action:
+              action: more-info
+              entity: sensor.front_bedroom_upstairs_last_cat
+          - type: custom:mushroom-chips-card
+            alignment: end
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-background: transparent;
+                  --chip-border-width: 0;
+                  --chip-box-shadow: none;
+                  --chip-height: 42px;
+                  background: none !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: flex-start !important;
+                }
+            chips:
+              - type: template
+                entity: sensor.front_bedroom_upstairs_toilet_status
+                icon: mdi:toilet
+                icon_color: >-
+                  {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
+                  {% if sev == 'critical' or is_state('binary_sensor.front_bedroom_upstairs_needs_cleaning','on') %}red
+                  {% elif sev == 'attention' %}orange
+                  {% else %}green{% endif %}
+                content: "{{ states('sensor.front_bedroom_upstairs_toilet_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.front_bedroom_upstairs_bag_status
+                icon: mdi:delete-outline
+                icon_color: >-
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if bag in ['Bag full','No Bag'] %}red{% else %}green{% endif %}
+                content: "{{ states('sensor.front_bedroom_upstairs_bag_status') }}"
+                tap_action:
+                  action: none
+              - type: template
+                entity: sensor.front_bedroom_upstairs_error_message
+                icon: mdi:alert-octagon
+                icon_color: >-
+                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}red
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}green
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}green
+                  {% else %}red{% endif %}
+                content: >-
+                  {% set err = states('sensor.front_bedroom_upstairs_error_message') %}
+                  {% set bag = states('sensor.front_bedroom_upstairs_bag_status') %}
+                  {% if is_state('binary_sensor.front_bedroom_upstairs_trash_door_jammed','on') %}Litter door error
+                  {% elif bag == 'No Bag' and err in ['Cover open','Cover / lid off'] %}No errors
+                  {% elif err in ['unknown','unavailable','none','','-','No error','OK'] %}No errors
+                  {% else %}{{ err }}{% endif %}
+                tap_action:
+                  action: none
+          - type: custom:mushroom-chips-card
+            alignment: end
+            card_mod:
+              style: |
+                ha-card {
+                  --chip-height: 42px;
+                }
+                .chip-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                  width: 100%;
+                  gap: 8px;
+                }
+                mushroom-chip {
+                  width: 100% !important;
+                  justify-content: center !important;
+                }
+            chips:
+              - type: entity
+                entity: button.front_bedroom_upstairs_clean_now
+                name: Clean now
+                icon: mdi:rotate-3d-variant
+                content_info: name
+              - type: entity
+                entity: button.front_bedroom_upstairs_seal_waste_bag
+                name: Seal bag
+                icon: mdi:package-variant
+                content_info: name
+              - type: entity
+                entity: button.front_bedroom_upstairs_i_refilled_the_litter
+                name: Refilled litter
+                icon: mdi:shovel
+                content_info: name
+
+      - type: custom:mushroom-title-card
+        title: Pause Polling for Furbulous App Use
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set st = states('sensor.furbulous_cloud_polling') %}
+          {% if st not in ['unknown','unavailable','none',''] %}{{ st }}
+          {% elif is_state('switch.furbulous_pause_cloud_polling','on') %}
+          {{ state_attr('switch.furbulous_pause_cloud_polling','status') or 'Paused' }}
+          {% else %}Polling (30s / 5min){% endif %}
+        secondary: >-
+          {% if is_state('binary_sensor.furbulous_cloud_polling_paused','on')
+             or is_state('switch.furbulous_pause_cloud_polling','on') %}
+          HA is not calling Furbulous — use the phone app / edit pets
+          {% else %}
+          30s = status & actions · 5min = analytics & reporting
+          {% endif %}
+        icon: >-
+          {% if is_state('switch.furbulous_pause_cloud_polling','on')
+             or is_state('binary_sensor.furbulous_cloud_polling_paused','on') %}mdi:cloud-off-outline{% else %}mdi:cloud-sync-outline{% endif %}
+        icon_color: >-
+          {% if is_state('switch.furbulous_pause_cloud_polling','on')
+             or is_state('binary_sensor.furbulous_cloud_polling_paused','on') %}orange{% else %}green{% endif %}
+        layout: horizontal
+        tap_action:
+          action: more-info
+          entity: sensor.furbulous_cloud_polling
+      - type: custom:mushroom-chips-card
+        alignment: end
+        card_mod:
+          style: |
+            ha-card {
+              --chip-height: 42px;
+            }
+            .chip-container {
+              display: grid !important;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              width: 100%;
+              gap: 8px;
+            }
+            mushroom-chip {
+              width: 100% !important;
+              justify-content: center !important;
+            }
+        chips:
+          - type: template
+            icon: mdi:cloud-off-outline
+            icon_color: orange
+            content: Pause
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.furbulous_pause_polling
+          - type: template
+            icon: mdi:timer-pause-outline
+            icon_color: orange
+            content: Pause 1 hr
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.furbulous_pause_polling_1_hour
+          - type: template
+            icon: mdi:cloud-sync-outline
+            icon_color: green
+            content: Resume
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.furbulous_resume_polling
+
       - type: markdown
         content: |
           ## Instructions
 
           ### Pause polling (phone app / same account)
-          Use **Pause**, **Pause 1 hr**, or **Resume** at the top.
+          At the bottom: **Pause**, **Pause 1 hr**, or **Resume**.
           Status shows **Polling (30s / 5min)**, **Paused**, or **Paused until HH:MM**.
-          - **30s** poll: live status and actions (cat inside, toilet/dirty, bag, errors, Clean now).
-          - **5min** poll: analytics and reporting rollups (ages, visit history refresh).
+          - **30s** poll: live status and actions
+          - **5min** poll: analytics and reporting
+          If chips say unavailable: update Furbulous, restart HA (entity IDs are
+          normalized to `button.furbulous_pause_polling`, etc.).
 
           ### Status vs actions
-          Status chips (toilet / bag / errors) are **borderless** — display only.
-          Action chips below keep the normal button edge — tap to run.
+          Status chips (toilet / bag / errors) are borderless. Action chips below
+          keep a button edge. Both rows use equal column widths.
 
           ### Refilled litter
-          Press **Refilled litter** after you pour litter. That restarts **Litter age**
-          and runs the box spread/tare (`handMode` 6). A brief pour flash may appear
-          in the API (`workstatus` 5); on-box Litter Reset uses `workstatus` 8.
-          If you only pour litter and never press the button (or on-box reset),
-          Litter age stays **unknown** — the dashboard button is the source of truth
-          for refill timing in Home Assistant.
+          Press **Refilled litter** after you pour litter to restart Litter age
+          (HA button is the source of truth if you do not use on-box reset).
 
-          ### Bag age
-          Bag age restarts when the box **bag-full** error clears (Needs emptying
-          goes OK after you remove the sealed bag / put the drawer back), or after
-          **Empty all litter**. **Seal bag** alone does not restart bag age.
-          **Unknown** means HA has not yet seen a bag-replace event for that box.
+          ### Bag age / Bag status
+          Bag age restarts when bag-full clears or after Empty all litter.
+          **Bag OK** / **Bag full** / **No Bag** (No Bag uses the Cover open signal).
 
-          ### Bag status
-          - **Bag OK** (green) — bag present, not full
-          - **Bag full** (red) — empty soon
-          - **No Bag** (red) — box reports missing bag (live: same signal as Cover open)
-
-          ### Toilet / Dirty colors
-          - **Idle** (green) — last visit was cleaned (auto or Clean now)
-          - Pet name (green) — cat inside now
-          - Pet name (orange) — visit done, waiting for clean (&lt; 30 min)
-          - Pet name (red) — **Dirty**: 30+ min since visit with no barrel clean
-          Auto-clean after visits and **Clean now** both clear Dirty.
+          ### Toilet / Dirty
+          Idle (green) · pet in box (green) · waiting for clean (orange) ·
+          Dirty / last cat (red, 30+ min). Auto-clean and Clean now clear Dirty.
 
           ### Errors
-          **Litter door error** = clump on the waste door (E4) — scoop, then **OK on the box**.
+          **Litter door error** = E4 — scoop, then OK on the box.

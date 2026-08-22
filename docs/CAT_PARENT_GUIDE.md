@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.15
+**Integration version:** 1.3.16
 
 **Sign-in tip:** A **dedicated Furbulous account** for Home Assistant is still best. If you must share one login with the phone app, use **Pause cloud polling** (or **Pause polling 1 hour**) on the litter dashboard / Furbulous hub device first — that stops HA from calling the cloud so the app can stay signed in while you edit pets, weights, or settings.
 

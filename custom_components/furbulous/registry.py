@@ -16,6 +16,16 @@ from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
+# Dashboard expects these entity_ids for pause-polling controls (1.3.15+).
+_HUB_DESIRED_ENTITY_IDS: dict[str, str] = {
+    "pause_cloud_polling": "switch.furbulous_pause_cloud_polling",
+    "pause_polling": "button.furbulous_pause_polling",
+    "pause_polling_1_hour": "button.furbulous_pause_polling_1_hour",
+    "resume_polling": "button.furbulous_resume_polling",
+    "polling_status": "sensor.furbulous_cloud_polling",
+    "polling_paused": "binary_sensor.furbulous_cloud_polling_paused",
+}
+
 # User-facing sensor options that lock display unit / precision
 _SENSOR_OPTION_KEYS = (
     "unit_of_measurement",
@@ -48,6 +58,66 @@ def _is_orphan_screen_control(entry: er.RegistryEntry) -> bool:
         return False
     uid = entry.unique_id or ""
     return any(uid.endswith(suffix) for suffix in _ORPHAN_UNIQUE_SUFFIXES)
+
+
+async def async_ensure_hub_pause_entity_ids(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+) -> int:
+    """Force hub pause entities onto stable dashboard entity_ids.
+
+    Early installs sometimes slugified the config-entry title into the device
+    name (``Furbulous (email)``), producing unavailable chips on the example
+    dashboard that expects ``button.furbulous_pause_polling`` etc.
+    """
+    from homeassistant.helpers import device_registry as dr
+
+    from .const import DOMAIN
+
+    renamed = 0
+    device_reg = dr.async_get(hass)
+    hub_ident = (DOMAIN, f"hub_{config_entry.entry_id}")
+    device = device_reg.async_get_device(identifiers={hub_ident})
+    if device is not None and (
+        device.name != "Furbulous" or device.name_by_user not in (None, "Furbulous")
+    ):
+        device_reg.async_update_device(
+            device.id,
+            name="Furbulous",
+            name_by_user=None,
+        )
+        _LOGGER.info("Normalized Furbulous hub device name for pause controls")
+
+    registry = er.async_get(hass)
+    prefix = f"furbulous_hub_{config_entry.entry_id}_"
+    for entity_entry in list(
+        er.async_entries_for_config_entry(registry, config_entry.entry_id)
+    ):
+        uid = entity_entry.unique_id or ""
+        if not uid.startswith(prefix):
+            continue
+        slug = uid[len(prefix) :]
+        desired = _HUB_DESIRED_ENTITY_IDS.get(slug)
+        if not desired or entity_entry.entity_id == desired:
+            continue
+        try:
+            registry.async_update_entity(
+                entity_entry.entity_id, new_entity_id=desired
+            )
+            renamed += 1
+            _LOGGER.info(
+                "Renamed hub entity %s → %s",
+                entity_entry.entity_id,
+                desired,
+            )
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.warning(
+                "Could not rename %s to %s (may already exist)",
+                entity_entry.entity_id,
+                desired,
+                exc_info=True,
+            )
+    return renamed
 
 
 async def async_remove_orphan_entities(

@@ -2,6 +2,13 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.16 — 2026-08-17
+
+### Pause polling entity IDs + dashboard layout
+
+- Normalize hub pause entities to stable IDs (`button.furbulous_pause_polling`, `sensor.furbulous_cloud_polling`, …) so dashboard chips are not unavailable.
+- Dashboard: boxes **Downstairs → Master → Cleo → Upstairs**; pause controls **after** the boxes; status/action rows use equal 3-column widths (card-mod).
+
 ## 1.3.15 — 2026-08-17
 
 ### Dashboard + Dirty / Bag / Pause
