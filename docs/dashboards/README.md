@@ -8,12 +8,12 @@ Home Assistant builds entity IDs from the **area** plus the **box name**. This f
 
 | Box (friendly name) | Entity ID prefix in this example |
 |---------------------|----------------------------------|
-| Downstairs | `downstairs_` |
-| Master | `master_` |
-| Cleo | `cleo_` |
-| Upstairs | `upstairs_` |
+| Downstairs | `family_room_downstairs_` |
+| Master | `master_bedroom_master_` |
+| Cleo | `cleo_` (some sensors: `middle_bedroom_cleo_`) |
+| Upstairs | `front_bedroom_upstairs_` |
 
-If your boxes are in HA **areas**, prefixes may look like `family_room_downstairs_` instead — check **Developer tools → States** (`cat_inside`) and edit the YAML.
+Always confirm with **Developer tools → States** (`cat_inside`). Short names like `downstairs_` alone will show as Unknown on this install.
 
 Example: `binary_sensor.cleo_needs_emptying`
 
