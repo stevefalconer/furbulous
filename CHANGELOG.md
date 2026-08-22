@@ -2,6 +2,16 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.15 — 2026-08-17
+
+### Dashboard + Dirty / Bag / Pause
+
+- Dashboard: instructions at bottom; Pause Polling for Furbulous App Use; **Pause / Pause 1 hr / Resume** buttons; status **Polling (30s / 5min)** | **Paused** | **Paused until HH:MM**.
+- Status row as markdown (Toilet | Bag | Errors); action chips directly below; **Refilled litter** label; cat icon red while Dirty.
+- **Toilet / Dirty** clears on **auto-clean** (completion/workstatus edges), not only Clean now; dirty chip shows last cat name in red.
+- **Bag status** sensor: Bag OK / Bag full / **No Bag** (live: No Bag ↔ Cover open bit when not full).
+- **Bag age** resets on raw full→clear (`errorReportEvent` 16/32 → 0), not only the debounced is_full state.
+
 ## 1.3.14 — 2026-08-17
 
 ### Pause cloud polling (phone app / same account)

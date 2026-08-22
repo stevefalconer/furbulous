@@ -132,6 +132,9 @@
       "polling_status": {
         "name": "Cloud polling"
       },
+      "bag_status": {
+        "name": "Bag status"
+      },
       "last_visit_activity": {
         "name": "Last visit"
       },
@@ -316,10 +319,16 @@
         "name": "Seal waste bag"
       },
       "mark_litter_reset": {
-        "name": "I refilled the litter"
+        "name": "Refilled litter"
+      },
+      "pause_polling": {
+        "name": "Pause polling"
       },
       "pause_polling_1_hour": {
         "name": "Pause polling 1 hour"
+      },
+      "resume_polling": {
+        "name": "Resume polling"
       }
     },
     "select": {

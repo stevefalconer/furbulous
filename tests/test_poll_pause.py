@@ -34,11 +34,12 @@ async def test_pause_indefinite_and_resume():
     assert ctrl.mode == MODE_PAUSED
     assert full.update_interval is None
     assert presence.update_interval is None
-    assert "Paused" == ctrl.status_label
+    assert ctrl.status_label == "Paused"
 
     await ctrl.async_resume()
     assert ctrl.is_paused is False
     assert ctrl.mode == MODE_ACTIVE
+    assert ctrl.status_label == "Polling (30s / 5min)"
     assert full.update_interval == timedelta(minutes=5)
     assert presence.update_interval == timedelta(seconds=30)
     presence.async_request_refresh.assert_awaited()

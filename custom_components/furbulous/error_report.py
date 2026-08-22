@@ -93,6 +93,17 @@ def is_cover_open(raw: Any) -> bool:
     return has_error_bit(raw, COVER_MASK)
 
 
+def is_no_bag(raw: Any) -> bool:
+    """True when the box reports no waste bag.
+
+    Live Downstairs (user 2026-08): physical screen **No Bag** while
+    ``error_message`` = Cover open and Needs emptying off — same cover/lid
+    bits (128/512). Drawer-out alone previously stayed 0; treat cover bits
+    as the bag-missing signal for bag-status UI.
+    """
+    return is_cover_open(raw) and not is_waste_full(raw)
+
+
 def is_trash_door_blocked(raw: Any) -> bool:
     """True for trash-door jam / Device Failure E4 (bit 524288)."""
     return has_error_bit(raw, ERROR_TRASH_DOOR)

@@ -80,17 +80,21 @@ class PollPauseController:
             return MODE_PAUSED_UNTIL
         return MODE_PAUSED
 
+    def format_resume_clock(self) -> str | None:
+        """HH:MM in HA local timezone for 'Paused until …'."""
+        if not self._paused or self._until is None:
+            return None
+        local = dt_util.as_local(self._until)
+        return f"{local.hour:02d}:{local.minute:02d}"
+
     @property
     def status_label(self) -> str:
         if not self._paused:
-            return "Active"
+            return "Polling (30s / 5min)"
         if self._until is None:
             return "Paused"
-        local = dt_util.as_local(self._until)
-        return (
-            f"Paused until {local.hour}:{local.minute:02d} "
-            f"{local.month}-{local.day}"
-        )
+        clock = self.format_resume_clock()
+        return f"Paused until {clock}"
 
     def _cancel_timer(self) -> None:
         if self._unsub_timer is not None:

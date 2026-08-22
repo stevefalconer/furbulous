@@ -125,6 +125,7 @@
       "avg_litter_interval_30d": { "name": "Litter average interval (30 days)" },
       "litter_resets_30d": { "name": "Litter refills (30 days)" },
       "polling_status": { "name": "Cloud polling" },
+      "bag_status": { "name": "Bag status" },
       "pet_visits_7d": { "name": "Visits (7 days)" },
       "pet_visits_30d": { "name": "Visits (30 days)" },
       "pet_avg_duration_30d": { "name": "Visit length average (30 days)" },
@@ -163,8 +164,10 @@
       "resume_cleaning": { "name": "Resume cleaning" },
       "empty": { "name": "Empty all litter" },
       "pack": { "name": "Seal waste bag" },
-      "mark_litter_reset": { "name": "I refilled the litter" },
-      "pause_polling_1_hour": { "name": "Pause polling 1 hour" }
+      "mark_litter_reset": { "name": "Refilled litter" },
+      "pause_polling": { "name": "Pause polling" },
+      "pause_polling_1_hour": { "name": "Pause polling 1 hour" },
+      "resume_polling": { "name": "Resume polling" }
     },
     "select": {
       "cleaning_delay": { "name": "Auto-clean minutes before" },

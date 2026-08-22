@@ -8,6 +8,7 @@ from homeassistant.const import EntityCategory
 
 from .entity import FurbulousEntity, extract_prop_value
 from .entity_ids import (
+    UID_BAG_STATUS,
     UID_CLEAN_CYCLE_STATUS,
     UID_FIRMWARE,
     UID_USES_VS_YESTERDAY,
@@ -15,6 +16,7 @@ from .entity_ids import (
     UID_WHAT_BOX_DOING,
     box_uid,
 )
+from .error_report import is_no_bag, is_trash_door_blocked, is_waste_full
 
 # Vendor handMode codes → cat-friendly labels (what the box is doing)
 _BOX_ACTION_LABELS = {
@@ -35,6 +37,47 @@ _COMPLETION_LABELS = {
     3: "In progress",
     5: "Litter reset done",
 }
+
+
+class FurbulousBagStatusSensor(FurbulousEntity, SensorEntity):
+    """Bag OK / Bag full / No Bag for dashboard status row."""
+
+    _attr_icon = "mdi:delete-outline"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="bag_status",
+            unique_id=box_uid(device_id, UID_BAG_STATUS),
+        )
+
+    @property
+    def native_value(self) -> str:
+        props = (self.device_data or {}).get("properties") or {}
+        err = props.get("errorReportEvent")
+        if is_waste_full(err):
+            return "Bag full"
+        if is_no_bag(err):
+            return "No Bag"
+        return "Bag OK"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        props = (self.device_data or {}).get("properties") or {}
+        err = props.get("errorReportEvent")
+        severity = "ok"
+        if is_waste_full(err) or is_no_bag(err):
+            severity = "critical"
+        return {
+            "severity": severity,
+            "plain_english": (
+                "Bag OK = waste bag present and not full. Bag full = empty soon. "
+                "No Bag = box screen / cover bit (live: Cover open while No Bag)."
+            ),
+            "trash_door_jammed": is_trash_door_blocked(err),
+            "audience": "primary",
+        }
 
 
 class FurbulousFirmwareSensor(FurbulousEntity, SensorEntity):

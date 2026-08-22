@@ -18,7 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
-from ..error_report import is_waste_full
+from ..error_report import WASTE_FULL_MASK, is_waste_full, parse_error_code
 from ..box_state import (
     PHASE_CLEANING,
     PHASE_IDLE,
@@ -573,28 +573,52 @@ class AnalyticsEngine:
                     )
                 rank = 1
 
-        # --- barrel clean cycle (not seal / empty) ---
+        # --- barrel clean cycle (manual Clean now OR auto-clean after visit) ---
+        # Note: prev_work was captured before last_workstatus was updated above.
         box = classify(props)
         prev_phase = st.get("last_phase")
         prev_completion = st.get("last_completion")
         st["last_phase"] = box.phase
         st["last_completion"] = box.completion
-        if box.phase == PHASE_CLEANING:
+        # Mark a clean cycle from live phase/completion (auto-clean included).
+        if box.phase == PHASE_CLEANING or (
+            not occupied and box.completion in (2, 3)
+        ):
             st["clean_in_progress"] = True
+            st["saw_clean_cycle"] = True
         finished_clean = False
-        if st.get("clean_in_progress") and box.phase == PHASE_IDLE and not occupied:
-            finished_clean = True
+        awaiting = st.get("awaiting_clean_since") is not None
         if (
-            st.get("awaiting_clean_since") is not None
+            awaiting
+            and st.get("clean_in_progress")
+            and box.phase == PHASE_IDLE
+            and not occupied
+        ):
+            finished_clean = True
+        # completionStatus 3/2 → 1 (finished), including when a 30s poll missed
+        # the middle of an auto-clean.
+        if (
+            awaiting
+            and not occupied
             and prev_completion in (2, 3)
             and box.completion == 1
+        ):
+            finished_clean = True
+        # workstatus 1 → 0 after we observed a clean cycle (auto or manual).
+        if (
+            awaiting
+            and not occupied
+            and st.get("saw_clean_cycle")
+            and prev_work == 1
+            and work_now == 0
         ):
             finished_clean = True
         if finished_clean:
             self._record_clean_finished(did, iotid, source="presence", now=now)
             st["clean_in_progress"] = False
+            st["saw_clean_cycle"] = False
             rank = 1
-        elif st.get("awaiting_clean_since") is not None and not occupied:
+        elif awaiting and not occupied:
             age = now - float(st["awaiting_clean_since"])
             if age >= DIRTY_AFTER_S and not st.get("dirty_notified"):
                 st["dirty_notified"] = True
@@ -611,7 +635,15 @@ class AnalyticsEngine:
                 )
                 rank = 1
 
-        # --- waste full episodes ---
+        # --- waste full episodes (edge on raw full bits → bag age reset) ---
+        err_code = parse_error_code(props.get("errorReportEvent"))
+        prev_err = st.get("last_error_code")
+        st["last_error_code"] = err_code
+        prev_raw_full = (
+            prev_err is not None and (int(prev_err) & WASTE_FULL_MASK) != 0
+        )
+        now_raw_full = err_code is not None and (int(err_code) & WASTE_FULL_MASK) != 0
+
         if full:
             st["full_true_polls"] = int(st.get("full_true_polls", 0)) + 1
             if (
@@ -640,36 +672,34 @@ class AnalyticsEngine:
                 rank = 1
         else:
             st["full_true_polls"] = 0
-            if st.get("is_full"):
-                start = st.get("full_episode_start") or now
-                time_full = max(0.0, now - float(start))
-                st["is_full"] = False
-                st["full_episode_start"] = None
-                self.store.append(
-                    "waste_full_off",
-                    device_id=did,
-                    iotid=iotid,
-                    source="presence",
-                    payload={"time_full_s": time_full, "cleared_how": "error_cleared"},
-                    ts=now,
-                )
-                emit_event(
-                    self.hass,
-                    EVENT_WASTE_CLEARED,
-                    {
-                        "device_id": did,
-                        "iotid": iotid,
-                        "config_entry_id": self.entry_id,
-                        "time_full_s": time_full,
-                        "cleared_how": "error_cleared",
-                    },
-                )
-                # Bag-full clear on the device usually means the sealed bag was
-                # removed and the drawer put back — restart Bag age.
-                self._record_bag_replaced(
-                    did, iotid, source="presence", now=now
-                )
-                rank = 1
+
+        # Any full→clear on the wire resets Bag age (bag replaced / status normal).
+        if prev_raw_full and not now_raw_full:
+            start = st.get("full_episode_start") or now
+            time_full = max(0.0, now - float(start))
+            st["is_full"] = False
+            st["full_episode_start"] = None
+            self.store.append(
+                "waste_full_off",
+                device_id=did,
+                iotid=iotid,
+                source="presence",
+                payload={"time_full_s": time_full, "cleared_how": "error_cleared"},
+                ts=now,
+            )
+            emit_event(
+                self.hass,
+                EVENT_WASTE_CLEARED,
+                {
+                    "device_id": did,
+                    "iotid": iotid,
+                    "config_entry_id": self.entry_id,
+                    "time_full_s": time_full,
+                    "cleared_how": "error_cleared",
+                },
+            )
+            self._record_bag_replaced(did, iotid, source="presence", now=now)
+            rank = 1
 
         if rank == 0 and identity_changed and occupied:
             return 2
@@ -1119,21 +1149,24 @@ class AnalyticsEngine:
         if awaiting is not None:
             age = max(0.0, now - float(awaiting))
             cat = st.get("awaiting_clean_cat") or st.get("last_visitor_name")
+            label = cat if cat and cat != UNKNOWN_LABEL else STATUS_DIRTY
             if age >= DIRTY_AFTER_S:
+                # Red = still dirty; show last cat name (not a separate Idle line).
                 return {
-                    "label": STATUS_DIRTY,
+                    "label": str(label),
                     "severity": "critical",
                     "awaiting_clean": True,
                     "seconds_since_visit": age,
                     "pet_name": cat,
+                    "dirty": True,
                 }
-            label = cat if cat and cat != UNKNOWN_LABEL else "Needs clean"
             return {
                 "label": str(label),
                 "severity": "attention",
                 "awaiting_clean": True,
                 "seconds_since_visit": age,
                 "pet_name": cat,
+                "dirty": False,
             }
         return {
             "label": STATUS_IDLE,

@@ -259,7 +259,8 @@ async def test_toilet_status_idle_dirty_and_clean():
     eng._device_state["21"]["awaiting_clean_since"] = time.time() - 2000
     status = eng.toilet_status(21)
     assert status["severity"] == "critical"
-    assert status["label"] == "Dirty"
+    assert status["label"] == "Paulie"  # red shows last cat while dirty
+    assert status.get("dirty") is True
     assert eng.needs_cleaning(21) is True
 
     cleaning = {
@@ -281,6 +282,63 @@ async def test_toilet_status_idle_dirty_and_clean():
     assert eng.last_clean_ts(21) is not None
     cleans = eng.store.events_for_device(21, event_types={"clean"})
     assert len(cleans) == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_clean_clears_dirty_via_completion_edge():
+    """Auto-clean: completionStatus 3→1 clears Dirty without Clean now button."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-autoclean")
+    eng.store._loaded = True
+    idle = {
+        "id": 22,
+        "iotid": "iot-22",
+        "name": "Box",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng._device_state["22"] = {
+        "occupied": False,
+        "awaiting_clean_since": time.time() - 100,
+        "awaiting_clean_cat": "Jet",
+        "last_visitor_name": "Jet",
+        "last_completion": 3,
+        "last_workstatus": 1,
+        "last_phase": "cleaning",
+        "saw_clean_cycle": True,
+        "clean_in_progress": True,
+    }
+    eng.process_snapshot([idle])
+    assert eng.toilet_status(22)["label"] == "Idle"
+    assert eng.last_clean_cat(22) == "Jet"
+    assert len(eng.store.events_for_device(22, event_types={"clean"})) == 1
+
+
+@pytest.mark.asyncio
+async def test_bag_age_resets_on_raw_full_clear():
+    """Bag age restarts when errorReportEvent full bits clear (32→0)."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-bag-raw")
+    eng.store._loaded = True
+    full = {
+        "id": 23,
+        "iotid": "iot-23",
+        "name": "Box",
+        "properties": {"workstatus": 0, "errorReportEvent": 32},
+    }
+    clear = {
+        "id": 23,
+        "iotid": "iot-23",
+        "name": "Box",
+        "properties": {"workstatus": 0, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([full])
+    eng.process_snapshot([clear])
+    bags = eng.store.events_for_device(23, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    eng.recompute_all()
+    assert eng.metrics_for_device(23)["hours_since_bag_replaced"] == pytest.approx(
+        0.0, abs=0.05
+    )
 
 
 @pytest.mark.asyncio

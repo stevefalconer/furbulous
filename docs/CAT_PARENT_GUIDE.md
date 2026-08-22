@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.14
+**Integration version:** 1.3.15
 
 **Sign-in tip:** A **dedicated Furbulous account** for Home Assistant is still best. If you must share one login with the phone app, use **Pause cloud polling** (or **Pause polling 1 hour**) on the litter dashboard / Furbulous hub device first — that stops HA from calling the cloud so the app can stay signed in while you edit pets, weights, or settings.
 
@@ -44,6 +44,7 @@ You’ll see sections roughly like:
 | **Needs cleaning** | **Problem** when Toilet status is Dirty (good for phone alerts) |
 | **Last cleaned** | When the barrel last finished cleaning, and which cat that was for |
 | **Needs emptying** | **OK** = fine · **Problem** = time to empty/seal |
+| **Bag status** | **Bag OK** · **Bag full** · **No Bag** (live: same cloud signal as Cover open when the box says No Bag) |
 | **Trash door jammed** | **Problem** = waste/**litter door** jammed (E4) — not the pull-out drawer. Scoop clump, **OK on the box** |
 | **Cat weight** | Latest weight (lb or kg from HA settings) |
 | **Uses today** | How many uses the cloud counted today |
@@ -75,7 +76,7 @@ If the box stays full / errored, it often **will not clean** after visits — th
 
 ### After you add litter
 
-After you pour litter, press **I refilled the litter** in HA (or use the on-box litter reset). The box **rotates to spread it and resets the scale** (so a pile is not a cat). **Litter age** restarts. If you only pour litter and never mark it, Litter age stays **Unknown**.
+After you pour litter, press **Refilled litter** in HA (or use the on-box litter reset). The box **rotates to spread it and resets the scale** (so a pile is not a cat). **Litter age** restarts. If you only pour litter and never mark it, Litter age stays **Unknown** — the HA button is the source of truth for refill timing.
 
 ---
 

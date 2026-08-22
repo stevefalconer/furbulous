@@ -17,9 +17,9 @@ Example: `binary_sensor.cleo_needs_emptying`
 
 Your prefixes will differ if the boxes are in other areas, have other names, or you renamed entities.
 
-**Needs:** Furbulous **1.3.14+**, restart after update, and [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend). Mushroom is not a Python dependency.
+**Needs:** Furbulous **1.3.15+**, restart after update, and [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend). Mushroom is not a Python dependency.
 
-**Cloud polling (top of dashboard):** `switch.furbulous_pause_cloud_polling` stops HA↔cloud so the phone app can use the same account; `button.furbulous_pause_polling_1_hour` pauses for 60 minutes then resumes. If those entity IDs differ on your install, search States for `pause_cloud` / `pause_polling`.
+**Cloud polling (top):** `button.furbulous_pause_polling`, `button.furbulous_pause_polling_1_hour`, `button.furbulous_resume_polling`, status on `sensor.furbulous_cloud_polling`. Search States for `pause_polling` if IDs differ. Instructions live at the **bottom** of the dashboard YAML.
 
 ## How to adapt it to your house
 

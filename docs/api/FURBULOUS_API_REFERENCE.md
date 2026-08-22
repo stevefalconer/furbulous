@@ -180,7 +180,7 @@ Values are powers of two. HA treats them as a **bit mask**, not a single exclusi
 | 5 | **32** | **Litter full** | **Live Upstairs 2026-08-16** while the bag was full. Was wrongly labeled “Normal operation.” |
 | 6 | 64 | **Not drawer-out.** Seen only **with 524288** during trash-door jam | Drawer physically out + “No trash box” screen: cloud stayed **0**. HA “Drawer” binary is wrong. |
 | 7 | 128 | Cover open (documented) | **Falsified as lid-off.** Lid removed → **512**, not 128. |
-| 9 | **512** | **Lid / cover off** | Live Downstairs 2026-08-16. Old map said “Communication error.” |
+| 9 | **512** | **Lid / cover off** · also live **No Bag** screen | Live Downstairs 2026-08-16 lid-off. Owner 2026-08: physical **No Bag** with HA `error_message=Cover open`, Needs emptying off → treat 128/512 as **No Bag** for bag-status when not full. |
 | 12 | **4096** | Seen **only while pouring litter** (~2s), then 0 | Live Upstairs 2026-08-16; **not** Needs emptying |
 | 19 | **524288** | With **64** → trash-door blocked / screen **Device Failure E4** | Live Downstairs jam 2026-08-16. Not seen alone. |
 | others | 1, 2, 4, 8, 256 | Sensor / motor / temp | Documented; not re-verified |

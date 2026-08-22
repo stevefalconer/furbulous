@@ -13,9 +13,11 @@ from homeassistant.helpers.entity import Entity
 
 from .entity_ids import (
     UID_PAUSE_CLOUD_POLLING,
+    UID_PAUSE_POLLING,
     UID_PAUSE_POLLING_1H,
     UID_POLLING_PAUSED,
     UID_POLLING_STATUS,
+    UID_RESUME_POLLING,
     hub_uid,
 )
 from .poll_pause import hub_device_info
@@ -78,6 +80,29 @@ class FurbulousPausePollingSwitch(SwitchEntity):
         )
 
 
+class FurbulousPausePollingButton(ButtonEntity):
+    """Pause cloud polling indefinitely until Resume."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:cloud-off-outline"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry, poll_pause) -> None:
+        self._entry = entry
+        self._poll_pause = poll_pause
+        self._attr_translation_key = "pause_polling"
+        self._attr_unique_id = hub_uid(entry.entry_id, UID_PAUSE_POLLING)
+        self._attr_device_info = hub_device_info(entry.entry_id, entry.title)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        _wire_pause_listener(self, self._poll_pause)
+
+    async def async_press(self) -> None:
+        await self._poll_pause.async_pause_indefinite()
+
+
 class FurbulousPausePolling1hButton(ButtonEntity):
     """Pause cloud polling for one hour, then auto-resume."""
 
@@ -106,9 +131,32 @@ class FurbulousPausePolling1hButton(ButtonEntity):
             role=ROLE_SETTING,
             automation_hint=(
                 "Pauses for 60 minutes then resumes automatically. "
-                "Turn off Pause cloud polling to resume early."
+                "Press Resume polling to resume early."
             ),
         )
+
+
+class FurbulousResumePollingButton(ButtonEntity):
+    """Resume cloud polling after Pause or Pause 1 hour."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:cloud-sync-outline"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry, poll_pause) -> None:
+        self._entry = entry
+        self._poll_pause = poll_pause
+        self._attr_translation_key = "resume_polling"
+        self._attr_unique_id = hub_uid(entry.entry_id, UID_RESUME_POLLING)
+        self._attr_device_info = hub_device_info(entry.entry_id, entry.title)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        _wire_pause_listener(self, self._poll_pause)
+
+    async def async_press(self) -> None:
+        await self._poll_pause.async_resume(source="button")
 
 
 class FurbulousPollingStatusSensor(SensorEntity):
@@ -138,11 +186,15 @@ class FurbulousPollingStatusSensor(SensorEntity):
         until = self._poll_pause.resume_at
         return power_attrs(
             role=ROLE_SETTING,
-            automation_hint="Active | Paused | Paused until H:MM M-D",
+            automation_hint=(
+                "Polling (30s / 5min) | Paused | Paused until HH:MM. "
+                "30s = status/actions; 5min = analytics/reporting."
+            ),
             extra={
                 "mode": self._poll_pause.mode,
                 "paused": self._poll_pause.is_paused,
                 "resume_at": until.isoformat() if until else None,
+                "resume_clock": self._poll_pause.format_resume_clock(),
             },
         )
 
@@ -187,7 +239,9 @@ def hub_entities_for_entry(entry, poll_pause) -> list[Entity]:
     """All hub entities for one config entry."""
     return [
         FurbulousPausePollingSwitch(entry, poll_pause),
+        FurbulousPausePollingButton(entry, poll_pause),
         FurbulousPausePolling1hButton(entry, poll_pause),
+        FurbulousResumePollingButton(entry, poll_pause),
         FurbulousPollingStatusSensor(entry, poll_pause),
         FurbulousPollingPausedBinary(entry, poll_pause),
     ]

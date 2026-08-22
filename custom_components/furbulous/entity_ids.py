@@ -34,9 +34,12 @@ def hub_uid(entry_id: str, slug: str) -> str:
 
 # Hub / account-level
 UID_PAUSE_CLOUD_POLLING = "pause_cloud_polling"
+UID_PAUSE_POLLING = "pause_polling"
 UID_PAUSE_POLLING_1H = "pause_polling_1_hour"
+UID_RESUME_POLLING = "resume_polling"
 UID_POLLING_STATUS = "polling_status"
 UID_POLLING_PAUSED = "polling_paused"
+UID_BAG_STATUS = "bag_status"
 
 
 # --- Box slugs (aligned with friendly names) ---

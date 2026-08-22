@@ -19,6 +19,7 @@ from .binary_sensor import (
 )
 from .button import FurbulousHandModeButton, FurbulousLitterResetButton
 from .live_extra_sensors import (
+    FurbulousBagStatusSensor,
     FurbulousCompletionStatusSensor,
     FurbulousDurationVsYesterdaySensor,
     FurbulousFirmwareSensor,
@@ -63,6 +64,7 @@ def sensor_entities_for_device(
                 FurbulousDailyUsesSensor(coordinator, device_id),
                 FurbulousAverageDurationSensor(coordinator, device_id),
                 FurbulousErrorSensor(presence, device_id),
+                FurbulousBagStatusSensor(presence, device_id),
                 FurbulousHandModeSensor(presence, device_id),
                 FurbulousCompletionStatusSensor(presence, device_id),
                 FurbulousUsesVsYesterdaySensor(coordinator, device_id),

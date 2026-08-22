@@ -45,10 +45,18 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(listener))
     listener()
 
-    from .hub import FurbulousPausePolling1hButton
+    from .hub import (
+        FurbulousPausePolling1hButton,
+        FurbulousPausePollingButton,
+        FurbulousResumePollingButton,
+    )
 
     async_add_entities(
-        [FurbulousPausePolling1hButton(entry, runtime.poll_pause)]
+        [
+            FurbulousPausePollingButton(entry, runtime.poll_pause),
+            FurbulousPausePolling1hButton(entry, runtime.poll_pause),
+            FurbulousResumePollingButton(entry, runtime.poll_pause),
+        ]
     )
 
 

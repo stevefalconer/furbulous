@@ -48,7 +48,10 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["button"]["manual_clean"]["name"] == "Clean now"
     assert s["button"]["empty"]["name"] == "Empty all litter"
     assert s["button"]["pack"]["name"] == "Seal waste bag"
-    assert s["button"]["mark_litter_reset"]["name"] == "I refilled the litter"
+    assert s["button"]["mark_litter_reset"]["name"] == "Refilled litter"
+    assert s["button"]["pause_polling"]["name"] == "Pause polling"
+    assert s["button"]["resume_polling"]["name"] == "Resume polling"
+    assert s["sensor"]["bag_status"]["name"] == "Bag status"
     assert s["switch"]["empty_confirm_ready"]["name"].startswith("Empty")
     assert s["select"]["cleaning_delay"]["name"].startswith("Auto-clean")
     assert s["select"]["screen_mode"]["name"] == "Screen mode"

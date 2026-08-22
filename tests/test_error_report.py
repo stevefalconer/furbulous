@@ -45,6 +45,17 @@ def test_cover_is_lid_off_or_documented_128():
     assert is_cover_open(64) is False
 
 
+def test_no_bag_uses_cover_bits_when_not_full():
+    """Live Downstairs: No Bag screen → Cover open (512), needs_emptying off."""
+    from custom_components.furbulous.error_report import is_no_bag
+
+    assert is_no_bag(0) is False
+    assert is_no_bag(512) is True
+    assert is_no_bag(128) is True
+    assert is_no_bag(32) is False  # full takes priority
+    assert is_no_bag(32 | 512) is False
+
+
 def test_drawer_out_not_published():
     assert is_drawer_out(0) is False
     assert is_drawer_out(64) is False
