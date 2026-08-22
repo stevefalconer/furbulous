@@ -1,7 +1,9 @@
-# Furbulous litter-box dashboard — THIS HOUSE (<HA_HOST>)
+# Furbulous litter-box dashboard — example for this house
 #
 # Dashboard name / sidebar title: Furbulous
 # URL path: dashboard-furbulous  (view path: boxes)
+#
+# Do not commit LAN IPs, hostnames, emails, passwords, or tokens in this file.
 #
 # Paste into: Settings → Dashboards → Furbulous → ⋮ → Raw configuration editor
 # (or create a new dashboard from scratch, then paste).

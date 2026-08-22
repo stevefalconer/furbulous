@@ -21,5 +21,7 @@ Updated 2026-08-22 so Docker UAT (`ha-furbulous`) mirrors production entity/area
 - Production auth users / add-ons
 
 ## Verify
-1. Open http://127.0.0.1:8123/dashboard-furbulous/boxes
+1. Open your UAT Home Assistant UI → **Furbulous** dashboard → **Boxes**
+   (local Docker typically uses the host's loopback HTTP port mapped to HA;
+   do not commit host IPs or credentials in this doc)
 2. Developer tools → States → `cat_inside` should show area-qualified IDs
