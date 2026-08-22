@@ -166,6 +166,7 @@
       "empty": { "name": "Empty all litter" },
       "pack": { "name": "Seal waste bag" },
       "mark_litter_reset": { "name": "Refilled litter" },
+      "mark_cleaned": { "name": "Mark cleaned" },
       "pause_polling": { "name": "Pause polling" },
       "pause_polling_1_hour": { "name": "Pause polling 1 hour" },
       "resume_polling": { "name": "Resume polling" }

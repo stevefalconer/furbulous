@@ -342,6 +342,41 @@ async def test_bag_age_resets_on_raw_full_clear():
 
 
 @pytest.mark.asyncio
+async def test_reconcile_clears_stuck_dirty_when_idle_healthy():
+    """After Dirty threshold, healthy Idle box is marked cleaned (missed auto-clean)."""
+    from custom_components.furbulous.analytics.engine import DIRTY_AFTER_S
+
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-reconcile")
+    eng.store._loaded = True
+    eng._device_state["25"] = {
+        "occupied": False,
+        "awaiting_clean_since": time.time() - DIRTY_AFTER_S - 60,
+        "awaiting_clean_cat": "Vinnie",
+        "last_visitor_name": "Vinnie",
+        "last_phase": "idle",
+        "last_completion": 1,
+        "last_workstatus": 0,
+        "dirty_notified": True,
+    }
+    idle = {
+        "id": 25,
+        "iotid": "iot-25",
+        "name": "Master",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+            "handMode": 1,
+        },
+    }
+    eng.process_snapshot([idle])
+    assert eng.toilet_status(25)["label"] == "Idle"
+    assert eng.needs_cleaning(25) is False
+    assert len(eng.store.events_for_device(25, event_types={"clean"})) == 1
+
+
+@pytest.mark.asyncio
 async def test_bag_age_resets_when_no_bag_bit_clears():
     """Live Downstairs: No Bag (128) → 0 after new bag also restarts Bag age."""
     hass = MagicMock()

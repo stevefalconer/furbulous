@@ -185,7 +185,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -
             if e.state is ConfigEntryState.LOADED and e.entry_id != entry.entry_id
         ]
         if not still:
-            for svc in ("pause_polling", "resume_polling"):
+            for svc in ("pause_polling", "resume_polling", "mark_cleaned"):
                 if hass.services.has_service(DOMAIN, svc):
                     hass.services.async_remove(DOMAIN, svc)
     return unload_ok
@@ -231,6 +231,15 @@ def _async_register_services(hass: HomeAssistant) -> None:
         runtime = await _resolve_runtime(call)
         await runtime.poll_pause.async_resume(source="service")
 
+    async def async_mark_cleaned(call: ServiceCall) -> None:
+        """Clear Dirty / Needs cleaning for one box (HA only — no drum move)."""
+        runtime = await _resolve_runtime(call)
+        device_id = call.data.get("device_id")
+        if device_id is None:
+            raise HomeAssistantError("device_id is required")
+        runtime.analytics.mark_cleaned(device_id, source="service")
+        await runtime.analytics.async_flush(force=True)
+
     pause_schema = vol.Schema(
         {
             vol.Optional("config_entry_id"): cv.string,
@@ -240,12 +249,21 @@ def _async_register_services(hass: HomeAssistant) -> None:
         }
     )
     resume_schema = vol.Schema({vol.Optional("config_entry_id"): cv.string})
+    mark_cleaned_schema = vol.Schema(
+        {
+            vol.Required("device_id"): cv.string,
+            vol.Optional("config_entry_id"): cv.string,
+        }
+    )
 
     hass.services.async_register(
         DOMAIN, "pause_polling", async_pause_polling, schema=pause_schema
     )
     hass.services.async_register(
         DOMAIN, "resume_polling", async_resume_polling, schema=resume_schema
+    )
+    hass.services.async_register(
+        DOMAIN, "mark_cleaned", async_mark_cleaned, schema=mark_cleaned_schema
     )
 
 

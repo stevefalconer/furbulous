@@ -21,6 +21,8 @@ from ..entity import extract_prop_value
 from ..error_report import (
     ERROR_NO_BAG,
     WASTE_FULL_MASK,
+    is_no_bag,
+    is_trash_door_blocked,
     is_waste_full,
     parse_error_code,
 )
@@ -639,6 +641,26 @@ class AnalyticsEngine:
                     },
                 )
                 rank = 1
+            # Stuck Dirty while the box is healthy Idle (auto-clean happened but
+            # HA missed the cycle — common after No Bag / bag-full blocks cleans).
+            if (
+                age >= DIRTY_AFTER_S
+                and box.phase == PHASE_IDLE
+                and work_now == 0
+                and box.completion in (1, 5, None)
+            ):
+                err_raw = props.get("errorReportEvent")
+                if (
+                    not is_waste_full(err_raw)
+                    and not is_no_bag(err_raw)
+                    and not is_trash_door_blocked(err_raw)
+                ):
+                    self._record_clean_finished(
+                        did, iotid, source="reconcile_idle_after_dirty", now=now
+                    )
+                    st["clean_in_progress"] = False
+                    st["saw_clean_cycle"] = False
+                    rank = 1
 
         # --- waste full episodes (edge on raw full bits → bag age reset) ---
         err_code = parse_error_code(props.get("errorReportEvent"))
@@ -806,6 +828,21 @@ class AnalyticsEngine:
         st["clean_in_progress"] = False
         self._dirty = True
         self._need_immediate_flush = True
+
+    def mark_cleaned(
+        self,
+        device_id: str | int,
+        iotid: str | None = None,
+        *,
+        source: str = "ha_button",
+    ) -> None:
+        """User/service acknowledge: box is clean — clear Dirty without API write."""
+        did = str(device_id)
+        st = self._device_state.get(did) or {}
+        iotid = iotid or st.get("iotid")
+        self._record_clean_finished(did, iotid, source=source)
+        self.recompute_all()
+        self._notify()
 
     def record_hand_mode(
         self,

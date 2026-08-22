@@ -2,6 +2,13 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.18 — 2026-08-22
+
+### Stuck Dirty after missed auto-clean
+
+- If a box is **Dirty** (≥30 min awaiting clean) but the cloud shows healthy **Idle** (no full / No Bag / E4), HA now records cleaned and clears the red toilet state (missed poll after bag-fix cleans).
+- New **Mark cleaned** button + service `furbulous.mark_cleaned` (HA-only, no drum move).
+
 ## 1.3.17 — 2026-08-22
 
 ### No Bag + notifications + pause UX

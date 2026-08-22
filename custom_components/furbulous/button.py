@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import FurbulousEntity
-from .entity_ids import UID_LITTER_REFILLED, box_uid
+from .entity_ids import UID_LITTER_REFILLED, UID_MARK_CLEANED, box_uid
 from .helpers import apply_write_to_runtime, async_add_devices_listener
 
 if TYPE_CHECKING:
@@ -192,4 +192,42 @@ class FurbulousLitterResetButton(FurbulousEntity, ButtonEntity):
             await self._analytics.async_flush()
         self.async_write_ha_state()
 
+
+class FurbulousMarkCleanedButton(FurbulousEntity, ButtonEntity):
+    """Clear Dirty / toilet red without sending a clean command to the box.
+
+    Use when the box already cleaned (auto or physical) but HA still shows
+    Dirty because the clean cycle was missed in the cloud poll.
+    """
+
+    _attr_icon = "mdi:check-circle-outline"
+
+    def __init__(self, coordinator, device_id: int, iotid: str, analytics) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="mark_cleaned",
+            unique_id=box_uid(device_id, UID_MARK_CLEANED),
+        )
+        self._iotid = iotid
+        self._analytics = analytics
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "plain_english": (
+                "Marks the box cleaned in Home Assistant only — does not move "
+                "the drum. Clears red Dirty / Needs cleaning after a missed auto-clean."
+            ),
+            "audience": "chore",
+        }
+
+    async def async_press(self) -> None:
+        if self._analytics is None:
+            return
+        self._analytics.mark_cleaned(
+            self._device_id, self._iotid, source="ha_button"
+        )
+        await self._analytics.async_flush()
+        self.async_write_ha_state()
 

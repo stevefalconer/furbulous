@@ -31,3 +31,24 @@ resume_polling:
       required: false
       selector:
         text:
+
+mark_cleaned:
+  name: Mark cleaned
+  description: >-
+    Clear Dirty / Needs cleaning in Home Assistant when the box already cleaned
+    but HA missed the cycle (e.g. after No Bag blocked auto-clean). Does not
+    move the drum.
+  fields:
+    device_id:
+      name: Device ID
+      description: >-
+        Cloud device id (from entity unique_id, e.g. 3129 for Master —
+        furbulous_3129_…).
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry ID
+      required: false
+      selector:
+        text:

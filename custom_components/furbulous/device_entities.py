@@ -18,7 +18,11 @@ from .binary_sensor import (
     FurbulousTrashDoorSensor,
     FurbulousWasteBinFullSensor,
 )
-from .button import FurbulousHandModeButton, FurbulousLitterResetButton
+from .button import (
+    FurbulousHandModeButton,
+    FurbulousLitterResetButton,
+    FurbulousMarkCleanedButton,
+)
 from .live_extra_sensors import (
     FurbulousBagStatusSensor,
     FurbulousCompletionStatusSensor,
@@ -167,6 +171,9 @@ def button_entities_for_device(
             FurbulousLitterResetButton(
                 coordinator, api, device_id, iotid, analytics
             )
+        )
+        entities.append(
+            FurbulousMarkCleanedButton(coordinator, device_id, iotid, analytics)
         )
     return entities
 
