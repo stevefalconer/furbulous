@@ -19,7 +19,10 @@ from .entity import extract_prop_value
 ERROR_WASTE_FULL = 16
 ERROR_WASTE_FULL_ALT = 32
 ERROR_MECHANISM = 64
-ERROR_COVER_DOC = 128
+# Live Downstairs bag-replace 2026-08-22: physical **No Bag** → bit 128 alone.
+# Lid off adds / is 512. Do not treat 512-only as No Bag.
+ERROR_NO_BAG = 128
+ERROR_COVER_DOC = 128  # legacy alias; prefer ERROR_NO_BAG for bag-missing
 ERROR_LID_OFF = 512
 ERROR_LITTER_POUR = 4096
 ERROR_TRASH_DOOR = 524288
@@ -39,7 +42,8 @@ TRASH_DOOR_FIX = (
 )
 
 WASTE_FULL_MASK = ERROR_WASTE_FULL | ERROR_WASTE_FULL_ALT
-COVER_MASK = ERROR_COVER_DOC | ERROR_LID_OFF
+# Lid-only for Cover open PROBLEM sensor (512). 128 = No Bag separately.
+COVER_MASK = ERROR_LID_OFF
 
 # Walk known bits; leftovers are labeled "Error {n}".
 _BIT_ORDER = (
@@ -89,19 +93,21 @@ def is_drawer_out(raw: Any) -> bool:
 
 
 def is_cover_open(raw: Any) -> bool:
-    """True for documented cover (128) or live lid-off (512)."""
-    return has_error_bit(raw, COVER_MASK)
+    """True when the lid/cover is off (bit 512).
+
+    Bit 128 is **No Bag** (waste bag / drawer bag missing), not lid-off.
+    """
+    return has_error_bit(raw, ERROR_LID_OFF)
 
 
 def is_no_bag(raw: Any) -> bool:
-    """True when the box reports no waste bag.
+    """True when the box reports no waste bag (bit 128), and not bag-full.
 
-    Live Downstairs (user 2026-08): physical screen **No Bag** while
-    ``error_message`` = Cover open and Needs emptying off — same cover/lid
-    bits (128/512). Drawer-out alone previously stayed 0; treat cover bits
-    as the bag-missing signal for bag-status UI.
+    Live Downstairs bag-replace 2026-08-22: baseline No Bag = ``128``;
+    lid off = ``512``; both = ``640``. After new bag + drawer/cover,
+    error cleared to ``0`` and a clean ran.
     """
-    return is_cover_open(raw) and not is_waste_full(raw)
+    return has_error_bit(raw, ERROR_NO_BAG) and not is_waste_full(raw)
 
 
 def is_trash_door_blocked(raw: Any) -> bool:

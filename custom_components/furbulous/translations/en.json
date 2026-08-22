@@ -263,6 +263,9 @@
       "needs_cleaning": {
         "name": "Needs cleaning"
       },
+      "no_bag": {
+        "name": "No Bag"
+      },
       "polling_paused": {
         "name": "Cloud polling paused"
       },

@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.16
+**Integration version:** 1.3.17
 
 **Sign-in tip:** A **dedicated Furbulous account** for Home Assistant is still best. If you must share one login with the phone app, use **Pause cloud polling** (or **Pause polling 1 hour**) on the litter dashboard / Furbulous hub device first — that stops HA from calling the cloud so the app can stay signed in while you edit pets, weights, or settings.
 
@@ -44,7 +44,7 @@ You’ll see sections roughly like:
 | **Needs cleaning** | **Problem** when Toilet status is Dirty (good for phone alerts) |
 | **Last cleaned** | When the barrel last finished cleaning, and which cat that was for |
 | **Needs emptying** | **OK** = fine · **Problem** = time to empty/seal |
-| **Bag status** | **Bag OK** · **Bag full** · **No Bag** (live: same cloud signal as Cover open when the box says No Bag) |
+| **Bag status** / **No Bag** | **Bag OK** · **Bag full** · **No Bag** (bit **128** — after a seal when the bag must be removed). Lid off is bit **512** (Cover open). |
 | **Trash door jammed** | **Problem** = waste/**litter door** jammed (E4) — not the pull-out drawer. Scoop clump, **OK on the box** |
 | **Cat weight** | Latest weight (lb or kg from HA settings) |
 | **Uses today** | How many uses the cloud counted today |

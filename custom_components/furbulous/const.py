@@ -62,7 +62,7 @@ ERROR_CODES = {
     16: "Litter full - Need to empty",
     32: "Litter full - Need to empty",
     # 64 alone was never seen live; describe_error labels it "Error 64"
-    128: "Cover open",
+    128: "No Bag",
     256: "Temperature error",
     512: "Cover / lid off",
     4096: "Litter pour",

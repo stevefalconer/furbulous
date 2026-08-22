@@ -2,7 +2,7 @@
 
 [`furbulous.yaml`](furbulous.yaml) is an **example** built for **one house** (four Furbulous boxes). It is not a universal import that works unchanged on every install.
 
-[`notifications.yaml`](notifications.yaml) is an example automation pack for iOS/Android Companion app alerts (bag full, E4 jammed, optional “no clean after visit”).
+[`mobile_notifications.yaml`](mobile_notifications.yaml) is an example **automations** pack (not a dashboard) for bag full, **No Bag**, E4, and Dirty alerts. Docker testing uses `persistent_notification`; on a phone HA swap to `notify.mobile_app_*`.
 
 Home Assistant builds entity IDs from the **area** plus the **box name**. This file uses:
 

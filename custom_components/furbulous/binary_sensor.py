@@ -19,6 +19,7 @@ from .error_report import (
     TRASH_DOOR_FIX,
     is_cover_open,
     is_drawer_out,
+    is_no_bag,
     is_trash_door_blocked,
     is_waste_full,
     parse_error_code,
@@ -30,6 +31,7 @@ from .entity_ids import (
     UID_DRAWER_OUT_OF_PLACE,
     UID_NEEDS_CLEANING,
     UID_NEEDS_EMPTYING,
+    UID_NO_BAG,
     UID_ONLINE,
     UID_SCREEN_IS_OFF,
     UID_TRASH_DOOR_BLOCKED,
@@ -129,6 +131,49 @@ class FurbulousCatInBoxSensor(FurbulousEntity, BinarySensorEntity):
         device = self.device_data
         occupied = is_cat_present((device or {}).get("properties") or {})
         return ("occ", occupied, self.available)
+
+
+class FurbulousNoBagSensor(FurbulousEntity, BinarySensorEntity):
+    """PROBLEM when the box reports No Bag (error bit 128).
+
+    After auto-seal, this means remove the sealed bag and install a new one
+    before the box can clean again — easy to miss if you only watch bag-full.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:delete-off-outline"
+
+    def __init__(self, coordinator, device_id: int) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="no_bag",
+            unique_id=box_uid(device_id, UID_NO_BAG),
+        )
+
+    @property
+    def is_on(self) -> bool:
+        device = self.device_data
+        if not device:
+            return False
+        return is_no_bag((device.get("properties") or {}).get("errorReportEvent"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "when_ok": "Waste bag is present",
+            "when_problem": (
+                "No Bag — pull the drawer, remove the sealed bag, install a new "
+                "bag, put the drawer back, then OK on the box if needed."
+            ),
+            "plain_english": (
+                "On after a seal when the full bag is still blocking the box. "
+                "Not the same as Needs emptying (bag full)."
+            ),
+            "vendor_property": "errorReportEvent",
+            "error_bit": "128",
+            "audience": "primary",
+        }
 
 
 class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):

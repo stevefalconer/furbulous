@@ -143,6 +143,7 @@
       "drawer_status": { "name": "Drawer out of place" },
       "trash_door_blocked": { "name": "Trash door jammed" },
       "needs_cleaning": { "name": "Needs cleaning" },
+      "no_bag": { "name": "No Bag" },
       "polling_paused": { "name": "Cloud polling paused" },
       "child_lock": { "name": "Child lock on" },
       "sleep_mode": { "name": "Screen blank now" },

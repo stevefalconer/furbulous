@@ -39,6 +39,7 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["binary_sensor"]["waste_bin_status"]["name"] == "Needs emptying"
     assert s["binary_sensor"]["trash_door_blocked"]["name"] == "Trash door jammed"
     assert s["binary_sensor"]["needs_cleaning"]["name"] == "Needs cleaning"
+    assert s["binary_sensor"]["no_bag"]["name"] == "No Bag"
     assert s["binary_sensor"]["polling_paused"]["name"] == "Cloud polling paused"
     assert s["sensor"]["polling_status"]["name"] == "Cloud polling"
     assert s["switch"]["pause_cloud_polling"]["name"] == "Pause cloud polling"

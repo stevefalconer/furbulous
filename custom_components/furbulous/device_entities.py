@@ -13,6 +13,7 @@ from .binary_sensor import (
     FurbulousCoverOpenSensor,
     FurbulousDrawerNotInPlaceSensor,
     FurbulousNeedsCleaningSensor,
+    FurbulousNoBagSensor,
     FurbulousSleepModeSensor,
     FurbulousTrashDoorSensor,
     FurbulousWasteBinFullSensor,
@@ -91,6 +92,7 @@ def binary_sensor_entities_for_device(
     entities: list[Entity] = [
         FurbulousConnectedSensor(coordinator, device_id),
         FurbulousWasteBinFullSensor(presence, device_id),
+        FurbulousNoBagSensor(presence, device_id),
         FurbulousCoverOpenSensor(presence, device_id),
         FurbulousDrawerNotInPlaceSensor(presence, device_id),
         FurbulousTrashDoorSensor(presence, device_id),

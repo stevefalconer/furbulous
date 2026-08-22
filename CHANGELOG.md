@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.17 — 2026-08-22
+
+### No Bag + notifications + pause UX
+
+- Live bag-replace capture: **No Bag = error bit 128**; lid off = **512**; cleared to **0** after new bag then clean ran.
+- New **No Bag** PROBLEM binary; bag-status / error text updated.
+- `mobile_notifications.yaml` = **automations** (not a dashboard) for bag full, No Bag, 15‑min reminder, E4 — Docker uses persistent notifications.
+- Pause UI: show **Pause / Pause 1 hr** only while polling; **Resume** only while paused (conditional). Pause/resume driven by the switch so cycles repeat reliably.
+
 ## 1.3.16 — 2026-08-17
 
 ### Pause polling entity IDs + dashboard layout

@@ -37,23 +37,25 @@ def test_waste_full_accepts_16_and_32():
     assert is_waste_full(4096) is False
 
 
-def test_cover_is_lid_off_or_documented_128():
-    assert is_cover_open(128) is True
-    assert is_cover_open(32 | 128) is True
+def test_cover_is_lid_off_512_only():
+    """Lid off is bit 512; bit 128 is No Bag (not cover)."""
     assert is_cover_open(512) is True
+    assert is_cover_open(128) is False
+    assert is_cover_open(640) is True  # 128|512 still has lid bit
     assert is_cover_open(32) is False
     assert is_cover_open(64) is False
 
 
-def test_no_bag_uses_cover_bits_when_not_full():
-    """Live Downstairs: No Bag screen → Cover open (512), needs_emptying off."""
+def test_no_bag_is_bit_128_live_downstairs():
+    """Live Downstairs bag-replace 2026-08-22: No Bag = 128; lid = 512."""
     from custom_components.furbulous.error_report import is_no_bag
 
     assert is_no_bag(0) is False
-    assert is_no_bag(512) is True
     assert is_no_bag(128) is True
+    assert is_no_bag(512) is False  # lid only ≠ No Bag
+    assert is_no_bag(640) is True  # 128|512 still no-bag
     assert is_no_bag(32) is False  # full takes priority
-    assert is_no_bag(32 | 512) is False
+    assert is_no_bag(32 | 128) is False
 
 
 def test_drawer_out_not_published():

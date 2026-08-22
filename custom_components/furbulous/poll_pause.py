@@ -144,12 +144,24 @@ class PollPauseController:
         self._notify()
 
     async def async_resume(self, *, source: str = "user") -> None:
-        """Resume normal polling intervals and refresh once."""
+        """Resume normal polling intervals and refresh once.
+
+        Safe to call repeatedly while already active (idempotent).
+        """
         was = self._paused
         self._cancel_timer()
         self._paused = False
         self._until = None
         self._apply_intervals(paused=False)
+        # Re-arm the coordinator schedules even if update_interval was already
+        # a timedelta (some HA builds only reschedule on change).
+        for coord in (self.presence_coordinator, self.coordinator):
+            schedule = getattr(coord, "_schedule_refresh", None)
+            if callable(schedule):
+                try:
+                    schedule()
+                except Exception:  # pylint: disable=broad-except
+                    _LOGGER.debug("schedule_refresh failed", exc_info=True)
         if was:
             _LOGGER.info(
                 "Furbulous cloud polling resumed (%s) entry=%s",

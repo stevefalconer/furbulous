@@ -532,6 +532,7 @@ views:
       - type: custom:mushroom-title-card
         title: Pause Polling for Furbulous App Use
       - type: custom:mushroom-template-card
+        entity: switch.furbulous_pause_cloud_polling
         primary: >-
           {% set st = states('sensor.furbulous_cloud_polling') %}
           {% if st not in ['unknown','unavailable','none',''] %}{{ st }}
@@ -539,8 +540,8 @@ views:
           {{ state_attr('switch.furbulous_pause_cloud_polling','status') or 'Paused' }}
           {% else %}Polling (30s / 5min){% endif %}
         secondary: >-
-          {% if is_state('binary_sensor.furbulous_cloud_polling_paused','on')
-             or is_state('switch.furbulous_pause_cloud_polling','on') %}
+          {% if is_state('switch.furbulous_pause_cloud_polling','on')
+             or is_state('binary_sensor.furbulous_cloud_polling_paused','on') %}
           HA is not calling Furbulous — use the phone app / edit pets
           {% else %}
           30s = status & actions · 5min = analytics & reporting
@@ -554,64 +555,95 @@ views:
         layout: horizontal
         tap_action:
           action: more-info
-          entity: sensor.furbulous_cloud_polling
-      - type: custom:mushroom-chips-card
-        alignment: end
-        card_mod:
-          style: |
-            ha-card {
-              --chip-height: 42px;
-            }
-            .chip-container {
-              display: grid !important;
-              grid-template-columns: repeat(3, minmax(0, 1fr));
-              width: 100%;
-              gap: 8px;
-            }
-            mushroom-chip {
-              width: 100% !important;
-              justify-content: center !important;
-            }
-        chips:
-          - type: template
-            icon: mdi:cloud-off-outline
-            icon_color: orange
-            content: Pause
-            tap_action:
-              action: call-service
-              service: button.press
-              target:
-                entity_id: button.furbulous_pause_polling
-          - type: template
-            icon: mdi:timer-pause-outline
-            icon_color: orange
-            content: Pause 1 hr
-            tap_action:
-              action: call-service
-              service: button.press
-              target:
-                entity_id: button.furbulous_pause_polling_1_hour
-          - type: template
-            icon: mdi:cloud-sync-outline
-            icon_color: green
-            content: Resume
-            tap_action:
-              action: call-service
-              service: button.press
-              target:
-                entity_id: button.furbulous_resume_polling
+          entity: switch.furbulous_pause_cloud_polling
+      # When polling: Pause + Pause 1 hr only
+      - type: conditional
+        conditions:
+          - entity: switch.furbulous_pause_cloud_polling
+            state: "off"
+        card:
+          type: custom:mushroom-chips-card
+          alignment: end
+          card_mod:
+            style: |
+              ha-card {
+                --chip-height: 42px;
+              }
+              .chip-container {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 100%;
+                gap: 8px;
+              }
+              mushroom-chip {
+                width: 100% !important;
+                justify-content: center !important;
+              }
+          chips:
+            - type: template
+              icon: mdi:cloud-off-outline
+              icon_color: orange
+              content: Pause
+              tap_action:
+                action: call-service
+                service: switch.turn_on
+                target:
+                  entity_id: switch.furbulous_pause_cloud_polling
+            - type: template
+              icon: mdi:timer-pause-outline
+              icon_color: orange
+              content: Pause 1 hr
+              tap_action:
+                action: call-service
+                service: button.press
+                target:
+                  entity_id: button.furbulous_pause_polling_1_hour
+      # When paused: Resume only
+      - type: conditional
+        conditions:
+          - entity: switch.furbulous_pause_cloud_polling
+            state: "on"
+        card:
+          type: custom:mushroom-chips-card
+          alignment: end
+          card_mod:
+            style: |
+              ha-card {
+                --chip-height: 42px;
+              }
+              .chip-container {
+                display: grid !important;
+                grid-template-columns: 1fr;
+                width: 100%;
+                gap: 8px;
+              }
+              mushroom-chip {
+                width: 100% !important;
+                justify-content: center !important;
+              }
+          chips:
+            - type: template
+              icon: mdi:cloud-sync-outline
+              icon_color: green
+              content: Resume
+              tap_action:
+                action: call-service
+                service: switch.turn_off
+                target:
+                  entity_id: switch.furbulous_pause_cloud_polling
 
       - type: markdown
         content: |
           ## Instructions
 
           ### Pause polling (phone app / same account)
-          At the bottom: **Pause**, **Pause 1 hr**, or **Resume**.
+          At the bottom: when polling you see **Pause** / **Pause 1 hr**; when
+          paused you only see **Resume** (they swap so you cannot get stuck).
           Status shows **Polling (30s / 5min)**, **Paused**, or **Paused until HH:MM**.
           - **30s** poll: live status and actions
           - **5min** poll: analytics and reporting
           If chips say unavailable: update Furbulous, restart HA (entity IDs are
-          normalized to `button.furbulous_pause_polling`, etc.).
+          normalized to `switch.furbulous_pause_cloud_polling`, etc.).
 
           ### Status vs actions
           Status chips (toilet / bag / errors) are borderless. Action chips below
@@ -623,7 +655,9 @@ views:
 
           ### Bag age / Bag status
           Bag age restarts when bag-full clears or after Empty all litter.
-          **Bag OK** / **Bag full** / **No Bag** (No Bag uses the Cover open signal).
+          **Bag OK** / **Bag full** / **No Bag** (No Bag = error bit 128 after a
+          seal when the bag still needs changing — enable mobile/persistent
+          alerts in `mobile_notifications.yaml`, which is automations not a dashboard).
 
           ### Toilet / Dirty
           Idle (green) · pet in box (green) · waiting for clean (orange) ·

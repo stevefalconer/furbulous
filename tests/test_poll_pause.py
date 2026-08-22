@@ -47,6 +47,46 @@ async def test_pause_indefinite_and_resume():
 
 
 @pytest.mark.asyncio
+async def test_pause_resume_pause_cycle_works_repeatedly():
+    """Pause → resume → pause again must keep working (dashboard multi-use)."""
+    hass = MagicMock()
+    hass.async_create_task = MagicMock()
+    full = MagicMock()
+    full.update_interval = timedelta(minutes=5)
+    full.async_request_refresh = AsyncMock()
+    presence = MagicMock()
+    presence.update_interval = timedelta(seconds=30)
+    presence.async_request_refresh = AsyncMock()
+
+    ctrl = PollPauseController(hass, "entry-cycle", full, presence)
+    notifies = []
+    ctrl.async_add_listener(lambda: notifies.append(ctrl.is_paused))
+
+    await ctrl.async_pause_indefinite()
+    assert ctrl.is_paused is True
+    assert full.update_interval is None
+    assert notifies[-1] is True
+
+    await ctrl.async_resume()
+    assert ctrl.is_paused is False
+    assert full.update_interval == timedelta(minutes=5)
+    assert notifies[-1] is False
+
+    await ctrl.async_pause_indefinite()
+    assert ctrl.is_paused is True
+    assert full.update_interval is None
+    assert notifies[-1] is True
+
+    await ctrl.async_set_paused(False)
+    assert ctrl.is_paused is False
+    await ctrl.async_set_paused(True)
+    assert ctrl.is_paused is True
+    await ctrl.async_set_paused(False)
+    assert ctrl.is_paused is False
+    assert presence.update_interval == timedelta(seconds=30)
+
+
+@pytest.mark.asyncio
 async def test_pause_one_hour_schedules_timer(monkeypatch):
     hass = MagicMock()
     scheduled = {}

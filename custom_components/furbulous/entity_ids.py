@@ -40,6 +40,7 @@ UID_RESUME_POLLING = "resume_polling"
 UID_POLLING_STATUS = "polling_status"
 UID_POLLING_PAUSED = "polling_paused"
 UID_BAG_STATUS = "bag_status"
+UID_NO_BAG = "no_bag"
 
 
 # --- Box slugs (aligned with friendly names) ---
