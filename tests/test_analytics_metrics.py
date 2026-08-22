@@ -342,6 +342,31 @@ async def test_bag_age_resets_on_raw_full_clear():
 
 
 @pytest.mark.asyncio
+async def test_bag_age_resets_when_no_bag_bit_clears():
+    """Live Downstairs: No Bag (128) → 0 after new bag also restarts Bag age."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-nobag-clear")
+    eng.store._loaded = True
+    no_bag = {
+        "id": 24,
+        "iotid": "iot-24",
+        "name": "Downstairs",
+        "properties": {"workstatus": 0, "errorReportEvent": 128},
+    }
+    clear = {
+        "id": 24,
+        "iotid": "iot-24",
+        "name": "Downstairs",
+        "properties": {"workstatus": 0, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([no_bag])
+    eng.process_snapshot([clear])
+    bags = eng.store.events_for_device(24, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    assert bags[0].get("source") == "presence_no_bag_cleared"
+
+
+@pytest.mark.asyncio
 async def test_engine_full_clear_restarts_bag_age():
     """When bag-full error clears in the cloud, Bag age restarts (bag_replaced)."""
     hass = MagicMock()

@@ -18,7 +18,12 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from ..entity import extract_prop_value
-from ..error_report import WASTE_FULL_MASK, is_waste_full, parse_error_code
+from ..error_report import (
+    ERROR_NO_BAG,
+    WASTE_FULL_MASK,
+    is_waste_full,
+    parse_error_code,
+)
 from ..box_state import (
     PHASE_CLEANING,
     PHASE_IDLE,
@@ -673,7 +678,7 @@ class AnalyticsEngine:
         else:
             st["full_true_polls"] = 0
 
-        # Any full→clear on the wire resets Bag age (bag replaced / status normal).
+        # Full→clear resets Bag age (sealed bag removed after full).
         if prev_raw_full and not now_raw_full:
             start = st.get("full_episode_start") or now
             time_full = max(0.0, now - float(start))
@@ -700,6 +705,19 @@ class AnalyticsEngine:
             )
             self._record_bag_replaced(did, iotid, source="presence", now=now)
             rank = 1
+
+        # No Bag (128) → clear also means a new bag is in (live Downstairs 2026-08-22).
+        prev_no_bag = (
+            prev_err is not None and (int(prev_err) & ERROR_NO_BAG) != 0
+        )
+        now_no_bag = (
+            err_code is not None and (int(err_code) & ERROR_NO_BAG) != 0
+        )
+        if prev_no_bag and not now_no_bag and not now_raw_full:
+            if self._record_bag_replaced(
+                did, iotid, source="presence_no_bag_cleared", now=now
+            ):
+                rank = 1
 
         if rank == 0 and identity_changed and occupied:
             return 2
