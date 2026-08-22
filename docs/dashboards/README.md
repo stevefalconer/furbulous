@@ -23,7 +23,7 @@ Your prefixes will differ if the boxes are in other areas, have other names, or 
 
 **Box order in the example:** Downstairs → Master → Cleo → Upstairs.
 
-**Cloud polling (after the boxes):** `button.furbulous_pause_polling`, `button.furbulous_pause_polling_1_hour`, `button.furbulous_resume_polling`, status on `sensor.furbulous_cloud_polling`. After updating 1.3.16, restart HA once so entity IDs are normalized. Instructions stay at the bottom of the YAML.
+**Cloud polling (after the boxes):** `switch.furbulous_pause_cloud_polling`, `button.furbulous_pause_polling_1_hour`, status on `sensor.furbulous_cloud_polling`. Use **1.3.19+** — older builds deleted the hub device on Resume’s refresh, so Pause chips never returned (Spook: unknown entity). Dashboard Pause chips use `state_not: on`. After updating, reload the Furbulous integration once.
 
 ## How to adapt it to your house
 
