@@ -36,3 +36,13 @@
 {"phase": "D_clean_poll", "i": 40, "ws": 1, "hm": 1, "cs": 1, "err": 0, "shovel": "0700010007050100", "shovel_time": 1787451601.0, "slots": [[7, 0, 1, 0], [7, 5, 1, 0]], "ts_local": "2026-08-22T19:21:44.368854-07:00"}
 {"phase": "D_clean_poll", "i": 45, "ws": 1, "hm": 1, "cs": 1, "err": 0, "shovel": "0700010007050100", "shovel_time": 1787451601.0, "slots": [[7, 0, 1, 0], [7, 5, 1, 0]], "ts_local": "2026-08-22T19:21:54.942150-07:00"}
 {"phase": "D_clean_poll", "i": 47, "ws": null, "hm": null, "cs": null, "err": null, "shovel": null, "shovel_time": null, "slots": [], "ts_local": "2026-08-22T19:22:07.009102-07:00"}
+{"phase": "E_pack_before", "box": "Upstairs", "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ws": 0, "hm": 1, "cs": 1, "err": 0, "disp": [0, 420], "ts_local": "2026-08-22T19:28:34.103954-07:00"}
+{"phase": "E_pack_sent", "ok": true, "ts_local": "2026-08-22T19:28:34.316978-07:00"}
+{"phase": "E_pack_poll", "i": 0, "ws": 3, "hm": 3, "cs": 1, "err": 0, "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ts_local": "2026-08-22T19:28:36.418973-07:00"}
+{"phase": "E_pack_poll", "i": 1, "ws": null, "hm": null, "cs": null, "err": null, "shovel": null, "shovel_time": null, "slots": [], "ts_local": "2026-08-22T19:28:46.340625-07:00"}
+{"phase": "E_pack_poll", "i": 2, "ws": 3, "hm": 3, "cs": 1, "err": 0, "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ts_local": "2026-08-22T19:28:49.808984-07:00"}
+{"phase": "E_pack_poll", "i": 5, "ws": 3, "hm": 3, "cs": 1, "err": 0, "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ts_local": "2026-08-22T19:28:56.129715-07:00"}
+{"phase": "E_pack_poll", "i": 10, "ws": 3, "hm": 3, "cs": 1, "err": 0, "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ts_local": "2026-08-22T19:29:06.721537-07:00"}
+{"phase": "E_pack_poll", "i": 15, "ws": 0, "hm": 3, "cs": 3, "err": 0, "shovel": "00", "shovel_time": 1773132023.0, "slots": [], "ts_local": "2026-08-22T19:29:17.219287-07:00"}
+{"phase": "E_pack_after", "shovel": "00", "shovel_time": 1773132023.0, "changed_value": false, "changed_time": false, "ws": 0, "hm": 3, "cs": 3, "err": 0, "down_shovel": "0700010007050100", "down_unchanged": true, "saw_pack": true, "samples": 16, "ws_seen": [0, 3], "ts_local": "2026-08-22T19:29:17.419212-07:00"}
+{"phase": "E_final", "shovel": "00", "match": true, "ws": 0, "ts_local": "2026-08-22T19:29:20.942056-07:00"}

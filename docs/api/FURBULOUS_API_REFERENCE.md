@@ -194,12 +194,13 @@ Hour/minute are **binary integers**, not BCD. `enabled` is `0`/`1`.
 
 **Exp A:** `displayEndTime +30` → shovel **unchanged**.  
 **Exp B:** shovel set to **19:13 / 19:15** (near-now) → value stuck; through the window Downstairs stayed `workstatus=0` (no auto clean/pack). Control Upstairs idle.  
-**Exp C / Clean now (Exp D):** full clean cycle `workstatus=1` for minutes; shovel value **and** property `time` **unchanged** (`0700010007050100`, time sticky). Upstairs shovel still `00`.
+**Exp C / Clean now (Exp D):** Downstairs clean `workstatus=1` for minutes; shovel value **and** property `time` **unchanged** (`0700010007050100`).  
+**Exp E — Seal/pack on Upstairs (2026-08-22):** `handMode: 3` → live `workstatus=3` (packing) then idle; `completionStatus` briefly `3`. Shovel stayed **`00`**; property `time` **unchanged** (sticky old stamp). Downstairs control shovel unchanged.
 
-#### Activity-stream hypothesis — **falsified for Clean**
+#### Activity-stream hypothesis — **falsified for Clean and Pack**
 
-Hypothesis: blob is a packed log of cleans / visits / errors.  
-**Result:** Clean now did **not** append or retimestamp the field. Combined with successful arbitrary HH:MM writes, the schedule-slot model remains strongest.
+Hypothesis: blob is a packed log of cleans / visits / errors / seals.  
+**Result:** neither Clean nor Pack appended or retimestamped the field. Combined with successful arbitrary HH:MM writes and no fire-at-slot in Exp B, the **schedule-slot** model remains strongest (config, not activity ring buffer).
 
 #### HA stance
 
