@@ -121,7 +121,7 @@ Events are append-only in `config/.storage/furbulous.analytics_<entry_id>` (`STO
 | Delete config entry / wipe `.storage` / new volume | Gone |
 | Reconfigure (same `entry_id`) | Survives |
 
-Bag age restarts on **Empty** (`bag_replaced`) and when a confirmed **waste-full** condition clears in the cloud (`waste_full_off` / `furbulous_waste_cleared` with `cleared_how=error_cleared` also records `bag_replaced`). Litter age restarts on **I refilled the litter** (or device `workstatus=8`). **Seal / pack does not** reset bag age by itself. Cloud `Uses today` is vendor-day, not this file.
+Bag age restarts on **Seal**, **Empty**, waste-full clear, No Bag clear, or `furbulous.mark_bag_replaced` (cloud property times preferred when present — 1.3.22+). Litter age restarts on **I refilled the litter** (or device `workstatus=8`). **Last visit** prefers `/device/data/wc` `start_time` when the cloud returns today’s rows; **Last cleaned** prefers `completionStatus`/`workstatus` property times on clean edges. Cloud `Uses today` follows the vendor day (`LocalTime` date packing).
 
 ### Notify entities (Companion app)
 
