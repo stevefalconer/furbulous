@@ -2,6 +2,16 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.22 — 2026-08-22
+
+### API-first clocks (Last visit / cleaned / bag age)
+
+- Preserve cloud property ``time`` stamps (`property_times`) instead of discarding them.
+- Decode ``LocalTime`` as device **calendar date**; on day change reset WC ingest watermark (WC is today-only).
+- Prefer `/device/data/wc` ``start_time`` for **Last visit** when the cloud returns rows.
+- Prefer ``completionStatus`` / ``workstatus`` / ``errorReportEvent`` / ``handMode`` times for **Last cleaned** and **Bag age** when an edge is detected.
+- ``timingShoveledShit`` documented as opaque (unused). API reference §5.0a–c and §10.5 state machine updated.
+
 ## 1.3.21 — 2026-08-22
 
 ### Stuck “cat / Dirty” while box is Idle

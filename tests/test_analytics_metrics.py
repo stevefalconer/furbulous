@@ -385,6 +385,92 @@ async def test_awaiting_clears_when_idle_after_saw_clean():
 
 
 @pytest.mark.asyncio
+async def test_wc_prefer_cloud_start_time_for_last_visit():
+    """WC start_time drives Last visit even if presence stamped a later wall time."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-wc-prefer")
+    eng.store._loaded = True
+    eng.pets = [
+        {
+            "id": 1,
+            "name": "Jet",
+            "weight": 17,
+            "unit": 1,
+        }
+    ]
+    eng._device_state["40"] = {
+        "last_visit_ts": time.time(),  # HA wall clock (too late)
+        "last_visitor_name": "Jet",
+    }
+    device = {
+        "id": 40,
+        "iotid": "iot-40",
+        "properties": {"LocalTime": 268966401},
+        "wc_history": [
+            {"start_time": 1786851449, "weight": 7882, "minute": 0, "second": 45}
+        ],
+    }
+    eng.ingest_wc_history(device)
+    assert eng._device_state["40"]["last_visit_ts"] == 1786851449.0
+    # Second ingest still prefers WC start_time over a later HA wall stamp
+    eng._device_state["40"]["last_visit_ts"] = time.time()
+    eng.ingest_wc_history(device)
+    assert eng._device_state["40"]["last_visit_ts"] == 1786851449.0
+
+
+@pytest.mark.asyncio
+async def test_wc_day_rollover_resets_watermark():
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-wc-day")
+    eng.store._loaded = True
+    eng._device_state["41"] = {
+        "local_time_day_key": "2026-08-15",
+        "wc_ingested_through": 1786851449.0,
+    }
+    device = {
+        "id": 41,
+        "iotid": "iot-41",
+        "properties": {"LocalTime": 268966401},  # 2026-08-16
+    }
+    assert eng._update_local_day_key(device) is True
+    assert eng._device_state["41"]["local_time_day_key"] == "2026-08-16"
+    assert eng._device_state["41"]["wc_ingested_through"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_last_clean_from_completion_status_time():
+    """Clean finish uses cloud completionStatus time when present."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-clean-cloud-ts")
+    eng.store._loaded = True
+    cloud_ts = time.time() - 600
+    idle = {
+        "id": 42,
+        "iotid": "iot-42",
+        "name": "Box",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+        },
+        "property_times": {"completionStatus": cloud_ts, "workstatus": cloud_ts},
+    }
+    eng._device_state["42"] = {
+        "occupied": False,
+        "awaiting_clean_since": time.time() - 120,
+        "awaiting_clean_cat": "Vinnie",
+        "last_visitor_name": "Vinnie",
+        "saw_clean_cycle": True,
+        "clean_in_progress": True,
+        "last_completion": 3,
+        "last_workstatus": 1,
+        "last_phase": "cleaning",
+    }
+    eng.process_snapshot([idle])
+    assert eng.last_clean_ts(42) == pytest.approx(cloud_ts, abs=1.0)
+
+
+@pytest.mark.asyncio
 async def test_bag_age_resets_on_raw_full_clear():
     """Bag age restarts when errorReportEvent full bits clear (32→0)."""
     hass = MagicMock()

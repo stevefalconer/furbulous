@@ -377,6 +377,9 @@ class AnalyticsEngine:
         for device in devices:
             if device.get("id") is None:
                 continue
+            # Device calendar day (LocalTime) — always, including full poll
+            if self._update_local_day_key(device):
+                rank = 1
             if detect_edges:
                 rank = max(rank, self._process_device(device))
             # Hydrate Last cat from cloud visit history (full poll only)
@@ -397,6 +400,51 @@ class AnalyticsEngine:
         if live or rank == 2:
             self._notify()
         return False
+
+    def _update_local_day_key(self, device: dict[str, Any]) -> bool:
+        """Track LocalTime calendar day; reset WC watermark on rollover.
+
+        Returns True when the device day key changes (event-level).
+        """
+        from ..device_time import local_time_day_key
+
+        did = str(device.get("id"))
+        props = device.get("properties") or {}
+        day_key = local_time_day_key(props.get("LocalTime"))
+        if not day_key:
+            return False
+        st = self._device_state.setdefault(did, {})
+        prev = st.get("local_time_day_key")
+        if prev == day_key:
+            return False
+        st["local_time_day_key"] = day_key
+        if prev is not None:
+            # New cloud/device day — WC list is "today only"; allow fresh ingest.
+            st["wc_ingested_through"] = 0.0
+            _LOGGER.debug(
+                "LocalTime day rollover device=%s %s -> %s",
+                did,
+                prev,
+                day_key,
+            )
+            return True
+        return False
+
+    def _cloud_event_ts(
+        self,
+        device: dict[str, Any],
+        *keys: str,
+        now: float,
+    ) -> float:
+        """Prefer sane cloud property times; fall back to wall clock."""
+        from ..device_time import sane_event_ts
+
+        times = device.get("property_times") or {}
+        for key in keys:
+            ts = sane_event_ts(times.get(key), now=now)
+            if ts is not None:
+                return ts
+        return now
 
     def _process_device(self, device: dict[str, Any]) -> int:
         """Return 0 idle, 1 event-level change, 2 soft (identity label only)."""
@@ -624,7 +672,12 @@ class AnalyticsEngine:
         ):
             finished_clean = True
         if finished_clean:
-            self._record_clean_finished(did, iotid, source="presence", now=now)
+            clean_ts = self._cloud_event_ts(
+                device, "completionStatus", "workstatus", now=now
+            )
+            self._record_clean_finished(
+                did, iotid, source="presence", now=clean_ts
+            )
             st["clean_in_progress"] = False
             st["saw_clean_cycle"] = False
             rank = 1
@@ -644,8 +697,14 @@ class AnalyticsEngine:
             if healthy_idle and (
                 st.get("saw_clean_cycle") or st.get("clean_in_progress")
             ):
+                clean_ts = self._cloud_event_ts(
+                    device, "completionStatus", "workstatus", now=now
+                )
                 self._record_clean_finished(
-                    did, iotid, source="reconcile_idle_after_clean", now=now
+                    did,
+                    iotid,
+                    source="reconcile_idle_after_clean",
+                    now=clean_ts,
                 )
                 st["clean_in_progress"] = False
                 st["saw_clean_cycle"] = False
@@ -670,8 +729,14 @@ class AnalyticsEngine:
                 age >= DIRTY_AFTER_S
                 and healthy_idle
             ):
+                clean_ts = self._cloud_event_ts(
+                    device, "completionStatus", "workstatus", now=now
+                )
                 self._record_clean_finished(
-                    did, iotid, source="reconcile_idle_after_dirty", now=now
+                    did,
+                    iotid,
+                    source="reconcile_idle_after_dirty",
+                    now=clean_ts,
                 )
                 st["clean_in_progress"] = False
                 st["saw_clean_cycle"] = False
@@ -740,7 +805,12 @@ class AnalyticsEngine:
                     "cleared_how": "error_cleared",
                 },
             )
-            self._record_bag_replaced(did, iotid, source="presence", now=now)
+            bag_ts = self._cloud_event_ts(
+                device, "errorReportEvent", "handMode", "workstatus", now=now
+            )
+            self._record_bag_replaced(
+                did, iotid, source="presence", now=bag_ts
+            )
             rank = 1
 
         # No Bag (128) → clear also means a new bag is in (live Downstairs 2026-08-22).
@@ -751,8 +821,11 @@ class AnalyticsEngine:
             err_code is not None and (int(err_code) & ERROR_NO_BAG) != 0
         )
         if prev_no_bag and not now_no_bag and not now_raw_full:
+            bag_ts = self._cloud_event_ts(
+                device, "errorReportEvent", "handMode", "workstatus", now=now
+            )
             if self._record_bag_replaced(
-                did, iotid, source="presence_no_bag_cleared", now=now
+                did, iotid, source="presence_no_bag_cleared", now=bag_ts
             ):
                 rank = 1
 
@@ -923,6 +996,7 @@ class AnalyticsEngine:
             )
             # Seal is the usual start of a bag change on the dashboard; reset
             # Bag age even if the No Bag / full-clear edge is missed between polls.
+            # record_hand_mode has no property_times — wall clock (or caller now).
             self._record_bag_replaced(did, iotid, source=source, now=now)
         elif hand_mode == HAND_MODE_EMPTY:
             # Debounce Empty button spam separately from bag_replaced (Seal may
@@ -1122,8 +1196,10 @@ class AnalyticsEngine:
                 )
             through = ts
             added += 1
-        # If no new rows but WC has data, still refresh Last cat from latest
-        if added == 0 and latest_row is not None and st.get("last_visit_ts") is None:
+        # Prefer WC start_time for Last visit display whenever cloud has a row
+        # (app-aligned). Do not clear Last visit when WC is empty after midnight.
+        refreshed = False
+        if latest_row is not None:
             try:
                 ts = float(latest_row["start_time"])
                 weight_f = (
@@ -1137,6 +1213,7 @@ class AnalyticsEngine:
                 match = resolve_visit_identity(
                     {}, weight_f, self.pets, self._learned_weights
                 )
+                # WC is the app-facing visit clock whenever the cloud returns rows.
                 st["last_visit_ts"] = ts
                 st["last_visit_weight_g"] = weight_f
                 st["last_visitor_id"] = match.pet_id
@@ -1144,8 +1221,7 @@ class AnalyticsEngine:
                 st["last_match_method"] = match.method or "wc_history"
                 st["last_match_confidence"] = match.confidence
                 st["last_match_delta_g"] = match.delta_g
-                self._notify()
-                return False
+                refreshed = True
         if added:
             st["wc_ingested_through"] = through
             self._dirty = True
@@ -1156,6 +1232,8 @@ class AnalyticsEngine:
                 through,
             )
             return True
+        if refreshed:
+            self._notify()
         return False
 
     def is_occupied(self, device_id: str | int) -> bool:

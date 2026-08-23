@@ -310,15 +310,28 @@ class FurbulousCatAPI:
             raise FurbulousCatConnectionError(str(err)) from err
 
     @staticmethod
-    def _extract_properties(raw: dict[str, Any]) -> dict[str, Any]:
-        """Flatten {key: {value, time}} → {key: value}."""
+    def _extract_properties(
+        raw: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, float]]:
+        """Flatten properties; keep cloud update times as unix seconds.
+
+        Vendor payloads are ``{key: {value, time}}`` where ``time`` is often
+        milliseconds. Values-only dict stays the primary ``properties`` map
+        for classifiers; ``property_times`` drives Last cleaned / bag clocks.
+        """
+        from .device_time import prop_time_unix
+
         extracted: dict[str, Any] = {}
+        times: dict[str, float] = {}
         for key, prop_data in raw.items():
             if isinstance(prop_data, dict) and "value" in prop_data:
                 extracted[key] = prop_data["value"]
+                ts = prop_time_unix(prop_data.get("time"))
+                if ts is not None:
+                    times[key] = ts
             else:
                 extracted[key] = prop_data
-        return extracted
+        return extracted, times
 
     async def get_devices(self) -> list[dict[str, Any]]:
         """Get list of Furbulous devices (identity metadata only)."""
@@ -346,8 +359,13 @@ class FurbulousCatAPI:
         _LOGGER.debug("Device list failed: %s", result.get("message"))
         return []
 
-    async def get_device_properties(self, iotid: str) -> dict[str, Any]:
-        """Get properties for one device (single HTTP call; vendor returns all)."""
+    async def get_device_properties(
+        self, iotid: str
+    ) -> tuple[dict[str, Any], dict[str, float]]:
+        """Get properties for one device (single HTTP call; vendor returns all).
+
+        Returns ``(values, property_times)`` where times are unix seconds.
+        """
         try:
             endpoint = f"/app/v1/device/properties/get?iotid={iotid}"
             result = await self._make_authenticated_request(endpoint)
@@ -356,12 +374,12 @@ class FurbulousCatAPI:
             _LOGGER.debug(
                 "Properties failed iotid=%s: %s", iotid, result.get("message")
             )
-            return {}
+            return {}, {}
         except (FurbulousCatAuthError, FurbulousCatConnectionError):
             raise
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Properties error iotid=%s: %s", iotid, err)
-            return {}
+            return {}, {}
 
     async def get_device_daily_stats(self, iotid: str) -> dict[str, Any]:
         """Get daily statistics (wcheader) for one device."""
@@ -487,7 +505,9 @@ class FurbulousCatAPI:
             iotid = device.get("iotid")
             if iotid:
                 device = dict(device)
-                device["properties"] = await self.get_device_properties(iotid)
+                props, prop_times = await self.get_device_properties(iotid)
+                device["properties"] = props
+                device["property_times"] = prop_times
                 device["daily_stats"] = await self.get_device_daily_stats(iotid)
                 # Activity for Last cat / analytics (no pet names on records)
                 device["wc_history"] = await self.get_device_wc_history(iotid)
@@ -525,13 +545,14 @@ class FurbulousCatAPI:
             iotid = meta.get("iotid")
             if not iotid:
                 continue
-            props = await self.get_device_properties(iotid)
+            props, prop_times = await self.get_device_properties(iotid)
             devices_out.append(
                 {
                     "id": meta.get("id"),
                     "iotid": iotid,
                     "name": meta.get("name"),
                     "properties": props,
+                    "property_times": prop_times,
                 }
             )
 

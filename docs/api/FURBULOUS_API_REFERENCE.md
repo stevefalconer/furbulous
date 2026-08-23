@@ -111,13 +111,53 @@ Values flattened from `{ value, time }` wrappers.
 | unitSwitch | 1 | Read | Device unit preference bit (see §7) |
 | ConnectType | online | Read | |
 | catLitterType | 0 | Read | |
-| catBathroomTimeStart/Stop | e.g. 1239 | Read | Minutes-of-day ≈ last visit (~20:39 vs visit 20:37) |
+| catBathroomTimeStart/Stop | e.g. 1239 | Read | Minutes-of-day ≈ last visit (~20:39 vs visit 20:37); coarse vs WC |
 | excreteTimesEveryday | 1 | Read | Daily count (may lag wcheader) |
 | excreteTimerEveryday | 28 | Read | Duration-related |
-| LocalTime | large int | Read | **Not decoded** as unix; do not trust for TZ until reverse-engineered |
+| LocalTime | packed int | Read | **Device calendar date** — see §5.3 (not unix / not time-of-day) |
 | mcuversion / wifivertion / … | strings | Read | Firmware |
-| timingShoveledShit | hex string | Read | Opaque schedule blob — do not invent meaning |
+| timingShoveledShit | hex string | Read | **Opaque** — see §5.4; do not use for clocks |
 | otastatus | 0 | Read | OTA |
+
+### 5.0a `LocalTime` packing (verified 2026-08-15/16 captures)
+
+Sticky for the whole local calendar day (same value across multi-hour captures).
+
+```text
+LocalTime = (day << 24) | (month << 16) | ((year % 100) << 8) | flag
+flag observed = 1
+```
+
+| Capture day | Value | Hex |
+|-------------|------:|-----|
+| 2026-08-15 | 252189185 | `0x0F081A01` |
+| 2026-08-16 | 268966401 | `0x10081A01` |
+
+**Use:** detect **day rollover** (compare previous vs current day/month/year). When the day key changes, treat `/device/data/wc` as a new “today” list (watermark reset). Do **not** treat `LocalTime` as a wall-clock timestamp.
+
+HA helper: `custom_components/furbulous/device_time.py` (`decode_local_time`, `local_time_day_key`).
+
+### 5.0b `timingShoveledShit` (still opaque)
+
+| Observed value | Bytes | Notes |
+|----------------|-------|-------|
+| `0700010007050100` | `[7,0,1,0,7,5,1,0]` | Common in captures |
+| `00` | `[0]` | Also seen |
+
+Not minutes-of-day like `displayStartTime`. **Do not invent meaning**; unused by HA clocks.
+
+### 5.0c Property update times (`{value, time}`)
+
+`properties/get` often returns each key as `{ "value": …, "time": … }`.
+
+- `time` is typically **milliseconds** since epoch (seal captures: e.g. `1786937055000`).
+- HA **must preserve** these (1.3.22+: `device["property_times"]` as unix seconds). Flattening values-only loses clean/pack/error clocks.
+- Useful edges:
+  - **Last clean:** `completionStatus` time when finished (`1`), and/or `workstatus` time on 1→0
+  - **Seal/pack:** `handMode` / `workstatus` time when packing (`3`)
+  - **Bag / No Bag / full clear:** `errorReportEvent` time on bit clear
+
+Apply cloud times only when an edge is detected this poll; ignore absurd future/ancient stamps (`device_time.sane_event_ts`).
 
 ### 5.1 Display control — **physically verified** (2026-08-15 ~23:52–23:56 PDT)
 
@@ -391,11 +431,17 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 - `workstatus == 1` → cat in box (30s poll).  
 - Live `catWeight` often sticky last visit weight when empty.
 
-### 8.3 What HA did wrong
+### 8.3 What HA does for clocks (1.3.22+)
 
-- Only recorded visits from **occupancy edges after connect** → **Last cat / Last visit empty** despite WC history.  
-- Should **hydrate from `/device/data/wc`** (and optionally merge live edges).  
-- Matching without Jet/Tigger on roster → wrong names; without lb unit → wrong deltas.
+| Concern | Cloud source | Live HA role |
+|---------|--------------|--------------|
+| **Last visit** | `/device/data/wc` `start_time` (prefer when rows exist) | 30s occupy→idle edges still drive Dirty/awaiting |
+| **Last cleaned** | `completionStatus` / `workstatus` **property times** on clean finish | Edge detection on 30s path; stamp from cloud when sane |
+| **Bag age** | `handMode`/`workstatus`/`errorReportEvent` times on seal/empty/clear | Same + local Seal/Empty buttons |
+| **Day boundary** | `LocalTime` day key change | Reset WC ingest watermark for new “today” |
+
+- Matching without Jet/Tigger on roster → wrong names; without lb unit → wrong deltas (fixed 1.3.9).  
+- Empty WC after midnight must **not** wipe Last visit — only `LocalTime` day change resets the WC watermark.
 
 ### 8.4 Expected match (after unit fix + full roster)
 
@@ -433,11 +479,31 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 
 ---
 
-## 10.5 Box state (HA 1.3.11)
+## 10.5 Box state machine (live vs clocks)
 
-HA classifies each properties snapshot in `box_state.classify()` once. Occupancy, **What the box is doing**, and visit edges all read that result. Do not re-parse `workstatus` in a third place.
+```text
+                    properties/get
+                          │
+          ┌───────────────┴───────────────┐
+          ▼                               ▼
+     values only                    property_times
+          │                               │
+          ▼                               ▼
+  box_state.classify()              Last cleaned / bag
+  (phase, cat, faults)             (on detected edges)
+          │
+          ├─ 30s presence: visit open/close, Dirty awaiting, clean-cycle edges
+          │
+          └─ 5min full: + WC history → Last visit (prefer start_time)
+                        + LocalTime day key → WC watermark rollover
+                        + wcheader daily stats
+```
 
-Priority: E4 trash door → reset (8/6) → pack (3) → pour (5) → clean (`workstatus=1` and `completionStatus` 2 or 3) → best-effort cat (`workstatus=1`) → idle (`0`) → sticky `handMode` only if `workstatus` is missing.
+HA classifies each properties **values** snapshot in `box_state.classify()` once. Occupancy, **What the box is doing**, and Dirty/awaiting edges all read that result. Do not re-parse `workstatus` in a third place.
+
+**Live phase priority:** E4 trash door → reset (8/6) → pack (3) → pour (5) → clean (`workstatus=1` and `completionStatus` 2 or 3) → best-effort cat (`workstatus=1`) → idle (`0`) → sticky `handMode` only if `workstatus` is missing.
+
+**Clocks** (Last visit / Last cleaned / Bag age) prefer cloud WC + property `time` stamps when present (§5.0c, §8.1). Wall-clock `time.time()` is fallback when the cloud time is missing or insane.
 
 The 5-minute full poll **does not** open visits. Presence (30s) owns those edges so a stale full snapshot cannot invent a cat.
 
@@ -534,7 +600,7 @@ These mistakes shipped because we trusted **one box, one night, and an inherited
 
 ### WC history note (2026-08-16 ~00:00 PDT)
 
-`GET /device/data/wc` returned **[]** after local midnight even though Aug 15 visits existed earlier the same calendar evening. Treat WC as **rolling “today” (device/cloud day boundary)** — Last cat hydrates when visits exist for the current cloud day; older days need live occupancy or a future dated query if discovered.
+`GET /device/data/wc` returned **[]** after local midnight even though Aug 15 visits existed earlier the same calendar evening. Treat WC as **rolling “today” (device/cloud day boundary)**. Detect that boundary via **`LocalTime` day packing** (§5.0a): on day-key change, reset the WC ingest watermark so today’s rows can hydrate again. Do not clear Last visit merely because WC returned `[]`.
 
 ---
 
