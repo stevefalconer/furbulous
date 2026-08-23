@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.2 — 2026-08-22
+
+### Quality gate + persona review
+
+- Gold UX test: bit **128** is No Bag (not cover); cover/lid is **512** — aligned with live `error_report` semantics.
+- Persona review notes: `docs/reviews/2026-08-22-1.4.x-analytics-personas.md`.
+- Bronze / silver / gold: **50 passed**.
+
 ## 1.4.1 — 2026-08-22
 
 ### Dashboard: compact Visits analytics row

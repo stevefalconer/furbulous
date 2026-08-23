@@ -163,8 +163,12 @@ def test_problem_status_ok_semantics():
     # Live Upstairs (2026-08-16): full bag reports 32, not 16
     coord_full_32 = _coord({"errorReportEvent": 32})
     assert FurbulousWasteBinFullSensor(coord_full_32, 1).is_on is True
-    coord_cov = _coord({"errorReportEvent": 128})
-    assert FurbulousCoverOpenSensor(coord_cov, 1).is_on is True
+    # Bit 128 = No Bag (not lid). Cover/lid PROBLEM sensor is bit 512 only.
+    coord_no_bag = _coord({"errorReportEvent": 128})
+    assert FurbulousCoverOpenSensor(coord_no_bag, 1).is_on is False
+    from custom_components.furbulous.binary_sensor import FurbulousNoBagSensor
+
+    assert FurbulousNoBagSensor(coord_no_bag, 1).is_on is True
     coord_lid = _coord({"errorReportEvent": 512})
     assert FurbulousCoverOpenSensor(coord_lid, 1).is_on is True
     # Drawer-out is not a cloud bit; 64 is not drawer (E4 uses 64|524288)
