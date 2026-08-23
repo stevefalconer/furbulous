@@ -4,7 +4,7 @@
 |-------|--------|
 | **Date** | 2026-08-22 |
 | **Severity** | Medium (information disclosure — private network location) |
-| **Status** | Corrected at tip of `main`; historical commits still contain the string until optional history rewrite |
+| **Status** | Corrected at tip of `main`; **git history rewritten** with `git-filter-repo` to replace `<redacted-private-ipv4>` → `<HA_HOST>` across all commits (force-push required) |
 | **Principal developer / Grok reviewer** | Grok reviewer persona (process owner for this CoE) |
 | **Security team** | Required sign-off on this CoE before next tag |
 | **Executive architecture** | Matei Zaharia — process acknowledgment |
@@ -48,7 +48,7 @@ using placeholders. There was no automated secrets scan in the release path.
 | ID | Action | Owner |
 |----|--------|-------|
 | F1 | Run `python3 scripts/secrets_scan.py` on every tag | Release engineer |
-| F2 | Decide whether to **rewrite git history** (filter-repo/BFG) to purge the IP from old commits — coordinate with Security; disruptive to forks | Security + principal developer |
+| F2 | ~~Rewrite git history~~ **Done locally** (`git-filter-repo` replace-text). Force-push `main` + tags after Security ack; notify forks to re-clone | Security + principal developer |
 | F3 | Confirm production & UAT Lovelace/raw configs have no private IPs after deploy | Operator |
 | F4 | Wire secrets scan into CI when CI is added | Engineering |
 | F5 | Matei Zaharia / Security acknowledgment recorded on next release checklist | Process |
