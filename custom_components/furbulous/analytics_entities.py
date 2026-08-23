@@ -423,7 +423,7 @@ class ToiletStatusSensor(CoordinatorEntity, SensorEntity):
 
 
 class LastCleanedSensor(CoordinatorEntity, SensorEntity):
-    """Last barrel clean: ``Paulie · 21:57 8-17`` (or time only / ``-``)."""
+    """Last barrel clean time stamp (``21:57 8-17`` or ``-``). Cat is an attribute."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -458,11 +458,7 @@ class LastCleanedSensor(CoordinatorEntity, SensorEntity):
         dt_val = _ts_to_dt(ts)
         if dt_val is None:
             return EMPTY_LABEL
-        stamp = _format_visit_stamp(dt_val)
-        cat = self._analytics.last_clean_cat(self._device_id)
-        if cat and cat != EMPTY_LABEL:
-            return f"{cat} · {stamp}"
-        return stamp
+        return _format_visit_stamp(dt_val)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.20 — 2026-08-22
+
+### Bag age + Last cleaned dashboard
+
+- **Seal waste bag** now resets **Bag age** (same as Empty / full-clear / No Bag clear), so Seal → remove → new bag does not leave Bag age Unknown when the No Bag poll edge is missed.
+- Service `furbulous.mark_bag_replaced` records a bag change in HA only (no cloud write).
+- **Last cleaned** sensor shows **time/date only** (cat name remains in attributes).
+- Dashboard: removed Instructions card; header stays last cat · visit time; Cleaned line uses time-only sensor.
+
 ## 1.3.19 — 2026-08-22
 
 ### Pause buttons vanish after Resume

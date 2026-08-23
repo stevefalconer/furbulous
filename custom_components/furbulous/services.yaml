@@ -52,3 +52,24 @@ mark_cleaned:
       required: false
       selector:
         text:
+
+mark_bag_replaced:
+  name: Mark bag replaced
+  description: >-
+    Reset Bag age when you already sealed/replaced the waste bag but Home
+    Assistant still shows Bag age Unknown (missed No Bag / full-clear poll).
+    Does not call the cloud or move the box.
+  fields:
+    device_id:
+      name: Device ID
+      description: >-
+        Cloud device id (from entity unique_id, e.g. 3129 for Master —
+        furbulous_3129_…).
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry ID
+      required: false
+      selector:
+        text:

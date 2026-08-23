@@ -844,6 +844,21 @@ class AnalyticsEngine:
         self.recompute_all()
         self._notify()
 
+    def mark_bag_replaced(
+        self,
+        device_id: str | int,
+        iotid: str | None = None,
+        *,
+        source: str = "ha_service",
+    ) -> None:
+        """User/service acknowledge: waste bag was replaced (HA only — no API)."""
+        did = str(device_id)
+        st = self._device_state.get(did) or {}
+        iotid = iotid or st.get("iotid")
+        self._record_bag_replaced(did, iotid, source=source)
+        self.recompute_all()
+        self._notify()
+
     def record_hand_mode(
         self,
         device_id: str | int,
@@ -881,9 +896,14 @@ class AnalyticsEngine:
                     "source": source,
                 },
             )
+            # Seal is the usual start of a bag change on the dashboard; reset
+            # Bag age even if the No Bag / full-clear edge is missed between polls.
+            self._record_bag_replaced(did, iotid, source=source, now=now)
         elif hand_mode == HAND_MODE_EMPTY:
-            last_bag = st.get("last_bag_ts")
-            if last_bag is not None and (now - float(last_bag)) < BAG_EMPTY_DEBOUNCE_S:
+            # Debounce Empty button spam separately from bag_replaced (Seal may
+            # have just set last_bag_ts; Empty should still log once).
+            last_empty = st.get("last_empty_press_ts")
+            if last_empty is not None and (now - float(last_empty)) < BAG_EMPTY_DEBOUNCE_S:
                 _LOGGER.debug("Ignoring debounced empty device=%s", did)
             else:
                 self.store.append(
@@ -894,6 +914,7 @@ class AnalyticsEngine:
                     payload={},
                     ts=now,
                 )
+                st["last_empty_press_ts"] = now
                 self._record_bag_replaced(did, iotid, source=source, now=now)
                 if st.get("is_full"):
                     start = st.get("full_episode_start") or now

@@ -185,7 +185,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -
             if e.state is ConfigEntryState.LOADED and e.entry_id != entry.entry_id
         ]
         if not still:
-            for svc in ("pause_polling", "resume_polling", "mark_cleaned"):
+            for svc in (
+                "pause_polling",
+                "resume_polling",
+                "mark_cleaned",
+                "mark_bag_replaced",
+            ):
                 if hass.services.has_service(DOMAIN, svc):
                     hass.services.async_remove(DOMAIN, svc)
     return unload_ok
@@ -240,6 +245,15 @@ def _async_register_services(hass: HomeAssistant) -> None:
         runtime.analytics.mark_cleaned(device_id, source="service")
         await runtime.analytics.async_flush(force=True)
 
+    async def async_mark_bag_replaced(call: ServiceCall) -> None:
+        """Reset Bag age when a waste bag was replaced (HA only — no cloud write)."""
+        runtime = await _resolve_runtime(call)
+        device_id = call.data.get("device_id")
+        if device_id is None:
+            raise HomeAssistantError("device_id is required")
+        runtime.analytics.mark_bag_replaced(device_id, source="service")
+        await runtime.analytics.async_flush(force=True)
+
     pause_schema = vol.Schema(
         {
             vol.Optional("config_entry_id"): cv.string,
@@ -255,6 +269,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
             vol.Optional("config_entry_id"): cv.string,
         }
     )
+    mark_bag_replaced_schema = mark_cleaned_schema
 
     hass.services.async_register(
         DOMAIN, "pause_polling", async_pause_polling, schema=pause_schema
@@ -264,6 +279,12 @@ def _async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "mark_cleaned", async_mark_cleaned, schema=mark_cleaned_schema
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "mark_bag_replaced",
+        async_mark_bag_replaced,
+        schema=mark_bag_replaced_schema,
     )
 
 

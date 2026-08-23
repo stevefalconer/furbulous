@@ -633,19 +633,3 @@ views:
           service: switch.turn_off
           target:
             entity_id: switch.furbulous_pause_cloud_polling
-  - type: markdown
-    content: |
-      ## Instructions
-
-      ### Why values were Unknown
-      This dashboard must use your HA entity IDs (area + box name). Wrong prefixes show as Unknown.
-
-      ### Pause polling
-      **Pause** / **Pause 1 hr** when polling; **Resume** only when paused.
-      Needs Furbulous **1.3.19+** so the pause switch is not deleted on Resume.
-
-      ### Litter / Bag ages
-      Unknown until first **Refilled litter** or bag-replace event is recorded in HA.
-
-      ### Bag status
-      Bag OK · Bag full · No Bag (bit 128 after seal — remove bag so cleans can run).

@@ -314,6 +314,32 @@ async def test_auto_clean_clears_dirty_via_completion_edge():
 
 
 @pytest.mark.asyncio
+async def test_seal_pack_resets_bag_age():
+    """Seal (pack) records bag_replaced so Bag age is not stuck Unknown."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-seal-bag")
+    eng.store._loaded = True
+    eng.record_hand_mode(31, "iot-31", HAND_MODE_PACK)
+    bags = eng.store.events_for_device(31, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    eng.recompute_all()
+    assert eng.metrics_for_device(31)["hours_since_bag_replaced"] == pytest.approx(
+        0.0, abs=0.05
+    )
+
+
+@pytest.mark.asyncio
+async def test_mark_bag_replaced_service_path():
+    """HA-only mark_bag_replaced sets last bag timestamp."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-mark-bag")
+    eng.store._loaded = True
+    eng.mark_bag_replaced(32, iotid="iot-32", source="service")
+    assert len(eng.store.events_for_device(32, event_types={"bag_replaced"})) == 1
+    assert eng._device_state["32"].get("last_bag_ts") is not None
+
+
+@pytest.mark.asyncio
 async def test_bag_age_resets_on_raw_full_clear():
     """Bag age restarts when errorReportEvent full bits clear (32→0)."""
     hass = MagicMock()
