@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.3 — 2026-08-22
+
+### Dashboard rebuild — per-box actions + house totals
+
+- **Fixed** corrupted layout that collapsed boxes into one stack (only one Clean/Seal/Refilled set).
+- **House** overview: Today visits · seals/30d · litter refills/30d · visits/7d.
+- **Each box:** status → chips → activity line (today/7d/on-bag/seals/litter) → **Clean / Seal / Refilled**.
+- Unknown metrics omitted; zeros kept. Playwright-verified on production.
+
 ## 1.4.2 — 2026-08-22
 
 ### Quality gate + persona review
