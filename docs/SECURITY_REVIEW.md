@@ -8,9 +8,9 @@ the ordinary code review.
 
 | Role | Responsibility |
 |------|----------------|
-| **Principal developer (Grok reviewer persona)** | Owns the Correction of Errors (CoE) write-up; verifies functional + security findings are addressed or explicitly waived. |
-| **Security team** | Secrets/PII scan, threat model deltas, dependency and auth-path review. Blocks release on unresolved **High** findings. |
-| **Executive architecture (Matei Zaharia)** | Sign-off that process was followed and residual risk is acceptable for release. |
+| **Maintainer** | Owns the Correction of Errors (CoE) write-up; verifies functional and security findings are addressed or explicitly waived. |
+| **Security reviewer** | Secrets/PII scan, threat model deltas, dependency and auth-path review. Blocks release on unresolved **High** findings. |
+| **Architecture reviewer** | Sign-off that process was followed and residual risk is acceptable for release. |
 
 Reviews are recorded under `docs/reviews/` (CoE + review summary). Do not paste
 secrets into those files.
@@ -35,9 +35,9 @@ secrets into those files.
 - [ ] Automations examples: no real `notify.mobile_app_*` device names that
       identify a household
 - [ ] Run secrets scan: `python3 scripts/secrets_scan.py`
-- [ ] Formal code review (Grok reviewer persona) completed; bugs closed or waived
-- [ ] Security team sign-off
-- [ ] Matei Zaharia process sign-off (or delegated architecture owner)
+- [ ] Formal code review completed; bugs closed or waived
+- [ ] Security reviewer sign-off
+- [ ] Architecture reviewer sign-off
 
 ## Each deployment (every version tag / HACS publish)
 
@@ -47,7 +47,7 @@ secrets into those files.
 - [ ] After deploy: confirm live Lovelace/automations do not embed private IPs
 - [ ] If a prior release leaked secrets in git history: tip is clean **and**
       CoE documents whether history rewrite is required
-- [ ] Tag only after Security + principal developer approve
+- [ ] Tag only after Security reviewer + Maintainer approve
 
 ## Secrets scan
 
@@ -64,6 +64,6 @@ When a leak or security defect ships:
 1. Remove/fix tip of tree immediately and deploy the corrected artifact.
 2. File `docs/reviews/COE-YYYY-MM-DD-<slug>.md` with root cause, blast radius,
    fix, and follow-ups.
-3. Principal developer + Security + Matei Zaharia (or delegate) acknowledge.
+3. Maintainer + Security reviewer + Architecture reviewer acknowledge.
 4. Do **not** put the secret values again into the CoE — describe class only
    (e.g. “private LAN IPv4 in dashboard comment”).
