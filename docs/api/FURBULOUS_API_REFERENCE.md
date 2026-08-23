@@ -195,16 +195,26 @@ Hour/minute are **binary integers**, not BCD. `enabled` is `0`/`1`.
 **Exp A:** `displayEndTime +30` → shovel **unchanged**.  
 **Exp B:** shovel set to **19:13 / 19:15** (near-now) → value stuck; through the window Downstairs stayed `workstatus=0` (no auto clean/pack). Control Upstairs idle.  
 **Exp C / Clean now (Exp D):** Downstairs clean `workstatus=1` for minutes; shovel value **and** property `time` **unchanged** (`0700010007050100`).  
-**Exp E — Seal/pack on Upstairs (2026-08-22):** `handMode: 3` → live `workstatus=3` (packing) then idle; `completionStatus` briefly `3`. Shovel stayed **`00`**; property `time` **unchanged** (sticky old stamp). Downstairs control shovel unchanged.
+**Exp E — Seal/pack on Upstairs (2026-08-22):** `handMode: 3` → live `workstatus=3` (packing) then idle; `completionStatus` briefly `3`. Shovel stayed **`00`**; property `time` **unchanged** (sticky old stamp). Downstairs control shovel unchanged.  
+**Exp F / G — arm near-now + user-observed clean (2026-08-22 ~19:35–19:41 PDT):**
+
+| Step | Detail |
+|------|--------|
+| Arm | Downstairs shovel → `1324010013260100` = **19:36** + **19:38** (both enabled). Readback matched. |
+| Cloud | `workstatus=1` from **19:35:12** (≈1–2 min *before* first slot) through **19:37:07**; idle by **19:37:14**. `handMode` stayed sticky `1` (same sticky pattern as after Clean). Shovel blob **unchanged** while cleaning. |
+| User | Reported Downstairs **running a cleaning cycle** during that window. |
+| Restore | Baseline `0700010007050100` + display `1380/420` + sleep `720/360` + delay `4` verified at **19:41** (`match: true`). Earlier `G_restore` once returned null readback but the write had already stuck. |
+
+**Interpretation:** Strong **correlation** (armed near-now slots ↔ observed clean / `workstatus=1`), **not proven causation**. Confounders: sticky `handMode=1` from earlier Clean probes; clean started slightly *before* the armed minute; Exp B’s near-now arm did **not** fire. Treat schedule-fires-clean as **plausible / needs a clean-box retest** (no prior Clean that day, single future slot, watch `workstatus` + physical motion). Do **not** ship scoop UI on this alone.
 
 #### Activity-stream hypothesis — **falsified for Clean and Pack**
 
 Hypothesis: blob is a packed log of cleans / visits / errors / seals.  
-**Result:** neither Clean nor Pack appended or retimestamped the field. Combined with successful arbitrary HH:MM writes and no fire-at-slot in Exp B, the **schedule-slot** model remains strongest (config, not activity ring buffer).
+**Result:** neither Clean nor Pack appended or retimestamped the field. Combined with successful arbitrary HH:MM writes and no fire-at-slot in Exp B, the **schedule-slot** model remains strongest (config, not activity ring buffer). Exp F did not change that — the blob stayed the armed schedule while a clean ran.
 
 #### HA stance
 
-Still **unused by HA clocks**. Optional future “scheduled scoop” UI only after confirming whether slots are two daily runs vs a start/end window (07:00–07:05 looks like a tight morning window or two firings). Do not treat as activity history.
+Still **unused by HA clocks**. Optional future “scheduled scoop” UI only after a cleaner causation retest (see Exp F/G). Do not treat as activity history.
 
 #### Captures
 
@@ -496,13 +506,14 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 - `workstatus == 1` → cat in box (30s poll).  
 - Live `catWeight` often sticky last visit weight when empty.
 
-### 8.3 What HA does for clocks (1.3.22+)
+### 8.3 What HA does for clocks (1.3.22+ / 1.4.0+)
 
 | Concern | Cloud source | Live HA role |
 |---------|--------------|--------------|
-| **Last visit** | `/device/data/wc` `start_time` (prefer when rows exist) | 30s occupy→idle edges still drive Dirty/awaiting |
-| **Last cleaned** | `completionStatus` / `workstatus` **property times** on clean finish | Edge detection on 30s path; stamp from cloud when sane |
-| **Bag age** | `handMode`/`workstatus`/`errorReportEvent` times on seal/empty/clear | Same + local Seal/Empty buttons |
+| **Last visit** | `/device/data/wc` `start_time` (prefer when rows exist) | 30s occupy→idle edges still drive Dirty/awaiting; WC↔presence dedup (1.4.0) |
+| **Last cleaned** | `completionStatus` / `workstatus` **property times** on clean finish | Edge on 30s path **even without Dirty** (1.4.0 A1); stamp from edged property time |
+| **Bag age** | `errorReportEvent` / `workstatus` times on seal/empty/clear; live `workstatus` 3→0 pack | Seal = new bag (HA button **and** cloud pack, 1.4.0); no sticky `handMode` fallback |
+| **Litter age** | `workstatus` time on →8 | Device reset uses property time (1.4.0 A3) |
 | **Day boundary** | `LocalTime` day key change | Reset WC ingest watermark for new “today” |
 
 - Matching without Jet/Tigger on roster → wrong names; without lb unit → wrong deltas (fixed 1.3.9).  

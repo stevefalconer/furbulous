@@ -693,3 +693,217 @@ def test_idle_presence_does_not_dirty_store():
     eng.process_snapshot([device], full_recompute=False)
     assert eng.is_dirty is False
     assert eng.store.event_count == 0
+
+
+@pytest.mark.asyncio
+async def test_a1_clean_without_awaiting_stamps_last_cleaned():
+    """A1: Clean finish records Last cleaned even when not Dirty/awaiting."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-a1-clean")
+    eng.store._loaded = True
+    cloud_ts = time.time() - 30
+    # Saw clean running (no prior visit / awaiting)
+    cleaning = {
+        "id": 50,
+        "iotid": "iot-50",
+        "name": "Box",
+        "properties": {
+            "workstatus": 1,
+            "completionStatus": 3,
+            "errorReportEvent": 0,
+        },
+    }
+    eng.process_snapshot([cleaning])
+    assert eng._device_state["50"].get("saw_clean_cycle") is True
+    assert eng._device_state["50"].get("awaiting_clean_since") is None
+    idle = {
+        "id": 50,
+        "iotid": "iot-50",
+        "name": "Box",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+        },
+        "property_times": {"workstatus": cloud_ts, "completionStatus": cloud_ts},
+    }
+    eng.process_snapshot([idle])
+    assert eng.last_clean_ts(50) == pytest.approx(cloud_ts, abs=1.0)
+    assert len(eng.store.events_for_device(50, event_types={"clean"})) == 1
+    assert eng.toilet_status(50)["label"] == "Idle"
+
+
+@pytest.mark.asyncio
+async def test_a2_cloud_ts_prefers_edged_key_and_skew():
+    """A2: edged property first; reconcile skew rejects ancient sticky times."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-a2-skew")
+    eng.store._loaded = True
+    now = time.time()
+    stale = now - 10_000
+    fresh = now - 20
+    device = {
+        "property_times": {
+            "completionStatus": stale,
+            "workstatus": fresh,
+        }
+    }
+    # Prefer workstatus when listed first
+    assert eng._cloud_event_ts(
+        device, "workstatus", "completionStatus", now=now
+    ) == pytest.approx(fresh, abs=0.5)
+    # Skew drops stale primary → falls through to fresh secondary
+    assert eng._cloud_event_ts(
+        device,
+        "completionStatus",
+        "workstatus",
+        now=now,
+        max_skew_s=3600.0,
+    ) == pytest.approx(fresh, abs=0.5)
+    # Both too old → wall clock
+    wall = eng._cloud_event_ts(
+        device,
+        "completionStatus",
+        now=now,
+        max_skew_s=60.0,
+    )
+    assert wall == pytest.approx(now, abs=2.0)
+
+
+@pytest.mark.asyncio
+async def test_a3_litter_reset_uses_workstatus_property_time():
+    """A3: device workstatus=8 stamps litter age from cloud property time."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-a3-litter")
+    eng.store._loaded = True
+    cloud_ts = time.time() - 45
+    idle = {
+        "id": 51,
+        "iotid": "iot-51",
+        "properties": {"workstatus": 0, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([idle])
+    resetting = {
+        "id": 51,
+        "iotid": "iot-51",
+        "properties": {"workstatus": 8, "errorReportEvent": 0},
+        "property_times": {"workstatus": cloud_ts},
+    }
+    eng.process_snapshot([resetting])
+    resets = eng.store.events_for_device(51, event_types={"litter_reset"})
+    assert len(resets) == 1
+    assert resets[0]["ts"] == pytest.approx(cloud_ts, abs=1.0)
+
+
+@pytest.mark.asyncio
+async def test_b1_cloud_pack_records_pack_and_bag_replaced():
+    """B1: workstatus 3→0 (app/on-box seal) → pack + bag_replaced."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-b1-pack")
+    eng.store._loaded = True
+    cloud_ts = time.time() - 15
+    idle = {
+        "id": 52,
+        "iotid": "iot-52",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([idle])
+    packing = {
+        "id": 52,
+        "iotid": "iot-52",
+        "properties": {"workstatus": 3, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([packing])
+    assert eng._device_state["52"].get("pack_in_progress") is True
+    done = {
+        "id": 52,
+        "iotid": "iot-52",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+        "property_times": {"workstatus": cloud_ts},
+    }
+    eng.process_snapshot([done])
+    packs = eng.store.events_for_device(52, event_types={"pack"})
+    bags = eng.store.events_for_device(52, event_types={"bag_replaced"})
+    assert len(packs) == 1
+    assert packs[0]["source"] == "presence_pack"
+    assert len(bags) == 1
+    assert bags[0]["ts"] == pytest.approx(cloud_ts, abs=1.0)
+    # Second idle tick must not double-count
+    eng.process_snapshot([done])
+    assert len(eng.store.events_for_device(52, event_types={"pack"})) == 1
+
+
+@pytest.mark.asyncio
+async def test_b2_wc_dedup_skips_presence_overlap():
+    """B2: WC row matching an existing presence leave is not double-counted."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-b2-dedup")
+    eng.store._loaded = True
+    eng.pets = [{"id": 1, "name": "Jet", "weight": 17, "unit": 1}]
+    # Use recent ts — store prunes events older than 90 days.
+    start = time.time() - 600.0
+    leave = start + 45.0
+    eng.store.append(
+        "visit_ended",
+        device_id="53",
+        iotid="iot-53",
+        source="presence",
+        payload={"duration_s": 45.0, "weight_g": 7882.0, "pet_name": "Jet"},
+        ts=leave,
+    )
+    # Force watermark low so WC would otherwise append
+    eng._device_state["53"] = {"wc_ingested_through": 0.0}
+    device = {
+        "id": 53,
+        "iotid": "iot-53",
+        "properties": {},
+        "wc_history": [
+            {"start_time": start, "weight": 7882, "minute": 0, "second": 45}
+        ],
+    }
+    eng.ingest_wc_history(device)
+    visits = eng.store.events_for_device(53, event_types={"visit_ended"})
+    assert len(visits) == 1
+    assert visits[0]["source"] == "presence"
+    # Last visit display still prefers WC start
+    assert eng._device_state["53"]["last_visit_ts"] == start
+
+
+@pytest.mark.asyncio
+async def test_a2_bag_clear_does_not_use_sticky_handmode_time():
+    """A2: bag age on full-clear prefers errorReportEvent, not sticky handMode."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-a2-bag")
+    eng.store._loaded = True
+    now = time.time()
+    err_ts = now - 10
+    sticky_hand = now - 5000
+    full = {
+        "id": 54,
+        "iotid": "iot-54",
+        "properties": {"workstatus": 0, "errorReportEvent": 32},
+    }
+    eng._device_state["54"] = {
+        "occupied": False,
+        "last_error_code": 32,
+        "is_full": True,
+        "full_episode_start": now - 600,
+        "full_true_polls": 2,
+        "last_workstatus": 0,
+        "last_completion": 1,
+        "last_phase": "idle",
+    }
+    cleared = {
+        "id": 54,
+        "iotid": "iot-54",
+        "properties": {"workstatus": 0, "errorReportEvent": 0, "handMode": 1},
+        "property_times": {
+            "errorReportEvent": err_ts,
+            "handMode": sticky_hand,
+            "workstatus": now - 100,
+        },
+    }
+    eng.process_snapshot([cleared])
+    bags = eng.store.events_for_device(54, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    assert bags[0]["ts"] == pytest.approx(err_ts, abs=1.0)

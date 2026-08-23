@@ -29,6 +29,7 @@ from ..error_report import (
 from ..box_state import (
     PHASE_CLEANING,
     PHASE_IDLE,
+    PHASE_PACKING,
     classify,
 )
 from ..events import (
@@ -60,6 +61,10 @@ FULL_CONFIRM_POLLS = 2
 BAG_EMPTY_DEBOUNCE_S = 300.0  # 5 min
 LITTER_RESET_DEBOUNCE_S = 600.0  # 10 min
 DIRTY_AFTER_S = 1800.0  # 30 min without a barrel clean after a visit
+# Reject sticky cloud stamps older than this on reconcile-only clean paths.
+RECONCILE_CLOUD_SKEW_S = 3600.0
+# Presence leave vs WC start: same sit if leave is within [start, start+dur+slack].
+WC_PRESENCE_DEDUP_SLACK_S = 180.0
 HAND_MODE_CLEAN = 1
 HAND_MODE_EMPTY = 2
 HAND_MODE_PACK = 3
@@ -435,15 +440,24 @@ class AnalyticsEngine:
         device: dict[str, Any],
         *keys: str,
         now: float,
+        max_skew_s: float | None = None,
     ) -> float:
-        """Prefer sane cloud property times; fall back to wall clock."""
+        """Prefer sane cloud property times in key order; else wall clock.
+
+        Pass the property that actually edged first. Optional ``max_skew_s``
+        rejects stamps older than that vs ``now`` (reconcile hardening so a
+        sticky yesterday Complete time cannot backdate Last cleaned).
+        """
         from ..device_time import sane_event_ts
 
         times = device.get("property_times") or {}
         for key in keys:
             ts = sane_event_ts(times.get(key), now=now)
-            if ts is not None:
-                return ts
+            if ts is None:
+                continue
+            if max_skew_s is not None and (now - ts) > max_skew_s:
+                continue
+            return ts
         return now
 
     def _process_device(self, device: dict[str, Any]) -> int:
@@ -498,7 +512,12 @@ class AnalyticsEngine:
             work_now = None
         st["last_workstatus"] = work_now
         if work_now == 8 and prev_work != 8:
-            self.record_litter_reset(did, iotid, source="device")
+            litter_ts = self._cloud_event_ts(
+                device, "workstatus", "completionStatus", now=now
+            )
+            self.record_litter_reset(
+                did, iotid, source="device", now=litter_ts
+            )
             rank = 1
 
         # Collect weight samples while occupied; median at end resists noise
@@ -644,11 +663,13 @@ class AnalyticsEngine:
         ):
             st["clean_in_progress"] = True
             st["saw_clean_cycle"] = True
+        # Finish detection does NOT require Dirty/awaiting (A1): Clean now,
+        # scheduled scoop, and app cleans must still stamp Last cleaned.
         finished_clean = False
+        finish_primary = "completionStatus"
         awaiting = st.get("awaiting_clean_since") is not None
         if (
-            awaiting
-            and st.get("clean_in_progress")
+            st.get("clean_in_progress")
             and box.phase == PHASE_IDLE
             and not occupied
         ):
@@ -656,25 +677,30 @@ class AnalyticsEngine:
         # completionStatus 3/2 → 1 (finished), including when a 30s poll missed
         # the middle of an auto-clean.
         if (
-            awaiting
-            and not occupied
+            not occupied
             and prev_completion in (2, 3)
             and box.completion == 1
         ):
             finished_clean = True
+            finish_primary = "completionStatus"
         # workstatus 1 → 0 after we observed a clean cycle (auto or manual).
         if (
-            awaiting
-            and not occupied
+            not occupied
             and st.get("saw_clean_cycle")
             and prev_work == 1
             and work_now == 0
         ):
             finished_clean = True
+            finish_primary = "workstatus"
         if finished_clean:
-            clean_ts = self._cloud_event_ts(
-                device, "completionStatus", "workstatus", now=now
-            )
+            if finish_primary == "workstatus":
+                clean_ts = self._cloud_event_ts(
+                    device, "workstatus", "completionStatus", now=now
+                )
+            else:
+                clean_ts = self._cloud_event_ts(
+                    device, "completionStatus", "workstatus", now=now
+                )
             self._record_clean_finished(
                 did, iotid, source="presence", now=clean_ts
             )
@@ -698,7 +724,11 @@ class AnalyticsEngine:
                 st.get("saw_clean_cycle") or st.get("clean_in_progress")
             ):
                 clean_ts = self._cloud_event_ts(
-                    device, "completionStatus", "workstatus", now=now
+                    device,
+                    "completionStatus",
+                    "workstatus",
+                    now=now,
+                    max_skew_s=RECONCILE_CLOUD_SKEW_S,
                 )
                 self._record_clean_finished(
                     did,
@@ -725,12 +755,13 @@ class AnalyticsEngine:
                 rank = 1
             # Stuck Dirty / attention while healthy Idle (clean happened but HA
             # never set saw_clean_cycle — e.g. only saw Idle+Complete polls).
-            elif (
-                age >= DIRTY_AFTER_S
-                and healthy_idle
-            ):
+            elif age >= DIRTY_AFTER_S and healthy_idle:
                 clean_ts = self._cloud_event_ts(
-                    device, "completionStatus", "workstatus", now=now
+                    device,
+                    "completionStatus",
+                    "workstatus",
+                    now=now,
+                    max_skew_s=RECONCILE_CLOUD_SKEW_S,
                 )
                 self._record_clean_finished(
                     did,
@@ -741,6 +772,27 @@ class AnalyticsEngine:
                 st["clean_in_progress"] = False
                 st["saw_clean_cycle"] = False
                 rank = 1
+
+        # --- cloud pack/seal (app or on-box): Seal = new bag (B1) ---
+        if box.phase == PHASE_PACKING or work_now == 3:
+            st["pack_in_progress"] = True
+        elif st.get("pack_in_progress") and not occupied:
+            left_pack = prev_phase == PHASE_PACKING or prev_work == 3
+            now_idle_or_done = work_now == 0 or (
+                box.phase == PHASE_IDLE and work_now != 3
+            )
+            if left_pack and now_idle_or_done:
+                pack_ts = self._cloud_event_ts(
+                    device, "workstatus", "completionStatus", now=now
+                )
+                if self._record_cloud_pack(
+                    did, iotid, source="presence_pack", now=pack_ts
+                ):
+                    rank = 1
+                st["pack_in_progress"] = False
+            elif work_now not in (3, None) and box.phase != PHASE_PACKING:
+                # Left packing into another active phase without idle — clear flag
+                st["pack_in_progress"] = False
 
         # --- waste full episodes (edge on raw full bits → bag age reset) ---
         err_code = parse_error_code(props.get("errorReportEvent"))
@@ -805,8 +857,10 @@ class AnalyticsEngine:
                     "cleared_how": "error_cleared",
                 },
             )
+            # Prefer errorReportEvent time; do not fall back to sticky handMode
+            # (often last Clean) which can backdate Bag age incorrectly (A2).
             bag_ts = self._cloud_event_ts(
-                device, "errorReportEvent", "handMode", "workstatus", now=now
+                device, "errorReportEvent", "workstatus", now=now
             )
             self._record_bag_replaced(
                 did, iotid, source="presence", now=bag_ts
@@ -822,7 +876,7 @@ class AnalyticsEngine:
         )
         if prev_no_bag and not now_no_bag and not now_raw_full:
             bag_ts = self._cloud_event_ts(
-                device, "errorReportEvent", "handMode", "workstatus", now=now
+                device, "errorReportEvent", "workstatus", now=now
             )
             if self._record_bag_replaced(
                 did, iotid, source="presence_no_bag_cleared", now=bag_ts
@@ -872,6 +926,50 @@ class AnalyticsEngine:
             },
         )
         st["last_bag_ts"] = now
+        return True
+
+    def _record_cloud_pack(
+        self,
+        device_id: str,
+        iotid: str | None,
+        *,
+        source: str,
+        now: float,
+    ) -> bool:
+        """Pack/seal finished on device (app or on-box). Seal = new bag.
+
+        Debounced with bag_replaced so HA Seal button + cloud edge do not
+        double-count within ``BAG_EMPTY_DEBOUNCE_S``.
+        """
+        did = str(device_id)
+        st = self._device_state.setdefault(did, {})
+        last_pack = st.get("last_pack_ts")
+        if last_pack is not None and (now - float(last_pack)) < BAG_EMPTY_DEBOUNCE_S:
+            _LOGGER.debug("Ignoring debounced cloud pack device=%s", did)
+            return False
+        self.store.append(
+            "pack",
+            device_id=did,
+            iotid=iotid,
+            source=source,
+            payload={},
+            ts=now,
+        )
+        emit_event(
+            self.hass,
+            EVENT_PACK,
+            {
+                "device_id": did,
+                "iotid": iotid,
+                "config_entry_id": self.entry_id,
+                "source": source,
+            },
+        )
+        st["last_pack_ts"] = now
+        # Seal = new bag (product rule).
+        self._record_bag_replaced(did, iotid, source=source, now=now)
+        self._dirty = True
+        self._need_immediate_flush = True
         return True
 
     def _record_clean_finished(
@@ -994,6 +1092,7 @@ class AnalyticsEngine:
                     "source": source,
                 },
             )
+            st["last_pack_ts"] = now
             # Seal is the usual start of a bag change on the dashboard; reset
             # Bag age even if the No Bag / full-clear edge is missed between polls.
             # record_hand_mode has no property_times — wall clock (or caller now).
@@ -1057,10 +1156,11 @@ class AnalyticsEngine:
         iotid: str | None,
         *,
         source: str = "ha_button",
+        now: float | None = None,
     ) -> None:
-        """Record litter reset (helper button or future API)."""
+        """Record litter reset (helper button or device workstatus=8)."""
         did = str(device_id)
-        now = time.time()
+        now = time.time() if now is None else now
         st = self._device_state.setdefault(did, {})
         last = st.get("last_litter_reset_ts")
         if last is not None and (now - float(last)) < LITTER_RESET_DEBOUNCE_S:
@@ -1091,6 +1191,39 @@ class AnalyticsEngine:
         self._dirty = True
         self.recompute_all()
         self._notify()
+
+    @staticmethod
+    def _wc_matches_presence_visit(
+        presence_visits: list[dict[str, Any]],
+        *,
+        wc_start: float,
+        duration_s: float | None,
+        weight_g: float | None,
+    ) -> bool:
+        """True if a presence leave already covers this WC sit (B2 dedup).
+
+        WC ``start_time`` is visit start; presence ``visit_ended`` is leave.
+        Match when leave ∈ [start, start+duration+slack], optionally same weight.
+        """
+        dur = float(duration_s) if duration_s is not None else 0.0
+        window_end = wc_start + max(dur, 0.0) + WC_PRESENCE_DEDUP_SLACK_S
+        for ev in presence_visits:
+            try:
+                leave = float(ev.get("ts") or 0)
+            except (TypeError, ValueError):
+                continue
+            if leave < wc_start or leave > window_end:
+                continue
+            payload = ev.get("payload") or {}
+            pw = payload.get("weight_g")
+            if weight_g is not None and pw is not None:
+                try:
+                    if abs(float(pw) - float(weight_g)) > 400.0:
+                        continue
+                except (TypeError, ValueError):
+                    pass
+            return True
+        return False
 
     def ingest_wc_history(self, device: dict[str, Any]) -> bool:
         """Import /device/data/wc visits into analytics (weight + time, match cat).
@@ -1124,6 +1257,11 @@ class AnalyticsEngine:
             round(float(ev.get("ts") or 0), 0)
             for ev in self.store.events_for_device(did, event_types={"visit_ended"})
         }
+        presence_visits = [
+            e
+            for e in self.store.events_for_device(did, event_types={"visit_ended"})
+            if (e.get("source") or "") == "presence"
+        ]
         # Sort ascending so through advances correctly
         ordered = sorted(
             (r for r in rows if isinstance(r, dict) and r.get("start_time")),
@@ -1153,6 +1291,13 @@ class AnalyticsEngine:
                     )
                 except (TypeError, ValueError):
                     duration_s = None
+            # B2: skip append when a presence leave already covers this WC sit
+            # (WC=start, presence=leave ≈ start+duration).
+            if self._wc_matches_presence_visit(
+                presence_visits, wc_start=ts, duration_s=duration_s, weight_g=weight_f
+            ):
+                through = ts
+                continue
             match = resolve_visit_identity(
                 {}, weight_f, self.pets, self._learned_weights
             )

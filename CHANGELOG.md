@@ -2,6 +2,20 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.0 — 2026-08-22
+
+### Analytics source hardening (first pass)
+
+P0–P2 from the post-1.3.22 analytics review:
+
+- **A1 (P0):** Barrel clean finish stamps **Last cleaned** even when the box was not Dirty/awaiting (Clean now, scheduled scoop, app clean). Dirty still clears only when awaiting was set.
+- **A2 (P1):** `_cloud_event_ts` prefers the property that edged; optional skew rejects sticky ancient times on reconcile. Bag clear no longer falls back to sticky `handMode` time.
+- **A3 (P2):** Device litter reset (`workstatus=8`) uses `property_times["workstatus"]`.
+- **B1:** Live pack/seal (`workstatus` 3→0) records `pack` + **bag_replaced** (Seal = new bag), debounced with HA Seal button.
+- **B2:** WC ingest skips append when a presence leave already covers the same sit (start/duration/weight window).
+
+Unit tests cover A1–A3, B1, B2. Dashboard / UAT / quality-gate rounds follow on **1.4.x**.
+
 ## 1.3.22 — 2026-08-22
 
 ### API-first clocks (Last visit / cleaned / bag age)
