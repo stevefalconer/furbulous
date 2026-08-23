@@ -2,6 +2,16 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.4 — 2026-08-22
+
+### Dashboard readability + Pause section
+
+- Per box order: **cat → Today/7d → bag/seals/litter → status chips → actions**.
+- Split crowded Today metrics across short cards (fits mobile width).
+- **Pause / Pause 1 hr** live in their own bottom stack (not mixed into a box).
+- Quality harness: bronze/silver/gold + analytics regression **105 passed**.
+- Docs: `docs/reviews/2026-08-22-1.4.4-quality-harness.md`, ISSUES Q-031/Q-032.
+
 ## 1.4.3 — 2026-08-22
 
 ### Dashboard rebuild — per-box actions + house totals

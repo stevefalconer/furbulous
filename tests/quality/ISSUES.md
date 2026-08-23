@@ -43,3 +43,5 @@ link tests that guard the fix.
 - **resolved** → code shipped + guard test green  
 
 When adding a new issue, pick the next `Q-NNN` id and add a failing test first when practical.
+| Q-031 | 2026-08-22 field | **resolved** 1.4.3 | uat | Dashboard collapsed to one action row / one Visits block | Rebuild per-box stacks + House totals | Playwright layout check (manual) |
+| Q-032 | 2026-08-22 field | **resolved** 1.4.4 | uat | Today metrics truncated; Pause chips not in own section; status chips above metrics | Per-box order cat→Today/7d→chores→status→actions; Pause own stack; multi-card metrics | Playwright mobile check |
