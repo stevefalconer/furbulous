@@ -42,7 +42,8 @@
 # Entity prefixes (this house):
 #   Downstairs → family_room_downstairs_
 #   Master     → master_bedroom_master_
-#   Cleo       → cleo_  (+ middle_bedroom_cleo_ for no_bag / bag_status / needs_cleaning)
+#   Cleo       → cleo_ for most entities; middle_bedroom_cleo_ for
+#                no_bag / bag_status / needs_cleaning / toilet_status / last_cleaned
 #   Upstairs   → front_bedroom_upstairs_
 
 # --- Docker / UI-visible test target (swap for mobile_app on phone HA) ---
@@ -227,8 +228,8 @@
           full / litter door, or press Clean now.
 
 # ===== Cleo =====
-# needs_emptying / trash_door often use cleo_; no_bag / bag_status / needs_cleaning
-# may be middle_bedroom_cleo_ on this install — both covered where applicable.
+# On this house: bag full / E4 use cleo_; No Bag / bag_status / Dirty use
+# middle_bedroom_cleo_ (those short cleo_* IDs do not exist — do not dual-list).
 
 - id: furbulous_cleo_bag_full
   alias: "Furbulous Cleo — bag full"
@@ -251,14 +252,8 @@
   mode: single
   trigger:
     - platform: state
-      entity_id: binary_sensor.cleo_no_bag
-      to: "on"
-    - platform: state
       entity_id: binary_sensor.middle_bedroom_cleo_no_bag
       to: "on"
-    - platform: state
-      entity_id: sensor.cleo_bag_status
-      to: "No Bag"
     - platform: state
       entity_id: sensor.middle_bedroom_cleo_bag_status
       to: "No Bag"
@@ -275,10 +270,6 @@
   trigger:
     - platform: state
       entity_id: binary_sensor.cleo_needs_emptying
-      to: "on"
-      for: "00:15:00"
-    - platform: state
-      entity_id: binary_sensor.cleo_no_bag
       to: "on"
       for: "00:15:00"
     - platform: state
@@ -312,9 +303,6 @@
   alias: "Furbulous Cleo — Dirty (no clean 30m)"
   mode: single
   trigger:
-    - platform: state
-      entity_id: binary_sensor.cleo_needs_cleaning
-      to: "on"
     - platform: state
       entity_id: binary_sensor.middle_bedroom_cleo_needs_cleaning
       to: "on"
