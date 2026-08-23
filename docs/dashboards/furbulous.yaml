@@ -8,7 +8,7 @@
 # Paste into: Settings → Dashboards → Furbulous → ⋮ → Raw configuration editor
 # (or create a new dashboard from scratch, then paste).
 #
-# Needs: Furbulous 1.3.19+ (Pause hub survives Resume), Mushroom, optionally card-mod.
+# Needs: Furbulous 1.4.1+ (Visits analytics row), Mushroom, optionally card-mod.
 #
 # Entity prefixes on this HA:
 #   Downstairs → family_room_downstairs_
@@ -36,14 +36,25 @@ views:
         {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
         {% else %}—{% endif %}
       secondary: |-
+        {% set bad = ['unknown','unavailable','none',''] %}
+        {% set ns = namespace(parts=[]) %}
         {% set h = states('sensor.family_room_downstairs_litter_age_hours') %}
-        {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
-        {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        ·
+        {% if h in bad %}
+          {% set ns.parts = ns.parts + ['Litter: press Refilled litter'] %}
+        {% else %}
+          {% set hrs = h|float(0) %}
+          {% set ns.parts = ns.parts + ['Litter: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
         {% set bag = states('sensor.family_room_downstairs_bag_age_hours') %}
-        {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
-        {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        · Cleaned {{ states('sensor.family_room_downstairs_last_cleaned') }}
+        {% if bag not in bad %}
+          {% set hrs = bag|float(0) %}
+          {% set ns.parts = ns.parts + ['Bag: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
+        {% set cl = states('sensor.family_room_downstairs_last_cleaned') %}
+        {% if cl not in bad and cl != '-' %}
+          {% set ns.parts = ns.parts + ['Cleaned ' ~ cl] %}
+        {% endif %}
+        {{ ns.parts|join(' · ') }}
       icon: mdi:cat
       icon_color: |-
         {% set sev = state_attr('sensor.family_room_downstairs_toilet_status','severity') %}
@@ -119,59 +130,28 @@ views:
           {% else %}{{ err }}{% endif %}
         tap_action:
           action: none
-    - type: custom:mushroom-chips-card
-      alignment: end
-      card_mod:
-        style: |
-          ha-card {
-            --chip-height: 42px;
-          }
-          .chip-container {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            width: 100%;
-            gap: 8px;
-          }
-          mushroom-chip {
-            width: 100% !important;
-            justify-content: center !important;
-          }
-      chips:
-      - type: entity
-        entity: button.family_room_downstairs_clean_now
-        name: Clean now
-        icon: mdi:rotate-3d-variant
-        content_info: name
-      - type: entity
-        entity: button.family_room_downstairs_seal_waste_bag
-        name: Seal bag
-        icon: mdi:package-variant
-        content_info: name
-      - type: entity
-        entity: button.family_room_downstairs_i_refilled_the_litter
-        name: Refilled litter
-        icon: mdi:shovel
-        content_info: name
-  - type: vertical-stack
-    cards:
-    - type: custom:mushroom-title-card
-      title: Master
     - type: custom:mushroom-template-card
-      primary: |-
-        {% set cat = states('sensor.master_bedroom_master_last_cat') %}
-        {% set t = states('sensor.master_bedroom_master_last_visit') %}
-        {% if cat not in ['unknown','unavailable','none','','-'] %}{{ cat }}{% if t not in ['unknown','unavailable','none','','-'] %} · {{ t }}{% endif %}
-        {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
-        {% else %}—{% endif %}
+      primary: Visits
       secondary: |-
+        {% set bad = ['unknown','unavailable','none',''] %}
+        {% set ns = namespace(parts=[]) %}
         {% set h = states('sensor.master_bedroom_master_litter_age_hours') %}
-        {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
-        {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        ·
+        {% if h in bad %}
+          {% set ns.parts = ns.parts + ['Litter: press Refilled litter'] %}
+        {% else %}
+          {% set hrs = h|float(0) %}
+          {% set ns.parts = ns.parts + ['Litter: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
         {% set bag = states('sensor.master_bedroom_master_bag_age_hours') %}
-        {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
-        {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        · Cleaned {{ states('sensor.master_bedroom_master_last_cleaned') }}
+        {% if bag not in bad %}
+          {% set hrs = bag|float(0) %}
+          {% set ns.parts = ns.parts + ['Bag: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
+        {% set cl = states('sensor.master_bedroom_master_last_cleaned') %}
+        {% if cl not in bad and cl != '-' %}
+          {% set ns.parts = ns.parts + ['Cleaned ' ~ cl] %}
+        {% endif %}
+        {{ ns.parts|join(' · ') }}
       icon: mdi:cat
       icon_color: |-
         {% set sev = state_attr('sensor.master_bedroom_master_toilet_status','severity') %}
@@ -247,59 +227,28 @@ views:
           {% else %}{{ err }}{% endif %}
         tap_action:
           action: none
-    - type: custom:mushroom-chips-card
-      alignment: end
-      card_mod:
-        style: |
-          ha-card {
-            --chip-height: 42px;
-          }
-          .chip-container {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            width: 100%;
-            gap: 8px;
-          }
-          mushroom-chip {
-            width: 100% !important;
-            justify-content: center !important;
-          }
-      chips:
-      - type: entity
-        entity: button.master_bedroom_master_clean_now
-        name: Clean now
-        icon: mdi:rotate-3d-variant
-        content_info: name
-      - type: entity
-        entity: button.master_bedroom_master_seal_waste_bag
-        name: Seal bag
-        icon: mdi:package-variant
-        content_info: name
-      - type: entity
-        entity: button.master_bedroom_master_i_refilled_the_litter
-        name: Refilled litter
-        icon: mdi:shovel
-        content_info: name
-  - type: vertical-stack
-    cards:
-    - type: custom:mushroom-title-card
-      title: Cleo
     - type: custom:mushroom-template-card
-      primary: |-
-        {% set cat = states('sensor.cleo_last_cat') %}
-        {% set t = states('sensor.cleo_last_visit') %}
-        {% if cat not in ['unknown','unavailable','none','','-'] %}{{ cat }}{% if t not in ['unknown','unavailable','none','','-'] %} · {{ t }}{% endif %}
-        {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
-        {% else %}—{% endif %}
+      primary: Visits
       secondary: |-
+        {% set bad = ['unknown','unavailable','none',''] %}
+        {% set ns = namespace(parts=[]) %}
         {% set h = states('sensor.cleo_litter_age_hours') %}
-        {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
-        {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        ·
+        {% if h in bad %}
+          {% set ns.parts = ns.parts + ['Litter: press Refilled litter'] %}
+        {% else %}
+          {% set hrs = h|float(0) %}
+          {% set ns.parts = ns.parts + ['Litter: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
         {% set bag = states('sensor.cleo_bag_age_hours') %}
-        {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
-        {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        · Cleaned {{ states('sensor.middle_bedroom_cleo_last_cleaned') }}
+        {% if bag not in bad %}
+          {% set hrs = bag|float(0) %}
+          {% set ns.parts = ns.parts + ['Bag: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
+        {% set cl = states('sensor.middle_bedroom_cleo_last_cleaned') %}
+        {% if cl not in bad and cl != '-' %}
+          {% set ns.parts = ns.parts + ['Cleaned ' ~ cl] %}
+        {% endif %}
+        {{ ns.parts|join(' · ') }}
       icon: mdi:cat
       icon_color: |-
         {% set sev = state_attr('sensor.middle_bedroom_cleo_toilet_status','severity') %}
@@ -375,59 +324,28 @@ views:
           {% else %}{{ err }}{% endif %}
         tap_action:
           action: none
-    - type: custom:mushroom-chips-card
-      alignment: end
-      card_mod:
-        style: |
-          ha-card {
-            --chip-height: 42px;
-          }
-          .chip-container {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            width: 100%;
-            gap: 8px;
-          }
-          mushroom-chip {
-            width: 100% !important;
-            justify-content: center !important;
-          }
-      chips:
-      - type: entity
-        entity: button.cleo_clean_now
-        name: Clean now
-        icon: mdi:rotate-3d-variant
-        content_info: name
-      - type: entity
-        entity: button.cleo_seal_waste_bag
-        name: Seal bag
-        icon: mdi:package-variant
-        content_info: name
-      - type: entity
-        entity: button.cleo_i_refilled_the_litter
-        name: Refilled litter
-        icon: mdi:shovel
-        content_info: name
-  - type: vertical-stack
-    cards:
-    - type: custom:mushroom-title-card
-      title: Upstairs
     - type: custom:mushroom-template-card
-      primary: |-
-        {% set cat = states('sensor.front_bedroom_upstairs_last_cat') %}
-        {% set t = states('sensor.front_bedroom_upstairs_last_visit') %}
-        {% if cat not in ['unknown','unavailable','none','','-'] %}{{ cat }}{% if t not in ['unknown','unavailable','none','','-'] %} · {{ t }}{% endif %}
-        {% elif t not in ['unknown','unavailable','none','','-'] %}{{ t }}
-        {% else %}—{% endif %}
+      primary: Visits
       secondary: |-
+        {% set bad = ['unknown','unavailable','none',''] %}
+        {% set ns = namespace(parts=[]) %}
         {% set h = states('sensor.front_bedroom_upstairs_litter_age_hours') %}
-        {% if h in ['unknown','unavailable','none',''] %}Litter: press Refilled litter
-        {% else %}{% set hrs = h|float(0) %}Litter: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        ·
+        {% if h in bad %}
+          {% set ns.parts = ns.parts + ['Litter: press Refilled litter'] %}
+        {% else %}
+          {% set hrs = h|float(0) %}
+          {% set ns.parts = ns.parts + ['Litter: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
         {% set bag = states('sensor.front_bedroom_upstairs_bag_age_hours') %}
-        {% if bag in ['unknown','unavailable','none',''] %}Bag age: unknown
-        {% else %}{% set hrs = bag|float(0) %}Bag age: {% if hrs < 24 %}{{ hrs|round(0)|int }}h{% else %}{{ (hrs/24)|round(1) }}d{% endif %}{% endif %}
-        · Cleaned {{ states('sensor.front_bedroom_upstairs_last_cleaned') }}
+        {% if bag not in bad %}
+          {% set hrs = bag|float(0) %}
+          {% set ns.parts = ns.parts + ['Bag: ' ~ ((hrs|round(0)|int|string ~ 'h') if hrs < 24 else ((hrs/24)|round(1)|string ~ 'd'))] %}
+        {% endif %}
+        {% set cl = states('sensor.front_bedroom_upstairs_last_cleaned') %}
+        {% if cl not in bad and cl != '-' %}
+          {% set ns.parts = ns.parts + ['Cleaned ' ~ cl] %}
+        {% endif %}
+        {{ ns.parts|join(' · ') }}
       icon: mdi:cat
       icon_color: |-
         {% set sev = state_attr('sensor.front_bedroom_upstairs_toilet_status','severity') %}
@@ -503,6 +421,41 @@ views:
           {% else %}{{ err }}{% endif %}
         tap_action:
           action: none
+    - type: custom:mushroom-template-card
+      primary: Visits
+      secondary: |-
+        {% set bad = ['unknown','unavailable','none',''] %}
+        {% set ns = namespace(parts=[]) %}
+        {% set u = states('sensor.front_bedroom_upstairs_uses_today') %}
+        {% if u not in bad %}
+          {% set vs = states('sensor.front_bedroom_upstairs_uses_vs_yesterday') %}
+          {% if vs not in bad and vs|int(0) != 0 %}
+            {% set ns.parts = ns.parts + ['Today ' ~ u ~ ' (' ~ ('+' if vs|int(0) > 0 else '') ~ vs ~ ')'] %}
+          {% else %}
+            {% set ns.parts = ns.parts + ['Today ' ~ u] %}
+          {% endif %}
+        {% endif %}
+        {% set v7 = states('sensor.front_bedroom_upstairs_visits_7_days') %}
+        {% if v7 not in bad %}{% set ns.parts = ns.parts + [v7 ~ ' / 7d'] %}{% endif %}
+        {% set v30 = states('sensor.front_bedroom_upstairs_visits_30_days') %}
+        {% if v30 not in bad %}{% set ns.parts = ns.parts + [v30 ~ ' / 30d'] %}{% endif %}
+        {% set ob = states('sensor.front_bedroom_upstairs_visits_on_last_bag') %}
+        {% if ob not in bad %}{% set ns.parts = ns.parts + [ob ~ ' on bag'] %}{% endif %}
+        {% set avg = states('sensor.front_bedroom_upstairs_visit_length_average_30_days') %}
+        {% if avg not in bad %}
+          {% set ns.parts = ns.parts + [(avg|float(0)|round(0)|int|string) ~ 's avg'] %}
+        {% endif %}
+        {% set seals = states('sensor.front_bedroom_upstairs_bag_seals_30_days') %}
+        {% if seals not in bad and seals|int(-1) >= 0 %}
+          {% set ns.parts = ns.parts + [seals ~ ' seals / 30d'] %}
+        {% endif %}
+        {{ ns.parts|join(' · ') if ns.parts else '—' }}
+      icon: mdi:chart-bar
+      icon_color: indigo
+      layout: horizontal
+      tap_action:
+        action: more-info
+        entity: sensor.front_bedroom_upstairs_uses_today
     - type: custom:mushroom-chips-card
       alignment: end
       card_mod:

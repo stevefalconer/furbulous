@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.1 — 2026-08-22
+
+### Dashboard: compact Visits analytics row
+
+- Each box stack: **status → status chips → Visits analytics → actions**.
+- Visits card shows Today (± vs yesterday), 7d, 30d, on-bag, avg visit length, seals/30d — **omits unknown** segments; keeps `0` when that is real data.
+- Same layout on Downstairs / Master / Cleo / Upstairs for consistency.
+
 ## 1.4.0 — 2026-08-22
 
 ### Analytics source hardening (first pass)
