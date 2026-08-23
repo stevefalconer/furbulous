@@ -4,11 +4,26 @@
 # Do NOT paste it into a dashboard Raw configuration editor (that will fail).
 # The dashboard lives in furbulous.yaml (sidebar name: Furbulous).
 #
-# How to install:
+# How to install (pick ONE method):
+#
+# A) File merge (whole file — recommended for all boxes at once):
+#   Copy the list items below into config/automations.yaml, then
+#   Developer tools → YAML → Check configuration → Reload Automations.
+#
+# B) UI — one automation at a time:
+#   Settings → Automations → Create → ⋮ → Edit in YAML.
+#   Paste ONE automation as a mapping (no leading "- ").
+#   Wrong (causes: extra keys not allowed @ data['0']):
+#     - id: furbulous_downstairs_bag_full
+#       alias: "..."
+#   Right:
+#     id: furbulous_downstairs_bag_full
+#     alias: "..."
+#     mode: single
+#     trigger: ...
+#     action: ...
+#
 #   1. Replace notify targets below (Docker test uses persistent_notification).
-#   2. Copy into config/automations.yaml (or merge), OR
-#      Settings → Automations → ⋮ → Edit in YAML / import.
-#   3. Developer tools → YAML → Check configuration → Reload Automations.
 #
 # On a phone HA with Companion app, change:
 #   service: persistent_notification.create

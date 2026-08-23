@@ -17,7 +17,6 @@
 #   Upstairs   → front_bedroom_upstairs_
 #
 # Pause chips: Pause / Pause 1 hr when not paused (state_not: on); Resume when on.
-# Notifications: see mobile_notifications.yaml (automations — do not paste into a dashboard).
 #
 title: Furbulous
 views:
@@ -537,11 +536,6 @@ views:
         name: Refilled litter
         icon: mdi:shovel
         content_info: name
-  - type: markdown
-    content: >-
-      **If Pause buttons show Unavailable:** update Furbulous to **1.3.19+** (HACS)
-      and reload the integration so `switch.furbulous_pause_cloud_polling` exists and
-      survives Resume. Box cards above use your area entity IDs.
   - type: custom:mushroom-title-card
     title: Pause Polling for Furbulous App Use
   - type: custom:mushroom-template-card
@@ -655,6 +649,3 @@ views:
 
       ### Bag status
       Bag OK · Bag full · No Bag (bit 128 after seal — remove bag so cleans can run).
-
-      ### Notifications
-      `mobile_notifications.yaml` is **automations**, not a dashboard. Use Companion `notify.mobile_app_*` or persistent notifications.
