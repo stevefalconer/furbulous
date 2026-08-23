@@ -137,14 +137,60 @@ flag observed = 1
 
 HA helper: `custom_components/furbulous/device_time.py` (`decode_local_time`, `local_time_day_key`).
 
-### 5.0b `timingShoveledShit` (still opaque)
+### 5.0b `timingShoveledShit` — scheduled scoop/clean slots (RE 2026-08-22)
 
-| Observed value | Bytes | Notes |
-|----------------|-------|-------|
-| `0700010007050100` | `[7,0,1,0,7,5,1,0]` | Common in captures |
-| `00` | `[0]` | Also seen |
+Chinese product copy often uses **定时铲屎** (“timed shovel/scoop waste”). Live write tests (Downstairs, restore verified) show this property is a **writable packed schedule**, not related to `LocalTime` / WC clocks.
 
-Not minutes-of-day like `displayStartTime`. **Do not invent meaning**; unused by HA clocks.
+#### Observed live values (same account)
+
+| Box | Value | Decoded |
+|-----|-------|---------|
+| Downstairs | `0700010007050100` | two slots (below) |
+| Upstairs | `00` | empty / disabled |
+| Master | *(absent)* | property missing |
+| Cleo | *(absent)* | property missing |
+
+#### Packing (best-supported hypothesis)
+
+8-byte hex string = **two records × 4 bytes**:
+
+```text
+[hour][minute][enabled][reserved]  × 2
+```
+
+| Bytes | Interpretation |
+|-------|----------------|
+| `07 00 01 00` | **07:00**, enabled=`1`, reserved=`0` |
+| `07 05 01 00` | **07:05**, enabled=`1`, reserved=`0` |
+| `00` / `0000000000000000` | no slots / all disabled |
+| `08 00 01 00 00 00 00 00` | **08:00** only (live write stuck) |
+| `07 1E 01 00 07 05 01 00` | **07:30** + **07:05** (live write stuck; note `1E`=30) |
+
+Hour/minute are **binary integers**, not BCD. `enabled` is `0`/`1`.
+
+#### Write behavior (non-destructive probe, then restored)
+
+- `properties/set` **accepts** `timingShoveledShit` and the value **persists** on readback.
+- Writing the hex digit string alone works (`0700010007050100` → same).
+- Bundling it with other keys in one set can **ASCII-hex-mangle** the payload (readback became `30373030…` = ASCII of `0700…` + NUL). Prefer **dedicated single-key writes**.
+- Changing `sleepTimeStart`, `FullAutoModeSwitch`, or `catCleanOnOff` did **not** rewrite this blob to a new schedule (not a shadow copy of those fields).
+
+#### Rejected / weak hypotheses
+
+| Idea | Why rejected |
+|------|----------------|
+| Minutes-of-day uint16 (`displayEndTime=420`) | Layout is HH/MM bytes, not uint16 minutes |
+| Shadow of sleep/display schedules | Sleep 12:00–06:00 / display 23:00–07:00 ≠ 07:00 & 07:05 slots; independent under writes |
+| Pure DOW bitmask | Byte `07` as DOW mask possible but hour/min layout fits time-of-day far better |
+| Opaque unused | **Falsified** — writable and structured |
+
+#### HA stance
+
+Still **unused by HA clocks** (Last visit / cleaned / bag age). Candidates for a future “scheduled scoop” UI only after product confirmation of the two-slot meaning (two daily runs vs start/end window). Do not treat as bag-age or visit history.
+
+#### Capture note
+
+Historical captures already showed Downstairs=`0700010007050100`, Upstairs=`00`, matching live.
 
 ### 5.0c Property update times (`{value, time}`)
 
