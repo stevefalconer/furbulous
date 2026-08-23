@@ -184,13 +184,31 @@ Hour/minute are **binary integers**, not BCD. `enabled` is `0`/`1`.
 | Pure DOW bitmask | Byte `07` as DOW mask possible but hour/min layout fits time-of-day far better |
 | Opaque unused | **Falsified** — writable and structured |
 
+#### Alignment with eco / screen / sleep (live 2026-08-22)
+
+| Schedule | Keys | Downstairs example | Aligns with shovel? |
+|----------|------|--------------------|---------------------|
+| Screen eco | `DisplaySwitch` + `displayStart/EndTime` | 23:00→07:00 | **Weak:** shovel 07:00 equals `displayEnd`, +07:05; Upstairs also ends 07:00 but shovel=`00` |
+| Quiet/sleep | `sleepTimeStart/Stop` | 12:00→06:00 | **No** — different window; shared across boxes with different shovel |
+| Scoop slots | `timingShoveledShit` | 07:00 + 07:05 | Independent writable schedule |
+
+**Exp A:** `displayEndTime +30` → shovel **unchanged**.  
+**Exp B:** shovel set to **19:13 / 19:15** (near-now) → value stuck; through the window Downstairs stayed `workstatus=0` (no auto clean/pack). Control Upstairs idle.  
+**Exp C / Clean now (Exp D):** full clean cycle `workstatus=1` for minutes; shovel value **and** property `time` **unchanged** (`0700010007050100`, time sticky). Upstairs shovel still `00`.
+
+#### Activity-stream hypothesis — **falsified for Clean**
+
+Hypothesis: blob is a packed log of cleans / visits / errors.  
+**Result:** Clean now did **not** append or retimestamp the field. Combined with successful arbitrary HH:MM writes, the schedule-slot model remains strongest.
+
 #### HA stance
 
-Still **unused by HA clocks** (Last visit / cleaned / bag age). Candidates for a future “scheduled scoop” UI only after product confirmation of the two-slot meaning (two daily runs vs start/end window). Do not treat as bag-age or visit history.
+Still **unused by HA clocks**. Optional future “scheduled scoop” UI only after confirming whether slots are two daily runs vs a start/end window (07:00–07:05 looks like a tight morning window or two firings). Do not treat as activity history.
 
-#### Capture note
+#### Captures
 
-Historical captures already showed Downstairs=`0700010007050100`, Upstairs=`00`, matching live.
+- Historical: Downstairs=`0700010007050100`, Upstairs=`00`
+- Live experiments: [`captures/shovel_schedule_experiments_2026-08-22.jsonl`](captures/shovel_schedule_experiments_2026-08-22.jsonl) (no secrets)
 
 ### 5.0c Property update times (`{value, time}`)
 
