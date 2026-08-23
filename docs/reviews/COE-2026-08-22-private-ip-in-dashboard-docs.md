@@ -4,7 +4,7 @@
 |-------|--------|
 | **Date** | 2026-08-22 |
 | **Severity** | Medium (information disclosure — private network location) |
-| **Status** | Corrected at tip of `main`; **git history rewritten** with `git-filter-repo` to replace `<redacted-private-ipv4>` → `<HA_HOST>` across all commits (force-push required) |
+| **Status** | Corrected at tip of `main`; **git history rewritten** with `git-filter-repo` to replace private LAN IPv4 → `<HA_HOST>` across all commits (force-push required) |
 | **Principal developer / Grok reviewer** | Grok reviewer persona (process owner for this CoE) |
 | **Security team** | Required sign-off on this CoE before next tag |
 | **Executive architecture** | Matei Zaharia — process acknowledgment |
