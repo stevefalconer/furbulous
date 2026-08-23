@@ -251,7 +251,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
         device_id = call.data.get("device_id")
         if device_id is None:
             raise HomeAssistantError("device_id is required")
-        runtime.analytics.mark_bag_replaced(device_id, source="service")
+        runtime.analytics.mark_bag_replaced(
+            device_id,
+            source="service",
+            hours_ago=call.data.get("hours_ago"),
+        )
         await runtime.analytics.async_flush(force=True)
 
     pause_schema = vol.Schema(
@@ -269,7 +273,15 @@ def _async_register_services(hass: HomeAssistant) -> None:
             vol.Optional("config_entry_id"): cv.string,
         }
     )
-    mark_bag_replaced_schema = mark_cleaned_schema
+    mark_bag_replaced_schema = vol.Schema(
+        {
+            vol.Required("device_id"): cv.string,
+            vol.Optional("config_entry_id"): cv.string,
+            vol.Optional("hours_ago"): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=24 * 60)
+            ),
+        }
+    )
 
     hass.services.async_register(
         DOMAIN, "pause_polling", async_pause_polling, schema=pause_schema

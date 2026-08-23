@@ -588,8 +588,11 @@ class AnalyticsEngine:
         st["last_phase"] = box.phase
         st["last_completion"] = box.completion
         # Mark a clean cycle from live phase/completion (auto-clean included).
-        if box.phase == PHASE_CLEANING or (
-            not occupied and box.completion in (2, 3)
+        # workstatus 1 without a cat is almost always a barrel clean in progress.
+        if (
+            box.phase == PHASE_CLEANING
+            or (not occupied and box.completion in (2, 3))
+            or (not occupied and work_now == 1)
         ):
             st["clean_in_progress"] = True
             st["saw_clean_cycle"] = True
@@ -627,7 +630,27 @@ class AnalyticsEngine:
             rank = 1
         elif awaiting and not occupied:
             age = now - float(st["awaiting_clean_since"])
-            if age >= DIRTY_AFTER_S and not st.get("dirty_notified"):
+            err_raw = props.get("errorReportEvent")
+            healthy_idle = (
+                box.phase == PHASE_IDLE
+                and work_now == 0
+                and box.completion in (1, 5, None)
+                and not is_waste_full(err_raw)
+                and not is_no_bag(err_raw)
+                and not is_trash_door_blocked(err_raw)
+            )
+            # Missed mid-clean polls, or visit-end landed after the box was already
+            # Idle/Complete: clear awaiting once we know a clean cycle ran.
+            if healthy_idle and (
+                st.get("saw_clean_cycle") or st.get("clean_in_progress")
+            ):
+                self._record_clean_finished(
+                    did, iotid, source="reconcile_idle_after_clean", now=now
+                )
+                st["clean_in_progress"] = False
+                st["saw_clean_cycle"] = False
+                rank = 1
+            elif age >= DIRTY_AFTER_S and not st.get("dirty_notified"):
                 st["dirty_notified"] = True
                 emit_event(
                     self.hass,
@@ -641,26 +664,18 @@ class AnalyticsEngine:
                     },
                 )
                 rank = 1
-            # Stuck Dirty while the box is healthy Idle (auto-clean happened but
-            # HA missed the cycle — common after No Bag / bag-full blocks cleans).
-            if (
+            # Stuck Dirty / attention while healthy Idle (clean happened but HA
+            # never set saw_clean_cycle — e.g. only saw Idle+Complete polls).
+            elif (
                 age >= DIRTY_AFTER_S
-                and box.phase == PHASE_IDLE
-                and work_now == 0
-                and box.completion in (1, 5, None)
+                and healthy_idle
             ):
-                err_raw = props.get("errorReportEvent")
-                if (
-                    not is_waste_full(err_raw)
-                    and not is_no_bag(err_raw)
-                    and not is_trash_door_blocked(err_raw)
-                ):
-                    self._record_clean_finished(
-                        did, iotid, source="reconcile_idle_after_dirty", now=now
-                    )
-                    st["clean_in_progress"] = False
-                    st["saw_clean_cycle"] = False
-                    rank = 1
+                self._record_clean_finished(
+                    did, iotid, source="reconcile_idle_after_dirty", now=now
+                )
+                st["clean_in_progress"] = False
+                st["saw_clean_cycle"] = False
+                rank = 1
 
         # --- waste full episodes (edge on raw full bits → bag age reset) ---
         err_code = parse_error_code(props.get("errorReportEvent"))
@@ -850,12 +865,22 @@ class AnalyticsEngine:
         iotid: str | None = None,
         *,
         source: str = "ha_service",
+        hours_ago: float | None = None,
     ) -> None:
-        """User/service acknowledge: waste bag was replaced (HA only — no API)."""
+        """User/service acknowledge: waste bag was replaced (HA only — no API).
+
+        ``hours_ago`` backdates the bag-change time (e.g. autopack earlier today).
+        """
         did = str(device_id)
         st = self._device_state.get(did) or {}
         iotid = iotid or st.get("iotid")
-        self._record_bag_replaced(did, iotid, source=source)
+        now = time.time()
+        if hours_ago is not None:
+            now = now - max(0.0, float(hours_ago)) * 3600.0
+        # Bypass debounce when explicitly marking (including backdated).
+        st.pop("last_bag_ts", None)
+        self._device_state[did] = st
+        self._record_bag_replaced(did, iotid, source=source, now=now)
         self.recompute_all()
         self._notify()
 

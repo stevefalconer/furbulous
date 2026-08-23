@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.3.21 — 2026-08-22
+
+### Stuck “cat / Dirty” while box is Idle
+
+- Treat `workstatus=1` with no cat as a clean cycle so auto-clean is not missed between 30s polls.
+- If awaiting-clean but the box is already healthy Idle/Complete and a clean cycle was seen, clear awaiting immediately (fixes Upstairs stuck on pet name / orange after the app already cleaned).
+- `furbulous.mark_bag_replaced` accepts optional `hours_ago` to backdate Bag age (e.g. autopack earlier today).
+
 ## 1.3.20 — 2026-08-22
 
 ### Bag age + Last cleaned dashboard

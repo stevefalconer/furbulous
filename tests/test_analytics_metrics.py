@@ -340,6 +340,51 @@ async def test_mark_bag_replaced_service_path():
 
 
 @pytest.mark.asyncio
+async def test_mark_bag_replaced_hours_ago():
+    """hours_ago backdates Bag age."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-mark-bag-ago")
+    eng.store._loaded = True
+    eng.mark_bag_replaced(33, iotid="iot-33", source="service", hours_ago=3.0)
+    eng.recompute_all()
+    assert eng.metrics_for_device(33)["hours_since_bag_replaced"] == pytest.approx(
+        3.0, abs=0.05
+    )
+
+
+@pytest.mark.asyncio
+async def test_awaiting_clears_when_idle_after_saw_clean():
+    """If we saw a clean cycle, Idle+Complete clears awaiting without waiting 30m."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-idle-clean")
+    eng.store._loaded = True
+    idle = {
+        "id": 34,
+        "iotid": "iot-34",
+        "name": "Box",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+        },
+    }
+    eng._device_state["34"] = {
+        "occupied": False,
+        "awaiting_clean_since": time.time() - 120,
+        "awaiting_clean_cat": "Vinnie",
+        "last_visitor_name": "Vinnie",
+        "saw_clean_cycle": True,
+        "clean_in_progress": True,
+        "last_completion": 3,
+        "last_workstatus": 1,
+        "last_phase": "cleaning",
+    }
+    eng.process_snapshot([idle])
+    assert eng.toilet_status(34)["label"] == "Idle"
+    assert eng._device_state["34"].get("awaiting_clean_since") is None
+
+
+@pytest.mark.asyncio
 async def test_bag_age_resets_on_raw_full_clear():
     """Bag age restarts when errorReportEvent full bits clear (32→0)."""
     hass = MagicMock()
