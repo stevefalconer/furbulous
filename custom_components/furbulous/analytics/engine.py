@@ -26,6 +26,12 @@ from ..error_report import (
     is_waste_full,
     parse_error_code,
 )
+from ..bag_chore import (
+    AUTO_CLEAN_AFTER_DRAWER_S,
+    CHORE_NEEDS_REMOVE,
+    CHORE_NEEDS_SEAL,
+    chore_active,
+)
 from ..box_state import (
     PHASE_CLEANING,
     PHASE_IDLE,
@@ -71,6 +77,8 @@ HAND_MODE_PACK = 3
 FLUSH_DEBOUNCE_S = 60.0
 STATUS_IDLE = "Idle"
 STATUS_DIRTY = "Dirty"
+# Auto-clean tokens so a newer drawer event cancels a stale timer.
+_auto_clean_tokens: dict[str, int] = {}
 
 
 def _is_full(props: dict[str, Any]) -> bool:
@@ -122,6 +130,7 @@ class AnalyticsEngine:
         self._last_save = 0.0
         self._flush_task: Any | None = None
         self._delayed_flush_task: Any | None = None
+        self._pending_auto_cleans: list[asyncio.Task] = []
 
     async def async_setup(self) -> None:
         """Load persisted events and restore open chore cycles."""
@@ -789,12 +798,19 @@ class AnalyticsEngine:
                     did, iotid, source="presence_pack", now=pack_ts
                 ):
                     rank = 1
+                # Seal finished while bag-full chore open → remove sealed bag
+                prior_err = st.get("last_error_code")
+                if st.get("bag_chore") == CHORE_NEEDS_SEAL or (
+                    prior_err is not None and (int(prior_err) & WASTE_FULL_MASK) != 0
+                ):
+                    st["bag_chore"] = CHORE_NEEDS_REMOVE
+                    st["saw_no_bag_during_remove"] = False
                 st["pack_in_progress"] = False
             elif work_now not in (3, None) and box.phase != PHASE_PACKING:
                 # Left packing into another active phase without idle — clear flag
                 st["pack_in_progress"] = False
 
-        # --- waste full episodes (edge on raw full bits → bag age reset) ---
+        # --- waste full / bag chore (sticky after seal; Cleo 2026-08-25) ---
         err_code = parse_error_code(props.get("errorReportEvent"))
         prev_err = st.get("last_error_code")
         st["last_error_code"] = err_code
@@ -802,9 +818,17 @@ class AnalyticsEngine:
             prev_err is not None and (int(prev_err) & WASTE_FULL_MASK) != 0
         )
         now_raw_full = err_code is not None and (int(err_code) & WASTE_FULL_MASK) != 0
+        prev_no_bag = (
+            prev_err is not None and (int(prev_err) & ERROR_NO_BAG) != 0
+        )
+        now_no_bag = (
+            err_code is not None and (int(err_code) & ERROR_NO_BAG) != 0
+        )
 
-        if full:
+        if full or now_raw_full:
             st["full_true_polls"] = int(st.get("full_true_polls", 0)) + 1
+            if st.get("bag_chore") != CHORE_NEEDS_REMOVE:
+                st["bag_chore"] = CHORE_NEEDS_SEAL
             if (
                 not st.get("is_full")
                 and st["full_true_polls"] >= FULL_CONFIRM_POLLS
@@ -832,18 +856,30 @@ class AnalyticsEngine:
         else:
             st["full_true_polls"] = 0
 
-        # Full→clear resets Bag age (sealed bag removed after full).
+        # Full→clear: after seal this is NOT bag-replaced yet (sticky remove).
         if prev_raw_full and not now_raw_full:
             start = st.get("full_episode_start") or now
             time_full = max(0.0, now - float(start))
             st["is_full"] = False
             st["full_episode_start"] = None
+            sealed_path = (
+                st.get("bag_chore") in (CHORE_NEEDS_SEAL, CHORE_NEEDS_REMOVE)
+                or st.get("pack_in_progress")
+                or prev_work == 3
+                or work_now == 3
+                or box.phase == PHASE_PACKING
+            )
             self.store.append(
                 "waste_full_off",
                 device_id=did,
                 iotid=iotid,
                 source="presence",
-                payload={"time_full_s": time_full, "cleared_how": "error_cleared"},
+                payload={
+                    "time_full_s": time_full,
+                    "cleared_how": (
+                        "sealed_awaiting_remove" if sealed_path else "error_cleared"
+                    ),
+                },
                 ts=now,
             )
             emit_event(
@@ -854,26 +890,35 @@ class AnalyticsEngine:
                     "iotid": iotid,
                     "config_entry_id": self.entry_id,
                     "time_full_s": time_full,
-                    "cleared_how": "error_cleared",
+                    "cleared_how": (
+                        "sealed_awaiting_remove" if sealed_path else "error_cleared"
+                    ),
                 },
             )
-            # Prefer errorReportEvent time; do not fall back to sticky handMode
-            # (often last Clean) which can backdate Bag age incorrectly (A2).
-            bag_ts = self._cloud_event_ts(
-                device, "errorReportEvent", "workstatus", now=now
-            )
-            self._record_bag_replaced(
-                did, iotid, source="presence", now=bag_ts
-            )
+            if sealed_path:
+                st["bag_chore"] = CHORE_NEEDS_REMOVE
+                st["saw_no_bag_during_remove"] = bool(
+                    st.get("saw_no_bag_during_remove")
+                )
+            else:
+                bag_ts = self._cloud_event_ts(
+                    device, "errorReportEvent", "workstatus", now=now
+                )
+                self._record_bag_replaced(
+                    did, iotid, source="presence", now=bag_ts
+                )
+                st["bag_chore"] = None
             rank = 1
 
-        # No Bag (128) → clear also means a new bag is in (live Downstairs 2026-08-22).
-        prev_no_bag = (
-            prev_err is not None and (int(prev_err) & ERROR_NO_BAG) != 0
-        )
-        now_no_bag = (
-            err_code is not None and (int(err_code) & ERROR_NO_BAG) != 0
-        )
+        if now_no_bag:
+            if st.get("bag_chore") in (CHORE_NEEDS_SEAL, CHORE_NEEDS_REMOVE, None):
+                # Drawer open / sealed bag out — stay on remove chore
+                st["bag_chore"] = CHORE_NEEDS_REMOVE
+                st["saw_no_bag_during_remove"] = True
+                rank = 1
+
+        # No Bag (128) → 0: new bag inflated (Cleo + Downstairs). End chore +
+        # bag age; arm 60s auto-clean if drum stays idle.
         if prev_no_bag and not now_no_bag and not now_raw_full:
             bag_ts = self._cloud_event_ts(
                 device, "errorReportEvent", "workstatus", now=now
@@ -882,6 +927,10 @@ class AnalyticsEngine:
                 did, iotid, source="presence_no_bag_cleared", now=bag_ts
             ):
                 rank = 1
+            st["bag_chore"] = None
+            st["saw_no_bag_during_remove"] = False
+            self._arm_auto_clean_after_drawer(did, iotid)
+            rank = 1
 
         if rank == 0 and identity_changed and occupied:
             return 2
@@ -966,8 +1015,10 @@ class AnalyticsEngine:
             },
         )
         st["last_pack_ts"] = now
-        # Seal = new bag (product rule).
-        self._record_bag_replaced(did, iotid, source=source, now=now)
+        # Pack event only — bag_replaced waits for No Bag clear / chore end.
+        if st.get("bag_chore") == CHORE_NEEDS_SEAL or st.get("is_full"):
+            st["bag_chore"] = CHORE_NEEDS_REMOVE
+            st["saw_no_bag_during_remove"] = False
         self._dirty = True
         self._need_immediate_flush = True
         return True
@@ -1093,10 +1144,11 @@ class AnalyticsEngine:
                 },
             )
             st["last_pack_ts"] = now
-            # Seal is the usual start of a bag change on the dashboard; reset
-            # Bag age even if the No Bag / full-clear edge is missed between polls.
-            # record_hand_mode has no property_times — wall clock (or caller now).
-            self._record_bag_replaced(did, iotid, source=source, now=now)
+            # Seal starts remove-chore; Bag age resets when drawer/No Bag clears
+            # (Cleo 2026-08-25: full bit clears at seal, bag still in drawer).
+            if st.get("bag_chore") == CHORE_NEEDS_SEAL or st.get("is_full"):
+                st["bag_chore"] = CHORE_NEEDS_REMOVE
+                st["saw_no_bag_during_remove"] = False
         elif hand_mode == HAND_MODE_EMPTY:
             # Debounce Empty button spam separately from bag_replaced (Seal may
             # have just set last_bag_ts; Empty should still log once).
@@ -1498,6 +1550,91 @@ class AnalyticsEngine:
             "awaiting_clean": False,
             "seconds_since_visit": None,
         }
+
+    def bag_chore(self, device_id: str | int) -> str | None:
+        """Sticky bag chore phase: needs_seal | needs_remove | None."""
+        st = self._device_state.get(str(device_id), {})
+        chore = st.get("bag_chore")
+        return str(chore) if chore_active(chore) else None
+
+    def _arm_auto_clean_after_drawer(
+        self, device_id: str, iotid: str | None
+    ) -> None:
+        """Schedule Clean if drum stays idle after No Bag clears (inflate)."""
+        if not iotid:
+            return
+        did = str(device_id)
+        token = int(_auto_clean_tokens.get(did, 0)) + 1
+        _auto_clean_tokens[did] = token
+        st = self._device_state.setdefault(did, {})
+        st["auto_clean_armed_ts"] = time.time()
+        st["auto_clean_token"] = token
+
+        async def _runner() -> None:
+            await asyncio.sleep(AUTO_CLEAN_AFTER_DRAWER_S)
+            await self._async_maybe_auto_clean(did, iotid, token)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            _LOGGER.debug("No running loop — skip auto-clean schedule device=%s", did)
+            return
+        task = loop.create_task(_runner())
+        self._pending_auto_cleans.append(task)
+
+        def _done(t: asyncio.Task) -> None:
+            try:
+                self._pending_auto_cleans.remove(t)
+            except ValueError:
+                pass
+
+        task.add_done_callback(_done)
+
+    def cancel_pending_auto_cleans(self) -> None:
+        """Cancel armed drawer auto-clean timers (tests / unload)."""
+        for task in list(self._pending_auto_cleans):
+            task.cancel()
+        self._pending_auto_cleans.clear()
+
+    async def _async_maybe_auto_clean(
+        self, device_id: str, iotid: str, token: int
+    ) -> None:
+        """Send handMode=1 if still idle after drawer replace window."""
+        did = str(device_id)
+        if _auto_clean_tokens.get(did) != token:
+            return
+        st = self._device_state.get(did) or {}
+        armed = float(st.get("auto_clean_armed_ts") or 0)
+        last_clean = st.get("last_clean_ts")
+        # Skip if a clean already finished after we armed, or drum is cleaning.
+        if last_clean is not None and float(last_clean) >= armed - 2.0:
+            return
+        if st.get("last_workstatus") == 1:
+            return
+        entry = self.hass.config_entries.async_get_entry(self.entry_id)
+        runtime = getattr(entry, "runtime_data", None) if entry else None
+        api = getattr(runtime, "api", None) if runtime else None
+        if api is None:
+            _LOGGER.debug("Auto-clean skipped — no API device=%s", did)
+            return
+        try:
+            ok = await api.set_device_property(iotid, {"handMode": HAND_MODE_CLEAN})
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.warning(
+                "Auto-clean failed device=%s: %s", did, err
+            )
+            return
+        if ok:
+            st = self._device_state.setdefault(did, {})
+            st["clean_in_progress"] = True
+            st["saw_clean_cycle"] = True
+            _LOGGER.info(
+                "Auto-clean after bag replace device=%s (no clean within %.0fs)",
+                did,
+                AUTO_CLEAN_AFTER_DRAWER_S,
+            )
+            self._dirty = True
+            self._notify()
 
     def last_clean_ts(self, device_id: str | int) -> float | None:
         """Unix time of last finished barrel clean."""

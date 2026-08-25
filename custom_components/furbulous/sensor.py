@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory, UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import FurbulousEntity, extract_prop_value
@@ -249,7 +249,7 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
     _attr_icon = "mdi:alert-circle"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, device_id: int) -> None:
+    def __init__(self, coordinator, device_id: int, analytics=None) -> None:
         """Initialize the sensor."""
         super().__init__(
             coordinator,
@@ -257,21 +257,42 @@ class FurbulousErrorSensor(FurbulousEntity, SensorEntity):
             translation_key="error",
             unique_id=box_uid(device_id, UID_ERROR_MESSAGE),
         )
+        self._analytics = analytics
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._analytics is not None:
+            self.async_on_remove(
+                self._analytics.async_add_listener(self._handle_analytics)
+            )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        self._handle_coordinator_update()
 
     @property
     def native_value(self) -> str:
         """Return mapped error description (``-`` / No error when clear)."""
+        from .bag_chore import merge_error_display
+
         device = self.device_data
         if not device:
             return "-"
-        return describe_error(device.get("properties", {}).get("errorReportEvent"))
+        live = describe_error(device.get("properties", {}).get("errorReportEvent"))
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
+        return merge_error_display(live, chore)
 
     def _entity_fingerprint(self) -> object:
-        """Fingerprint on raw error code (not translated string only)."""
+        """Fingerprint on raw error code + sticky chore."""
         device = self.device_data
         raw = None
         if device:
             raw = parse_error_code(
                 device.get("properties", {}).get("errorReportEvent")
             )
-        return ("err", raw, self.available)
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
+        return ("err", raw, chore, self.available)

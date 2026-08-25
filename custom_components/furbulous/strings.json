@@ -135,8 +135,8 @@
     "binary_sensor": {
       "connected": { "name": "Online" },
       "cat_in_litter_box": { "name": "Cat inside" },
-      "waste_bin_full": { "name": "Needs emptying" },
-      "waste_bin_status": { "name": "Needs emptying" },
+      "waste_bin_full": { "name": "Needs bag change" },
+      "waste_bin_status": { "name": "Needs bag change" },
       "cover_open": { "name": "Cover open" },
       "cover_status": { "name": "Cover open" },
       "drawer_not_in_place": { "name": "Drawer out of place" },

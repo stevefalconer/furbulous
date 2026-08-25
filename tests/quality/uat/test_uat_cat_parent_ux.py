@@ -36,7 +36,7 @@ def test_cat_parent_primary_names_are_plain_english():
     assert s["sensor"]["last_cleaned"]["name"] == "Last cleaned"
     assert s["sensor"]["occupying_pet"]["name"] == "Who is inside"
     assert s["binary_sensor"]["cat_in_litter_box"]["name"] == "Cat inside"
-    assert s["binary_sensor"]["waste_bin_status"]["name"] == "Needs emptying"
+    assert s["binary_sensor"]["waste_bin_status"]["name"] == "Needs bag change"
     assert s["binary_sensor"]["trash_door_blocked"]["name"] == "Trash door jammed"
     assert s["binary_sensor"]["needs_cleaning"]["name"] == "Needs cleaning"
     assert s["binary_sensor"]["no_bag"]["name"] == "No Bag"

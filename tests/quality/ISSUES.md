@@ -45,3 +45,5 @@ link tests that guard the fix.
 When adding a new issue, pick the next `Q-NNN` id and add a failing test first when practical.
 | Q-031 | 2026-08-22 field | **resolved** 1.4.3 | uat | Dashboard collapsed to one action row / one Visits block | Rebuild per-box stacks + House totals | Playwright layout check (manual) |
 | Q-032 | 2026-08-22 field | **resolved** 1.4.4 | uat | Today metrics truncated; Pause chips not in own section; status chips above metrics | Per-box order cat→Today/7d→chores→status→actions; Pause own stack; multi-card metrics | Playwright mobile check |
+| Q-033 | 2026-08-25 Cleo | **resolved** 1.4.5 | gold/uat | After seal, Bag OK / No error while sealed bag still in drawer | Sticky bag_chore needs_remove; labels Bag full / Remove Sealed Bag | `test_bag_chore_sticky_remove_after_seal_clears_full` |
+| Q-034 | 2026-08-25 Cleo | **resolved** 1.4.5 | gold | No clean after bag re-inflate | Auto-clean 60s after 128→0 if idle | `test_auto_clean_armed_after_no_bag_clear` |

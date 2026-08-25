@@ -5,6 +5,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import EntityCategory
+from homeassistant.core import callback
 
 from .entity import FurbulousEntity, extract_prop_value
 from .entity_ids import (
@@ -40,40 +41,68 @@ _COMPLETION_LABELS = {
 
 
 class FurbulousBagStatusSensor(FurbulousEntity, SensorEntity):
-    """Bag OK / Bag full / No Bag for dashboard status row."""
+    """Bag OK / Bag full / No Bag for dashboard status row.
+
+    Uses sticky bag-chore from analytics so post-seal (full bit cleared, bag
+    still in drawer) stays **Bag full** until No Bag clears after inflate.
+    """
 
     _attr_icon = "mdi:delete-outline"
 
-    def __init__(self, coordinator, device_id: int) -> None:
+    def __init__(self, coordinator, device_id: int, analytics=None) -> None:
         super().__init__(
             coordinator,
             device_id,
             translation_key="bag_status",
             unique_id=box_uid(device_id, UID_BAG_STATUS),
         )
+        self._analytics = analytics
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._analytics is not None:
+            self.async_on_remove(
+                self._analytics.async_add_listener(self._handle_analytics)
+            )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        self._handle_coordinator_update()
 
     @property
     def native_value(self) -> str:
+        from .bag_chore import chore_bag_status
+
         props = (self.device_data or {}).get("properties") or {}
         err = props.get("errorReportEvent")
-        if is_waste_full(err):
-            return "Bag full"
-        if is_no_bag(err):
-            return "No Bag"
-        return "Bag OK"
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
+        return chore_bag_status(
+            chore,
+            live_full=is_waste_full(err),
+            live_no_bag=is_no_bag(err),
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        from .bag_chore import chore_severity
+
         props = (self.device_data or {}).get("properties") or {}
         err = props.get("errorReportEvent")
-        severity = "ok"
-        if is_waste_full(err) or is_no_bag(err):
-            severity = "critical"
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
         return {
-            "severity": severity,
+            "severity": chore_severity(
+                chore,
+                live_full=is_waste_full(err),
+                live_no_bag=is_no_bag(err),
+            ),
+            "bag_chore": chore or "-",
             "plain_english": (
-                "Bag OK = waste bag present and not full. Bag full = empty soon. "
-                "No Bag = box screen / cover bit (live: Cover open while No Bag)."
+                "Bag OK = ready. Bag full = seal or remove sealed bag. "
+                "No Bag = drawer open / bag missing (bit 128)."
             ),
             "trash_door_jammed": is_trash_door_blocked(err),
             "audience": "primary",

@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.4.4 |
+| **Version** | 1.4.5 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |

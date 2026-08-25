@@ -177,16 +177,15 @@ class FurbulousNoBagSensor(FurbulousEntity, BinarySensorEntity):
 
 
 class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
-    """Waste bin status (PROBLEM class: OK when not full, Problem when full).
+    """Bag chore PROBLEM: on when full or sticky remove-sealed-bag chore.
 
-    Values: **OK** (bin has room) / **Problem** (litter full — empty needed).
-    errorReportEvent bit 16 (documented) or 32 (live-verified on zvb-114).
+    Unique id stays ``needs_emptying``; display name is Needs bag change.
     """
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:delete-empty"
 
-    def __init__(self, coordinator, device_id: int) -> None:
+    def __init__(self, coordinator, device_id: int, analytics=None) -> None:
         """Initialize the sensor."""
         super().__init__(
             coordinator,
@@ -194,14 +193,34 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
             translation_key="waste_bin_status",
             unique_id=box_uid(device_id, UID_NEEDS_EMPTYING),
         )
+        self._analytics = analytics
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._analytics is not None:
+            self.async_on_remove(
+                self._analytics.async_add_listener(self._handle_analytics)
+            )
+
+    @callback
+    def _handle_analytics(self) -> None:
+        self._handle_coordinator_update()
 
     @property
     def is_on(self) -> bool:
-        """Return True if a litter-full error bit is set."""
+        """True when live full or sticky bag chore is open."""
+        from .bag_chore import chore_active
+
         device = self.device_data
-        if not device:
-            return False
-        return is_waste_full((device.get("properties") or {}).get("errorReportEvent"))
+        live = False
+        if device:
+            live = is_waste_full(
+                (device.get("properties") or {}).get("errorReportEvent")
+            )
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
+        return live or chore_active(chore)
 
     @property
     def icon(self) -> str:
@@ -215,11 +234,15 @@ class FurbulousWasteBinFullSensor(FurbulousEntity, BinarySensorEntity):
         raw = parse_error_code(
             (device.get("properties") or {}).get("errorReportEvent")
         )
+        chore = (
+            self._analytics.bag_chore(self._device_id) if self._analytics else None
+        )
         return {
-            "when_ok": "Bag has room — nothing to do",
-            "when_problem": "Time to empty / seal the bag",
-            "plain_english": "OK = fine. Problem = needs emptying.",
+            "when_ok": "Bag ready — nothing to do",
+            "when_problem": "Seal the bag, or remove the sealed bag",
+            "plain_english": "OK = fine. Problem = bag chore (seal or remove).",
             "error_code": str(raw) if raw is not None else "-",
+            "bag_chore": chore or "-",
             "full_bits": "16 or 32",
             "vendor_property": "errorReportEvent",
             "audience": "primary",

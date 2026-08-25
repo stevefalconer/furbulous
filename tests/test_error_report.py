@@ -84,12 +84,13 @@ def test_trash_door_e4():
     assert "Resume" in TRASH_DOOR_FIX or "Clean" in TRASH_DOOR_FIX
 
 
-def test_describe_error_maps_32_to_litter_full():
+def test_describe_error_maps_32_to_bag_full_seal():
     assert describe_error(0) == "No error"
-    assert describe_error(16) == "Litter full - Need to empty"
-    assert describe_error(32) == "Litter full - Need to empty"
-    assert "Litter full" in describe_error(32 | 64)
+    assert describe_error(16) == "Bag full - seal bag"
+    assert describe_error(32) == "Bag full - seal bag"
+    assert "Bag full" in describe_error(32 | 64)
     assert "Drawer" not in describe_error(32 | 64)
+    assert describe_error(128) == "Remove Sealed Bag"
     assert describe_error(512) == "Cover / lid off"
 
 
@@ -135,4 +136,4 @@ def test_cat_present_ignores_clean_and_e4():
 
 def test_error_sensor_text_for_32():
     sensor = FurbulousErrorSensor(_coord(32), 4796)
-    assert sensor.native_value == "Litter full - Need to empty"
+    assert sensor.native_value == "Bag full - seal bag"

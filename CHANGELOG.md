@@ -2,6 +2,17 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.5 — 2026-08-25
+
+### Bag chore status (Cleo capture) + auto-clean after drawer
+
+- Sticky bag chore: **Bag full - seal bag** → **Remove Sealed Bag** (stays red while sealed bag waits in drawer even if cloud full bit cleared).
+- `bag_status` stays **Bag full** through remove chore; clears after No Bag (128)→0.
+- Needs emptying display name → **Needs bag change** (unique_id unchanged).
+- Bag age / `bag_replaced` now on No Bag clear (not at Seal) — matches physical remove.
+- After No Bag clears, if no clean within **60s**, HA sends Clean (`handMode=1`).
+- Capture: `docs/api/captures/cleo_bag_full_seal_cycle_2026-08-22.jsonl`.
+
 ## 1.4.4 — 2026-08-22
 
 ### Dashboard readability + Pause section

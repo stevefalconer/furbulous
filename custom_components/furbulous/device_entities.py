@@ -68,8 +68,8 @@ def sensor_entities_for_device(
                 FurbulousCatWeightSensor(coordinator, device_id),
                 FurbulousDailyUsesSensor(coordinator, device_id),
                 FurbulousAverageDurationSensor(coordinator, device_id),
-                FurbulousErrorSensor(presence, device_id),
-                FurbulousBagStatusSensor(presence, device_id),
+                FurbulousErrorSensor(presence, device_id, analytics),
+                FurbulousBagStatusSensor(presence, device_id, analytics),
                 FurbulousHandModeSensor(presence, device_id),
                 FurbulousCompletionStatusSensor(presence, device_id),
                 FurbulousUsesVsYesterdaySensor(coordinator, device_id),
@@ -95,7 +95,7 @@ def binary_sensor_entities_for_device(
         return []
     entities: list[Entity] = [
         FurbulousConnectedSensor(coordinator, device_id),
-        FurbulousWasteBinFullSensor(presence, device_id),
+        FurbulousWasteBinFullSensor(presence, device_id, analytics),
         FurbulousNoBagSensor(presence, device_id),
         FurbulousCoverOpenSensor(presence, device_id),
         FurbulousDrawerNotInPlaceSensor(presence, device_id),

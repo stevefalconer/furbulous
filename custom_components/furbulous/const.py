@@ -59,10 +59,10 @@ ERROR_CODES = {
     2: "Sensor error - IR sensor",
     4: "Motor error - Rotation blocked",
     8: "Motor error - Overload",
-    16: "Litter full - Need to empty",
-    32: "Litter full - Need to empty",
+    16: "Bag full - seal bag",
+    32: "Bag full - seal bag",
     # 64 alone was never seen live; describe_error labels it "Error 64"
-    128: "No Bag",
+    128: "Remove Sealed Bag",
     256: "Temperature error",
     512: "Cover / lid off",
     4096: "Litter pour",

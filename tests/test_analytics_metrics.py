@@ -314,18 +314,18 @@ async def test_auto_clean_clears_dirty_via_completion_edge():
 
 
 @pytest.mark.asyncio
-async def test_seal_pack_resets_bag_age():
-    """Seal (pack) records bag_replaced so Bag age is not stuck Unknown."""
+async def test_seal_pack_starts_remove_chore_without_bag_age_reset():
+    """Seal records pack + needs_remove; Bag age waits for No Bag clear."""
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "entry-seal-bag")
     eng.store._loaded = True
+    eng._device_state["31"] = {"bag_chore": "needs_seal", "is_full": True}
     eng.record_hand_mode(31, "iot-31", HAND_MODE_PACK)
+    packs = eng.store.events_for_device(31, event_types={"pack"})
     bags = eng.store.events_for_device(31, event_types={"bag_replaced"})
-    assert len(bags) == 1
-    eng.recompute_all()
-    assert eng.metrics_for_device(31)["hours_since_bag_replaced"] == pytest.approx(
-        0.0, abs=0.05
-    )
+    assert len(packs) == 1
+    assert len(bags) == 0
+    assert eng.bag_chore(31) == "needs_remove"
 
 
 @pytest.mark.asyncio
@@ -471,8 +471,8 @@ async def test_last_clean_from_completion_status_time():
 
 
 @pytest.mark.asyncio
-async def test_bag_age_resets_on_raw_full_clear():
-    """Bag age restarts when errorReportEvent full bits clear (32→0)."""
+async def test_full_clear_without_remove_stays_needs_remove_chore():
+    """Full bit clearing (e.g. after seal) sticks remove chore — no bag age yet."""
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "entry-bag-raw")
     eng.store._loaded = True
@@ -489,13 +489,11 @@ async def test_bag_age_resets_on_raw_full_clear():
         "properties": {"workstatus": 0, "errorReportEvent": 0},
     }
     eng.process_snapshot([full])
+    eng.process_snapshot([full])
     eng.process_snapshot([clear])
+    assert eng.bag_chore(23) == "needs_remove"
     bags = eng.store.events_for_device(23, event_types={"bag_replaced"})
-    assert len(bags) == 1
-    eng.recompute_all()
-    assert eng.metrics_for_device(23)["hours_since_bag_replaced"] == pytest.approx(
-        0.0, abs=0.05
-    )
+    assert bags == []
 
 
 @pytest.mark.asyncio
@@ -556,11 +554,12 @@ async def test_bag_age_resets_when_no_bag_bit_clears():
     bags = eng.store.events_for_device(24, event_types={"bag_replaced"})
     assert len(bags) == 1
     assert bags[0].get("source") == "presence_no_bag_cleared"
+    eng.cancel_pending_auto_cleans()
 
 
 @pytest.mark.asyncio
-async def test_engine_full_clear_restarts_bag_age():
-    """When bag-full error clears in the cloud, Bag age restarts (bag_replaced)."""
+async def test_engine_full_clear_after_confirm_is_sealed_awaiting_remove():
+    """Confirmed full → clear (typical post-seal) waits for No Bag clear for bag age."""
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "entry-bag-clear")
     eng.store._loaded = True
@@ -584,12 +583,9 @@ async def test_engine_full_clear_restarts_bag_age():
     offs = eng.store.events_for_device(11, event_types={"waste_full_off"})
     bags = eng.store.events_for_device(11, event_types={"bag_replaced"})
     assert len(offs) == 1
-    assert offs[0]["payload"].get("cleared_how") == "error_cleared"
-    assert len(bags) == 1
-    eng.recompute_all()
-    assert eng.metrics_for_device(11)["hours_since_bag_replaced"] == pytest.approx(
-        0.0, abs=0.05
-    )
+    assert offs[0]["payload"].get("cleared_how") == "sealed_awaiting_remove"
+    assert bags == []
+    assert eng.bag_chore(11) == "needs_remove"
 
 
 @pytest.mark.asyncio
@@ -796,8 +792,8 @@ async def test_a3_litter_reset_uses_workstatus_property_time():
 
 
 @pytest.mark.asyncio
-async def test_b1_cloud_pack_records_pack_and_bag_replaced():
-    """B1: workstatus 3→0 (app/on-box seal) → pack + bag_replaced."""
+async def test_b1_cloud_pack_records_pack_without_bag_replaced():
+    """Pack finish records pack; bag_replaced waits for No Bag clear."""
     hass = MagicMock()
     eng = AnalyticsEngine(hass, "entry-b1-pack")
     eng.store._loaded = True
@@ -826,9 +822,7 @@ async def test_b1_cloud_pack_records_pack_and_bag_replaced():
     bags = eng.store.events_for_device(52, event_types={"bag_replaced"})
     assert len(packs) == 1
     assert packs[0]["source"] == "presence_pack"
-    assert len(bags) == 1
-    assert bags[0]["ts"] == pytest.approx(cloud_ts, abs=1.0)
-    # Second idle tick must not double-count
+    assert bags == []
     eng.process_snapshot([done])
     assert len(eng.store.events_for_device(52, event_types={"pack"})) == 1
 
@@ -907,3 +901,99 @@ async def test_a2_bag_clear_does_not_use_sticky_handmode_time():
     bags = eng.store.events_for_device(54, event_types={"bag_replaced"})
     assert len(bags) == 1
     assert bags[0]["ts"] == pytest.approx(err_ts, abs=1.0)
+
+
+@pytest.mark.asyncio
+async def test_bag_chore_sticky_remove_after_seal_clears_full():
+    """Cleo path: full(32) → pack → err 0 stays needs_remove / Bag full labels."""
+    from custom_components.furbulous.bag_chore import (
+        LABEL_REMOVE,
+        LABEL_SEAL,
+        chore_bag_status,
+        merge_error_display,
+    )
+    from custom_components.furbulous.error_report import describe_error
+
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-chore")
+    eng.store._loaded = True
+    # Confirm full
+    full = {
+        "id": 88,
+        "iotid": "iot-88",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 32},
+    }
+    eng.process_snapshot([full])
+    eng.process_snapshot([full])  # FULL_CONFIRM_POLLS=2
+    assert eng.bag_chore(88) == "needs_seal"
+    assert describe_error(32) == LABEL_SEAL
+    assert merge_error_display(describe_error(32), eng.bag_chore(88)) == LABEL_SEAL
+    assert chore_bag_status(eng.bag_chore(88), live_full=True, live_no_bag=False) == (
+        "Bag full"
+    )
+
+    packing = {
+        "id": 88,
+        "iotid": "iot-88",
+        "properties": {"workstatus": 3, "completionStatus": 1, "errorReportEvent": 32},
+    }
+    eng.process_snapshot([packing])
+    sealed = {
+        "id": 88,
+        "iotid": "iot-88",
+        "properties": {"workstatus": 0, "completionStatus": 3, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([sealed])
+    assert eng.bag_chore(88) == "needs_remove"
+    assert merge_error_display("No error", eng.bag_chore(88)) == LABEL_REMOVE
+    assert chore_bag_status(eng.bag_chore(88), live_full=False, live_no_bag=False) == (
+        "Bag full"
+    )
+    # Seal must not reset bag age yet
+    assert eng.store.events_for_device(88, event_types={"bag_replaced"}) == []
+
+    no_bag = {
+        "id": 88,
+        "iotid": "iot-88",
+        "properties": {"workstatus": 0, "completionStatus": 3, "errorReportEvent": 128},
+    }
+    eng.process_snapshot([no_bag])
+    assert eng.bag_chore(88) == "needs_remove"
+    assert eng._device_state["88"].get("saw_no_bag_during_remove") is True
+
+    cleared = {
+        "id": 88,
+        "iotid": "iot-88",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([cleared])
+    assert eng.bag_chore(88) is None
+    bags = eng.store.events_for_device(88, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    assert bags[0]["source"] == "presence_no_bag_cleared"
+    eng.cancel_pending_auto_cleans()
+
+
+@pytest.mark.asyncio
+async def test_auto_clean_armed_after_no_bag_clear():
+    """128→0 arms auto-clean timer (token + timestamp)."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-autoclean-arm")
+    eng.store._loaded = True
+    no_bag = {
+        "id": 89,
+        "iotid": "iot-89",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 128},
+    }
+    cleared = {
+        "id": 89,
+        "iotid": "iot-89",
+        "properties": {"workstatus": 0, "completionStatus": 1, "errorReportEvent": 0},
+    }
+    eng.process_snapshot([no_bag])
+    eng._device_state["89"]["bag_chore"] = "needs_remove"
+    eng.process_snapshot([cleared])
+    assert eng._device_state["89"].get("auto_clean_armed_ts") is not None
+    assert eng._device_state["89"].get("auto_clean_token") is not None
+    eng.cancel_pending_auto_cleans()
+
