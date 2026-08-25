@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## 1.4.6 — 2026-08-25
+
+### False Last cleaned on visit leave + API docs
+
+- Do not treat cat leave (`workstatus` 1→0) as a barrel clean (Downstairs Jet 08:01 → false Last cleaned 08:03 while `completionStatus` still morning scoop).
+- Cleaning evidence = phase cleaning / completion 2|3, or settled empty + awaiting + `workstatus=1`.
+- API reference §5.2b bag chore + §8.3/§8.3b Dirty detection updated from Cleo/Downstairs captures.
+
 ## 1.4.5 — 2026-08-25
 
 ### Bag chore status (Cleo capture) + auto-clean after drawer

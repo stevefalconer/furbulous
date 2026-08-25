@@ -663,24 +663,35 @@ class AnalyticsEngine:
         prev_completion = st.get("last_completion")
         st["last_phase"] = box.phase
         st["last_completion"] = box.completion
-        # Mark a clean cycle from live phase/completion (auto-clean included).
-        # workstatus 1 without a cat is almost always a barrel clean in progress.
-        if (
+        # Mark a clean cycle with cleaning evidence — not on the same poll as
+        # cat leave (was_occ→empty with workstatus still 1). Downstairs Jet
+        # 2026-08-25: leave stamped false Last cleaned via bare work 1→0.
+        awaiting = st.get("awaiting_clean_since") is not None
+        cleaning_evidence = (
             box.phase == PHASE_CLEANING
-            or (not occupied and box.completion in (2, 3))
-            or (not occupied and work_now == 1)
-        ):
+            or box.completion in (2, 3)
+            or (
+                # Device auto-clean can show workstatus=1 + completionStatus=1
+                # (Downstairs force-clean 2026-08-25). Only after leave settled.
+                not occupied
+                and not was_occ
+                and work_now == 1
+                and awaiting
+            )
+        )
+        if cleaning_evidence:
             st["clean_in_progress"] = True
             st["saw_clean_cycle"] = True
-        # Finish detection does NOT require Dirty/awaiting (A1): Clean now,
-        # scheduled scoop, and app cleans must still stamp Last cleaned.
+        # Finish detection does NOT require Dirty/awaiting (A1): Clean now /
+        # scheduled scoop still stamp Last cleaned after cleaning_evidence.
         finished_clean = False
         finish_primary = "completionStatus"
-        awaiting = st.get("awaiting_clean_since") is not None
         if (
-            st.get("clean_in_progress")
+            st.get("saw_clean_cycle")
             and box.phase == PHASE_IDLE
             and not occupied
+            and work_now == 0
+            and box.completion in (1, 5, None)
         ):
             finished_clean = True
         # completionStatus 3/2 → 1 (finished), including when a 30s poll missed

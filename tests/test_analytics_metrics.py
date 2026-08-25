@@ -997,3 +997,39 @@ async def test_auto_clean_armed_after_no_bag_clear():
     assert eng._device_state["89"].get("auto_clean_token") is not None
     eng.cancel_pending_auto_cleans()
 
+
+
+@pytest.mark.asyncio
+async def test_cat_leave_does_not_stamp_last_cleaned():
+    """workstatus 1→0 on visit end is not a barrel clean (Jet Downstairs 2026-08-25)."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-cat-leave")
+    eng.store._loaded = True
+    cat = {
+        "id": 77,
+        "iotid": "iot-77",
+        "properties": {
+            "workstatus": 1,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+            "catWeight": 8167,
+        },
+    }
+    eng.process_snapshot([cat])
+    eng._device_state["77"]["occupied"] = True
+    eng._device_state["77"]["occupy_since"] = time.time() - 90
+    eng._device_state["77"]["last_workstatus"] = 1
+    leave = {
+        "id": 77,
+        "iotid": "iot-77",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+            "catWeight": 8167,
+        },
+    }
+    eng.process_snapshot([leave])
+    assert eng.store.events_for_device(77, event_types={"clean"}) == []
+    assert eng._device_state["77"].get("awaiting_clean_since") is not None
+    assert eng.toilet_status(77)["severity"] in ("attention", "critical")

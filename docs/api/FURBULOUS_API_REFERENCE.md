@@ -291,21 +291,52 @@ Values are powers of two. HA treats them as a **bit mask**, not a single exclusi
 | Bit | Value | Meaning (current) | Evidence |
 |-----|-------|-------------------|----------|
 | — | 0 | Clear / not full | Downstairs + Master live, not full |
-| 4 | 16 | Litter full (documented) | Older map / decompile; **not seen live** on these boxes |
-| 5 | **32** | **Litter full** | **Live Upstairs 2026-08-16** while the bag was full. Was wrongly labeled “Normal operation.” |
+| 4 | 16 | **Bag full** (documented; HA: seal bag) | Older map / decompile; **not seen live** on these boxes |
+| 5 | **32** | **Bag full** (HA: seal bag) | **Live Upstairs 2026-08-16** / **Cleo 2026-08-25**. Not “litter in the globe.” |
 | 6 | 64 | **Not drawer-out.** Seen only **with 524288** during trash-door jam | Drawer physically out + “No trash box” screen: cloud stayed **0**. HA “Drawer” binary is wrong. |
 | 7 | 128 | Cover open (documented) | **Falsified as lid-off.** Lid removed → **512**, not 128. |
-| 7 | **128** | **No Bag** (waste bag missing / sealed bag still in way) | Live Downstairs bag-replace **2026-08-22**: baseline No Bag = **128**; cleared to **0** after new bag; then clean (`workstatus` 1 → 0, `completionStatus` 3 → 1). Capture: `captures/downstairs_no_bag_replace_watch.jsonl`. |
+| 7 | **128** | **No Bag / remove sealed bag** | Live Downstairs **2026-08-22** (sticky until new bag). **Cleo 2026-08-25:** often **brief** (~20s) during drawer open, then **0** after inflate — do not rely on sticky 128 alone. |
 | 9 | **512** | **Lid / cover off** | Live lid-off. With No Bag: **640** = 128\|512 while lid removed. |
 | 12 | **4096** | Seen **only while pouring litter** (~2s), then 0 | Live Upstairs 2026-08-16; **not** Needs emptying |
 | 19 | **524288** | With **64** → trash-door blocked / screen **Device Failure E4** | Live Downstairs jam 2026-08-16. Not seen alone. |
 | others | 1, 2, 4, 8, 256 | Sensor / motor / temp | Documented; not re-verified |
 
-**Needs emptying** is on when `(code & 16) != 0` **or** `(code & 32) != 0`.
+**Bag-full PROBLEM** (entity id `needs_emptying`, display **Needs bag change**) is on when `(code & 16|32) != 0` **or** HA sticky bag chore is open (below).
 
-HA **must** walk bits above 512. Combined **524352** is **Trash door blocked** (screen **Device Failure E4**), not drawer. **Cover / lid off** is **512** (and documented **128** if it ever appears). **Drawer-out is not in the cloud** — a physical drawer pull stayed `errorReportEvent=0`.
+HA **must** walk bits above 512. Combined **524352** is **Trash door blocked** (screen **Device Failure E4**), not drawer. **Cover / lid off** is **512**. **Drawer-out is not in the cloud** — a physical drawer pull stayed `errorReportEvent=0`.
 
 We have **not** seen 16 and 32 set together. Both bits mean full so a combined value still works.
+
+### 5.2b Bag chore state machine (HA 1.4.5+, Cleo live 2026-08-25)
+
+Vendor copy says “Litter full”; product language is **bag** full. Cloud bits alone are **not** enough for the dashboard after Seal:
+
+| Phase | Typical cloud | HA bag_status (red) | HA error chip (red) |
+|-------|---------------|---------------------|---------------------|
+| Needs seal | `errorReportEvent` **16\|32** | **Bag full** | **Bag full - seal bag** |
+| Sealed, bag still in drawer | Often **0** (full cleared at seal) + sticky `handMode=3` | Still **Bag full** | **Remove Sealed Bag** |
+| Drawer open / bag out | Brief **128** (Cleo) or sticky **128** (Downstairs) | Prefer stay **Bag full** while chore open | **Remove Sealed Bag** |
+| Inflate / new bag OK | **128→0** (or clear) | **Bag OK** | **No error** |
+
+Capture: [`captures/cleo_bag_full_seal_cycle_2026-08-22.jsonl`](captures/cleo_bag_full_seal_cycle_2026-08-22.jsonl).
+
+Observed Cleo timeline (PDT):
+
+| Clock | err | ws | hm | cs | Notes |
+|-------|-----|----|----|----|-------|
+| 09:27 | **32** | 0 | 1 | 1 | Bag full |
+| 09:34 | **32** | **3** | **3** | 1 | Seal / pack |
+| 09:35 | **0** | 0 | 3 | 3 | Full bit cleared; sealed bag still present — **must stay red** |
+| 09:40:38 | **128** | 0 | 3 | 3 | Drawer / No Bag (short) |
+| 09:40:57 | **0** | 0 | 3 | 3 | Inflate clear |
+| (box) | 0 | 0 | … | 1 | **No automatic barrel clean** after inflate |
+
+**HA rules (1.4.5):**
+
+1. Sticky `bag_chore`: `needs_seal` → `needs_remove` (on pack finish and/or full→0 after seal) → clear on **128→0**.  
+2. **Bag age / `bag_replaced`** on chore end (No Bag clear), **not** at Seal (Seal alone left age wrongly at ~0 while bag still in drawer).  
+3. After **128→0**, if no clean (`workstatus=1`) within **60s**, HA sends `handMode: 1` (default on, all boxes).  
+4. Device **FullAuto + catCleanOnOff** still owns post-**visit** auto-clean; this 60s path is post-**bag-replace** only.
 
 ### 5.3 Live Upstairs seal → bag change → app clean (2026-08-16 PDT)
 
@@ -506,18 +537,32 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 - `workstatus == 1` → cat in box (30s poll).  
 - Live `catWeight` often sticky last visit weight when empty.
 
-### 8.3 What HA does for clocks (1.3.22+ / 1.4.0+)
+### 8.3 What HA does for clocks (1.3.22+ / 1.4.5+)
 
 | Concern | Cloud source | Live HA role |
 |---------|--------------|--------------|
 | **Last visit** | `/device/data/wc` `start_time` (prefer when rows exist) | 30s occupy→idle edges still drive Dirty/awaiting; WC↔presence dedup (1.4.0) |
-| **Last cleaned** | `completionStatus` / `workstatus` **property times** on clean finish | Edge on 30s path **even without Dirty** (1.4.0 A1); stamp from edged property time |
-| **Bag age** | `errorReportEvent` / `workstatus` times on seal/empty/clear; live `workstatus` 3→0 pack | Seal = new bag (HA button **and** cloud pack, 1.4.0); no sticky `handMode` fallback |
+| **Last cleaned** | Prefer **`completionStatus` 2/3→1** time; `workstatus` 1→0 only with **cleaning** evidence (`completionStatus` 2/3 or `PHASE_CLEANING`) | **Pitfall:** `workstatus` 1→0 also happens when a **cat leaves** — do not stamp Last cleaned from leave alone (Downstairs Jet 2026-08-25: leave ~08:03 stamped false clean; real `completionStatus` still 07:05 morning scoop) |
+| **Bag age** | `errorReportEvent` on **No Bag clear (128→0)** / chore end | **Not** at Seal (1.4.5). Pack still emits `pack` event |
+| **Bag chore UI** | Sticky HA phase + bits (§5.2b) | Bag full / Remove Sealed Bag until 128→0 |
+| **Post-bag-replace clean** | After 128→0 | If no `workstatus=1` within **60s**, HA Clean (1.4.5) |
 | **Litter age** | `workstatus` time on →8 | Device reset uses property time (1.4.0 A3) |
 | **Day boundary** | `LocalTime` day key change | Reset WC ingest watermark for new “today” |
 
 - Matching without Jet/Tigger on roster → wrong names; without lb unit → wrong deltas (fixed 1.3.9).  
 - Empty WC after midnight must **not** wipe Last visit — only `LocalTime` day change resets the WC watermark.
+
+### 8.3b Detecting “used but not cleaned” (Dirty)
+
+| Signal | Reliable? |
+|--------|-----------|
+| WC `start_time` newer than last **real** clean | **Yes** — best cloud check |
+| `completionStatus` property `time` after visit | **Yes** if a clean finished (moves on 3→1) |
+| `workstatus` `time` alone | **No** — updates on cat leave **and** clean end |
+| HA toilet Idle + Last cleaned ≈ visit end | Suspect **false clean** (A1 over-trigger) |
+| Device FullAuto + delay | Box may still clean later; Quiet hours / sleep can block |
+
+**Quiet / night:** `masterSleepOnOff` + `sleepTimeStart/Stop` (minutes). HA **Quiet hours** switch maps this. Downstairs example: sleep **12:00–06:00**, switch **off** at 10:00 → not blocking a morning visit clean.
 
 ### 8.4 Expected match (after unit fix + full roster)
 
