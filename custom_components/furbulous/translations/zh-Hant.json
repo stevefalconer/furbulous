@@ -228,10 +228,10 @@
         "name": "Cat inside"
       },
       "waste_bin_full": {
-        "name": "Needs emptying"
+        "name": "Needs bag change"
       },
       "waste_bin_status": {
-        "name": "Needs emptying"
+        "name": "Needs bag change"
       },
       "cover_open": {
         "name": "Cover open"
