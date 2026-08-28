@@ -104,8 +104,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) ->
         poll_pause=poll_pause,
     )
 
-    await coordinator.async_config_entry_first_refresh()
+    # Prime known_devices, then presence→full (same order as resume) so the
+    # first full merge hits a warm presence props cache under Option A.
+    try:
+        await api.get_devices()
+    except FurbulousCatAuthError as err:
+        raise ConfigEntryAuthFailed(
+            "Invalid credentials or wrong Furbulous region"
+        ) from err
+    except FurbulousCatConnectionError as err:
+        raise ConfigEntryNotReady(
+            f"Cannot reach Furbulous cloud: {err}"
+        ) from err
+
     await presence_coordinator.async_config_entry_first_refresh()
+    await coordinator.async_config_entry_first_refresh()
     _async_register_services(hass)
 
     # One-shot before platforms: rewrite unique_ids to cat-parent scheme (1.3.7)

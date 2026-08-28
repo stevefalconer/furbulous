@@ -523,15 +523,21 @@ class FurbulousCatAPI:
                 device = dict(device)
                 cache_key = str(iotid)
                 entry = self._presence_props_cache.get(cache_key)
-                if (
+                cached_props = (
+                    entry.get("properties") if isinstance(entry, dict) else None
+                )
+                cache_fresh = (
                     entry is not None
                     and (now_mono - float(entry["mono_ts"]))
                     < PRESENCE_PROPS_MAX_AGE_S
-                ):
-                    device["properties"] = entry.get("properties") or {}
+                )
+                if cache_fresh and isinstance(cached_props, dict) and cached_props:
+                    device["properties"] = cached_props
                     device["property_times"] = entry.get("property_times") or {}
                     device.pop("props_stale", None)
                 else:
+                    # Stale/missing cache, or fresh-but-empty (soft-fail publish).
+                    # Prefer usable prior_devices over wiping good full props.
                     prior = prior_by_iotid.get(cache_key)
                     prior_props = (
                         prior.get("properties") if isinstance(prior, dict) else None
@@ -601,14 +607,18 @@ class FurbulousCatAPI:
 
         pets = await self.get_pets(force=False)
 
-        # Publish props for full-poll reuse
+        # Publish non-empty props for full-poll reuse (skip soft-fail empties
+        # so a transient properties/get miss does not overwrite a warm entry).
         mono_ts = time.monotonic()
         for device in devices_out:
             iotid = device.get("iotid")
             if not iotid:
                 continue
+            props = device.get("properties") or {}
+            if not props:
+                continue
             self._presence_props_cache[str(iotid)] = {
-                "properties": device.get("properties") or {},
+                "properties": props,
                 "property_times": device.get("property_times") or {},
                 "mono_ts": mono_ts,
                 "device_id": device.get("id"),

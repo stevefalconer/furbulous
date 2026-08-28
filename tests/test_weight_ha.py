@@ -79,11 +79,24 @@ async def _setup_entry(hass: HomeAssistant, snapshot: dict) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
 
+    async def _get_devices(self, *a, **k):
+        devices = snapshot["devices"]
+        self._known_devices = [
+            {"id": d.get("id"), "iotid": d.get("iotid"), "name": d.get("name")}
+            for d in devices
+            if d.get("iotid")
+        ]
+        return devices
+
     with (
         patch(
             "custom_components.furbulous.__init__.FurbulousCatAPI.authenticate",
             new_callable=AsyncMock,
             return_value=True,
+        ),
+        patch(
+            "custom_components.furbulous.__init__.FurbulousCatAPI.get_devices",
+            new=_get_devices,
         ),
         patch(
             "custom_components.furbulous.__init__.FurbulousCatAPI.async_get_full_snapshot",

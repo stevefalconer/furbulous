@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.furbulous.const import API_APPID, API_AUTH_ENDPOINT
+from custom_components.furbulous.const import (
+    API_APPID,
+    API_AUTH_ENDPOINT,
+    PRESENCE_PROPS_MAX_AGE_S,
+)
 from custom_components.furbulous.furbulous_api import (
     FurbulousCatAPI,
     FurbulousCatAuthError,
@@ -370,6 +375,208 @@ async def test_full_snapshot_stale_reuses_prior_without_get(
     assert device["props_stale"] is True
     assert device["property_times"]["catWeight"] == 1700000000.0
     assert _count_url(session.calls, "properties/get") == 0
+
+
+@pytest.mark.asyncio
+async def test_full_snapshot_aged_cache_reuses_prior_without_get(
+    sample_auth_success,
+    sample_device_list,
+    sample_daily_stats,
+):
+    """Cache entry older than PRESENCE_PROPS_MAX_AGE_S reuses prior, no GET."""
+    iotid = "iot-device-001"
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
+        payload=sample_daily_stats,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wc?iotid={iotid}",
+        payload={"code": 0, "data": []},
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
+    )
+
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    api._presence_props_cache[iotid] = {
+        "properties": {"catWeight": 999},
+        "property_times": {},
+        "mono_ts": time.monotonic() - (PRESENCE_PROPS_MAX_AGE_S + 1.0),
+        "device_id": 42,
+    }
+    prior = [
+        {
+            "id": 42,
+            "iotid": iotid,
+            "properties": {"catWeight": 4100, "workstatus": 0},
+            "property_times": {"catWeight": 1700000000.0},
+        }
+    ]
+    data = await api.async_get_full_snapshot(prior_devices=prior)
+    device = data["devices"][0]
+    assert device["properties"]["catWeight"] == 4100
+    assert device["props_stale"] is True
+    assert _count_url(session.calls, "properties/get") == 0
+
+
+@pytest.mark.asyncio
+async def test_full_snapshot_empty_fresh_cache_prefers_prior(
+    sample_auth_success,
+    sample_device_list,
+    sample_daily_stats,
+):
+    """Fresh cache with empty properties falls back to prior_devices."""
+    iotid = "iot-device-001"
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
+        payload=sample_daily_stats,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wc?iotid={iotid}",
+        payload={"code": 0, "data": []},
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
+    )
+
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    api._presence_props_cache[iotid] = {
+        "properties": {},
+        "property_times": {},
+        "mono_ts": time.monotonic(),
+        "device_id": 42,
+    }
+    prior = [
+        {
+            "id": 42,
+            "iotid": iotid,
+            "properties": {"catWeight": 4100},
+            "property_times": {},
+        }
+    ]
+    data = await api.async_get_full_snapshot(prior_devices=prior)
+    assert data["devices"][0]["properties"]["catWeight"] == 4100
+    assert data["devices"][0]["props_stale"] is True
+    assert _count_url(session.calls, "properties/get") == 0
+
+
+@pytest.mark.asyncio
+async def test_presence_skips_publishing_empty_props(
+    sample_auth_success,
+    sample_device_list,
+):
+    """Soft-fail empty properties/get must not overwrite a warm cache entry."""
+    iotid = "iot-device-001"
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/properties/get?iotid={iotid}",
+        payload={"code": 1, "message": "fail", "data": {}},
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": []}},
+    )
+
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    api._presence_props_cache[iotid] = {
+        "properties": {"catWeight": 4500},
+        "property_times": {},
+        "mono_ts": time.monotonic(),
+        "device_id": 42,
+    }
+    await api.get_devices()
+    await api.async_get_presence_snapshot()
+    assert api._presence_props_cache[iotid]["properties"]["catWeight"] == 4500
+
+
+@pytest.mark.asyncio
+async def test_startup_order_presence_before_full_has_props(
+    sample_auth_success,
+    sample_device_list,
+    sample_properties_grams,
+    sample_daily_stats,
+):
+    """Setup-like order (devices→presence→full) leaves full devices with props."""
+    iotid = "iot-device-001"
+    session = FakeSession()
+    session.add(
+        "POST", f"{US_BASE}{API_AUTH_ENDPOINT}", payload=sample_auth_success
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/properties/get?iotid={iotid}",
+        payload=sample_properties_grams,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/pet/list",
+        payload={"code": 0, "data": {"list": [{"id": 1, "name": "Mochi"}]}},
+    )
+    session.add("GET", f"{US_BASE}/app/v1/device/list", payload=sample_device_list)
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wcheader?iotid={iotid}",
+        payload=sample_daily_stats,
+    )
+    session.add(
+        "GET",
+        f"{US_BASE}/app/v1/device/data/wc?iotid={iotid}",
+        payload={"code": 0, "data": []},
+    )
+
+    api = FurbulousCatAPI(
+        email="user@example.com",
+        password="secret",
+        region_id="us",
+        session=session,  # type: ignore[arg-type]
+    )
+    await api.get_devices()
+    presence = await api.async_get_presence_snapshot()
+    assert presence["devices"][0]["properties"]["catWeight"] == 4500
+    full = await api.async_get_full_snapshot(prior_devices=None)
+    assert full["devices"][0]["properties"]["catWeight"] == 4500
+    assert full["devices"][0].get("props_stale") is not True
+    assert _count_url(session.calls, "properties/get") == 1
 
 
 @pytest.mark.asyncio

@@ -58,6 +58,23 @@ async def test_setup_and_unload_entry(hass: HomeAssistant) -> None:
         "pets": [{"id": 1, "name": "Mochi"}],
     }
 
+    order: list[str] = []
+
+    async def _get_devices(self, *a, **k):
+        order.append("devices")
+        self._known_devices = [
+            {"id": 42, "iotid": "iot-1", "name": "Box"},
+        ]
+        return snapshot["devices"]
+
+    async def _presence(self, *a, **k):
+        order.append("presence")
+        return {"devices": snapshot["devices"], "pets": snapshot["pets"]}
+
+    async def _full(self, *a, **k):
+        order.append("full")
+        return snapshot
+
     with (
         patch(
             "custom_components.furbulous.__init__.FurbulousCatAPI.authenticate",
@@ -65,39 +82,24 @@ async def test_setup_and_unload_entry(hass: HomeAssistant) -> None:
             return_value=True,
         ),
         patch(
-            "custom_components.furbulous.__init__.FurbulousCatAPI.async_get_full_snapshot",
-            new_callable=AsyncMock,
-            return_value=snapshot,
+            "custom_components.furbulous.__init__.FurbulousCatAPI.get_devices",
+            new=_get_devices,
         ),
         patch(
             "custom_components.furbulous.__init__.FurbulousCatAPI.async_get_presence_snapshot",
-            new_callable=AsyncMock,
-            return_value={"devices": snapshot["devices"]},
+            new=_presence,
         ),
         patch(
-            "custom_components.furbulous.furbulous_api.FurbulousCatAPI.known_devices",
-            new_callable=lambda: property(
-                lambda self: [
-                    {
-                        "id": 42,
-                        "iotid": "iot-1",
-                        "name": "Box",
-                    }
-                ]
-            ),
+            "custom_components.furbulous.__init__.FurbulousCatAPI.async_get_full_snapshot",
+            new=_full,
         ),
     ):
-        # Populate known_devices on the real API instance after construction
-        async def _auth(self_api=None, *a, **k):
-            return True
-
-        # Simpler: patch get_devices path inside snapshot already enough;
-        # presence may return empty if known_devices empty — still ok for setup.
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
     assert entry.runtime_data is not None
+    assert order.index("devices") < order.index("presence") < order.index("full")
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
