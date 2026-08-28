@@ -203,6 +203,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FurbulousConfigEntry) -
                 "resume_polling",
                 "mark_cleaned",
                 "mark_bag_replaced",
+                "clear_bag_alerts",
             ):
                 if hass.services.has_service(DOMAIN, svc):
                     hass.services.async_remove(DOMAIN, svc)
@@ -271,6 +272,26 @@ def _async_register_services(hass: HomeAssistant) -> None:
         )
         await runtime.analytics.async_flush(force=True)
 
+    async def async_clear_bag_alerts(call: ServiceCall) -> None:
+        """Clear sticky bag alerts (HA only); presence-first live full/128 gate."""
+        from .helpers import live_error_presence_first
+
+        runtime = await _resolve_runtime(call)
+        device_id = call.data.get("device_id")
+        if device_id is None:
+            raise HomeAssistantError("device_id is required")
+        live_err = live_error_presence_first(
+            runtime.presence_coordinator,
+            runtime.coordinator,
+            device_id,
+        )
+        runtime.analytics.clear_bag_alerts(
+            device_id,
+            source="service",
+            live_error_code=live_err,
+        )
+        await runtime.analytics.async_flush(force=True)
+
     pause_schema = vol.Schema(
         {
             vol.Optional("config_entry_id"): cv.string,
@@ -310,6 +331,18 @@ def _async_register_services(hass: HomeAssistant) -> None:
         "mark_bag_replaced",
         async_mark_bag_replaced,
         schema=mark_bag_replaced_schema,
+    )
+    clear_bag_alerts_schema = vol.Schema(
+        {
+            vol.Required("device_id"): cv.string,
+            vol.Optional("config_entry_id"): cv.string,
+        }
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "clear_bag_alerts",
+        async_clear_bag_alerts,
+        schema=clear_bag_alerts_schema,
     )
 
 

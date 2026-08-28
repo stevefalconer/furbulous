@@ -82,6 +82,7 @@ UID_EMPTY_WASTE = "empty_waste"
 UID_SEAL_WASTE_BAG = "seal_waste_bag"
 UID_LITTER_REFILLED = "litter_refilled"
 UID_MARK_CLEANED = "mark_cleaned"
+UID_CLEAR_BAG_ALERTS = "clear_bag_alerts"
 UID_MINUTES_BEFORE_AUTO_CLEAN = "minutes_before_auto_clean"
 
 UID_WHO_IS_INSIDE = "who_is_inside"

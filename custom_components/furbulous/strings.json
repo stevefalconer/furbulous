@@ -66,6 +66,9 @@
     "live_bag_alert_blocks_clear": {
       "message": "Cloud still reports Bag full / No Bag — fix on the box or wait for the next poll; HA will not hide a live alert."
     },
+    "resume_polling_required": {
+      "message": "Resume polling first — Home Assistant has no live bag status for this box."
+    },
     "invalid_auth": {
       "message": "Invalid credentials or wrong Furbulous region"
     },
@@ -170,6 +173,7 @@
       "pack": { "name": "Seal waste bag" },
       "mark_litter_reset": { "name": "Refilled litter" },
       "mark_cleaned": { "name": "Mark cleaned" },
+      "clear_bag_alerts": { "name": "Clear bag alerts (HA only)" },
       "pause_polling": { "name": "Pause polling" },
       "pause_polling_1_hour": { "name": "Pause polling 1 hour" },
       "resume_polling": { "name": "Resume polling" }

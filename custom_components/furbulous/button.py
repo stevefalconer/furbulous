@@ -11,8 +11,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .entity import FurbulousEntity
-from .entity_ids import UID_LITTER_REFILLED, UID_MARK_CLEANED, box_uid
-from .helpers import apply_write_to_runtime, async_add_devices_listener
+from .entity_ids import (
+    UID_CLEAR_BAG_ALERTS,
+    UID_LITTER_REFILLED,
+    UID_MARK_CLEANED,
+    box_uid,
+)
+from .helpers import (
+    apply_write_to_runtime,
+    async_add_devices_listener,
+    live_error_presence_first,
+)
 
 if TYPE_CHECKING:
     from . import FurbulousConfigEntry
@@ -32,12 +41,19 @@ async def async_setup_entry(
 
     runtime = entry.runtime_data
     coordinator = runtime.coordinator
+    presence = runtime.presence_coordinator
     api = runtime.api
     analytics = runtime.analytics
     known: set = set()
 
     def build(device: dict) -> list:
-        return button_entities_for_device(coordinator, api, device, analytics)
+        return button_entities_for_device(
+            coordinator,
+            api,
+            device,
+            analytics,
+            presence_coordinator=presence,
+        )
 
     listener = async_add_devices_listener(
         coordinator, async_add_entities, build, known
@@ -227,6 +243,70 @@ class FurbulousMarkCleanedButton(FurbulousEntity, ButtonEntity):
             return
         self._analytics.mark_cleaned(
             self._device_id, self._iotid, source="ha_button"
+        )
+        await self._analytics.async_flush()
+        self.async_write_ha_state()
+
+
+class FurbulousClearBagAlertsButton(FurbulousEntity, ButtonEntity):
+    """Clear sticky bag/error alerts in HA only (no cloud write).
+
+    Gates on presence ``errorReportEvent`` first; falls back to full snapshot.
+    """
+
+    _attr_icon = "mdi:bell-cancel"
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: int,
+        iotid: str,
+        analytics,
+        *,
+        presence_coordinator=None,
+    ) -> None:
+        super().__init__(
+            coordinator,
+            device_id,
+            translation_key="clear_bag_alerts",
+            unique_id=box_uid(device_id, UID_CLEAR_BAG_ALERTS),
+        )
+        self._iotid = iotid
+        self._analytics = analytics
+        self._presence = presence_coordinator
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        return {
+            "plain_english": (
+                "Clears sticky Bag full / Remove Sealed Bag in Home Assistant "
+                "only — does not talk to the Furbulous cloud. Blocked while the "
+                "cloud still reports Bag full or No Bag."
+            ),
+            "audience": "troubleshooting",
+        }
+
+    def _presence_coordinator(self):
+        if self._presence is not None:
+            return self._presence
+        entry = getattr(self.coordinator, "config_entry", None)
+        runtime = getattr(entry, "runtime_data", None) if entry is not None else None
+        return getattr(runtime, "presence_coordinator", None)
+
+    async def async_press(self) -> None:
+        if self._analytics is None:
+            return
+        live_err = live_error_presence_first(
+            self._presence_coordinator(),
+            self.coordinator,
+            self._device_id,
+            self._iotid,
+        )
+        self._analytics.clear_bag_alerts(
+            self._device_id,
+            self._iotid,
+            source="ha_troubleshooting",
+            live_error_code=live_err,
         )
         await self._analytics.async_flush()
         self.async_write_ha_state()

@@ -418,6 +418,83 @@ async def test_mark_bag_replaced_hours_ago():
 
 
 @pytest.mark.asyncio
+async def test_clear_bag_alerts_clears_needs_remove_when_cloud_clear():
+    """clear_bag_alerts from needs_remove + live err=0 → bag_chore None."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-clear-alerts")
+    eng.store._loaded = True
+    eng._device_state["38"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": True,
+        "remove_clean_ts_list": [1.0],
+        "last_error_code": 0,
+        "iotid": "iot-38",
+    }
+    eng.clear_bag_alerts(38, iotid="iot-38", live_error_code=0)
+    assert eng.bag_chore(38) is None
+    assert eng._device_state["38"].get("saw_no_bag_during_remove") is False
+    assert eng._device_state["38"].get("remove_clean_ts_list") == []
+    assert len(eng.store.events_for_device(38, event_types={"bag_replaced"})) == 1
+
+
+@pytest.mark.asyncio
+async def test_clear_bag_alerts_blocked_when_live_full_or_no_bag():
+    """clear_bag_alerts with err=32 or 128 → HomeAssistantError; chore unchanged."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    hass = MagicMock()
+    for err, did in ((32, "39"), (128, "40")):
+        eng = AnalyticsEngine(hass, f"entry-clear-gate-{did}")
+        eng.store._loaded = True
+        eng._device_state[did] = {
+            "bag_chore": "needs_remove",
+            "saw_no_bag_during_remove": True,
+            "last_error_code": 0,
+            "iotid": f"iot-{did}",
+        }
+        with pytest.raises(HomeAssistantError):
+            eng.clear_bag_alerts(did, iotid=f"iot-{did}", live_error_code=err)
+        assert eng.bag_chore(did) == "needs_remove"
+        assert len(eng.store.events_for_device(did, event_types={"bag_replaced"})) == 0
+
+
+def test_live_error_presence_first_prefers_presence_and_fails_closed():
+    """Presence props win; missing props raise resume_polling_required."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.furbulous.helpers import live_error_presence_first
+
+    presence = MagicMock()
+    presence.data = {
+        "devices": [
+            {"id": 41, "iotid": "iot-41", "properties": {"errorReportEvent": 32}}
+        ]
+    }
+    full = MagicMock()
+    full.data = {
+        "devices": [
+            {"id": 41, "iotid": "iot-41", "properties": {"errorReportEvent": 0}}
+        ]
+    }
+    assert live_error_presence_first(presence, full, 41, "iot-41") == 32
+
+    presence_empty = MagicMock()
+    presence_empty.data = {"devices": []}
+    full_stale = MagicMock()
+    full_stale.data = {
+        "devices": [
+            {"id": 41, "iotid": "iot-41", "properties": {"errorReportEvent": 0}}
+        ]
+    }
+    assert live_error_presence_first(presence_empty, full_stale, 41, "iot-41") == 0
+
+    empty = MagicMock()
+    empty.data = None
+    with pytest.raises(HomeAssistantError):
+        live_error_presence_first(empty, empty, 41, "iot-41")
+
+
+@pytest.mark.asyncio
 async def test_awaiting_clears_when_idle_after_saw_clean():
     """If we saw a clean cycle, Idle+Complete clears awaiting without waiting 30m."""
     hass = MagicMock()

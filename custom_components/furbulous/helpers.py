@@ -115,3 +115,52 @@ def is_cat_present(properties: dict[str, Any] | None) -> bool:
     from .box_state import classify
 
     return classify(properties).cat_present
+
+
+def _device_row_from_coordinator(
+    coordinator: Any,
+    device_id: int | str,
+    iotid: str | None = None,
+) -> dict[str, Any] | None:
+    """Return the device dict for id/iotid from a coordinator snapshot, if any."""
+    data = getattr(coordinator, "data", None)
+    if not isinstance(data, dict):
+        return None
+    want = str(device_id)
+    for device in data.get("devices") or []:
+        if not isinstance(device, dict):
+            continue
+        if str(device.get("id")) == want:
+            return device
+        if iotid and device.get("iotid") == iotid:
+            return device
+    return None
+
+
+def live_error_presence_first(
+    presence: Any | None,
+    full: Any | None,
+    device_id: int | str,
+    iotid: str | None = None,
+) -> int:
+    """Parse ``errorReportEvent`` from presence props first, else full.
+
+    Raises ``HomeAssistantError`` with ``resume_polling_required`` when neither
+    snapshot has a usable properties map for the device (paused / empty).
+    """
+    from homeassistant.exceptions import HomeAssistantError
+
+    from .const import DOMAIN
+    from .error_report import parse_error_code
+
+    row = _device_row_from_coordinator(presence, device_id, iotid)
+    if row is None:
+        row = _device_row_from_coordinator(full, device_id, iotid)
+    props = row.get("properties") if isinstance(row, dict) else None
+    if not isinstance(props, dict) or not props:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="resume_polling_required",
+        )
+    code = parse_error_code(props.get("errorReportEvent"))
+    return 0 if code is None else code

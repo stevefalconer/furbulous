@@ -19,6 +19,7 @@ from .binary_sensor import (
     FurbulousWasteBinFullSensor,
 )
 from .button import (
+    FurbulousClearBagAlertsButton,
     FurbulousHandModeButton,
     FurbulousLitterResetButton,
     FurbulousMarkCleanedButton,
@@ -129,7 +130,11 @@ def switch_entities_for_device(
 
 
 def button_entities_for_device(
-    coordinator: Any, api: Any, device: dict, analytics: Any = None
+    coordinator: Any,
+    api: Any,
+    device: dict,
+    analytics: Any = None,
+    presence_coordinator: Any = None,
 ) -> list[Entity]:
     """Buttons for one device."""
     device_id = device.get("id")
@@ -174,6 +179,15 @@ def button_entities_for_device(
         )
         entities.append(
             FurbulousMarkCleanedButton(coordinator, device_id, iotid, analytics)
+        )
+        entities.append(
+            FurbulousClearBagAlertsButton(
+                coordinator,
+                device_id,
+                iotid,
+                analytics,
+                presence_coordinator=presence_coordinator,
+            )
         )
     return entities
 

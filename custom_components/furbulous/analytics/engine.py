@@ -1240,6 +1240,41 @@ class AnalyticsEngine:
         self.recompute_all()
         self._notify()
 
+    def clear_bag_alerts(
+        self,
+        device_id: str | int,
+        iotid: str | None = None,
+        *,
+        source: str = "ha_troubleshooting",
+        live_error_code: int,
+    ) -> None:
+        """HA-only Troubleshooting clear of sticky bag alerts (no cloud write).
+
+        ``live_error_code`` must come from presence-first props (see
+        ``helpers.live_error_presence_first``). Raises if live full or No Bag.
+        """
+        did = str(device_id)
+        st = self._device_state.setdefault(did, {})
+        iotid = iotid or st.get("iotid")
+        code = int(live_error_code)
+        if (code & WASTE_FULL_MASK) != 0 or (code & ERROR_NO_BAG) != 0:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="live_bag_alert_blocks_clear",
+            )
+        now = time.time()
+        st.pop("last_bag_ts", None)
+        self._end_bag_chore(
+            did,
+            iotid=iotid,
+            source=source,
+            now=now,
+            arm_auto_clean=False,
+            record_replaced=True,
+        )
+        self.recompute_all()
+        self._notify()
+
     def record_hand_mode(
         self,
         device_id: str | int,
