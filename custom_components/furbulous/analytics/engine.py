@@ -1232,8 +1232,7 @@ class AnalyticsEngine:
                 )
                 st["last_empty_press_ts"] = now
                 self._record_bag_replaced(did, iotid, source=source, now=now)
-                # Clear sticky remove chore even while cloud still shows full —
-                # Empty is intentional; do not double-stamp bag_replaced.
+                # Empty may run while cloud still shows full; clear sticky chore.
                 self._end_bag_chore(
                     did,
                     iotid=iotid,

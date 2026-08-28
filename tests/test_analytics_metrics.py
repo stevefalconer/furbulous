@@ -389,7 +389,8 @@ async def test_empty_clears_needs_remove_while_live_full():
     eng.store._loaded = True
     eng._device_state["37"] = {
         "bag_chore": "needs_remove",
-        "saw_no_bag_during_remove": False,
+        "saw_no_bag_during_remove": True,
+        "remove_clean_ts_list": [1.0, 2.0],
         "last_error_code": 32,
         "is_full": True,
         "full_episode_start": time.time() - 600,
@@ -398,6 +399,7 @@ async def test_empty_clears_needs_remove_while_live_full():
     eng.record_hand_mode(37, "iot-37", HAND_MODE_EMPTY)
     assert eng.bag_chore(37) is None
     assert eng._device_state["37"].get("saw_no_bag_during_remove") is False
+    assert eng._device_state["37"].get("remove_clean_ts_list") == []
     bags = eng.store.events_for_device(37, event_types={"bag_replaced"})
     assert len(bags) == 1
 
