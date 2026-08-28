@@ -78,7 +78,7 @@ Adoption: [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md) · Power: [docs/P
 | HA usability | **PASS** — categories, PROBLEM OK, progressive disclosure |
 | General app UX | **PASS** — safety empty, jargon reduced |
 | Business analyst | **PASS** — chore outcomes mapped |
-| Performance | **PASS** — unchanged poll budget + events cheap |
+| Performance | **PASS** — 1.5.0 Option A + daily pets (~588 HTTP/h @ 4 boxes) + events cheap |
 | Principal | **PASS** — no capability removal |
 | Bronze / Silver / Gold lean | **PASS** |
 

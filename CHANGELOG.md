@@ -2,7 +2,13 @@
 
 All notable changes to this fork are documented here.
 
-## Unreleased
+## 1.5.0 — 2026-08-28
+
+### Polling efficiency (Option A + daily pet/list)
+
+- Full 5-min poll **reuses** presence `properties/get` (Option A) — no duplicate props GET when the presence cache is fresh (&lt;90 s).
+- Pet roster `pet/list` at most **once per 24 h** (rolling TTL on presence and full); never force on full.
+- Idle HTTP/hour (4 devices): **708 → ~588**; presence stays **2.0** props/min per box.
 
 ### Sticky bag chore clear (mark bag replaced + Empty)
 

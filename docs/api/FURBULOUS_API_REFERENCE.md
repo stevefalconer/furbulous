@@ -307,7 +307,7 @@ HA **must** walk bits above 512. Combined **524352** is **Trash door blocked** (
 
 We have **not** seen 16 and 32 set together. Both bits mean full so a combined value still works.
 
-### 5.2b Bag chore state machine (HA 1.4.5+, Cleo live 2026-08-25)
+### 5.2b Bag chore state machine (HA 1.4.5+ / 1.5.0, Cleo live 2026-08-25)
 
 Vendor copy says “Litter full”; product language is **bag** full. Cloud bits alone are **not** enough for the dashboard after Seal:
 
@@ -331,12 +331,19 @@ Observed Cleo timeline (PDT):
 | 09:40:57 | **0** | 0 | 3 | 3 | Inflate clear |
 | (box) | 0 | 0 | … | 1 | **No automatic barrel clean** after inflate |
 
-**HA rules (1.4.5):**
+**HA rules (1.4.5 + 1.5.0):**
 
-1. Sticky `bag_chore`: `needs_seal` → `needs_remove` (on pack finish and/or full→0 after seal) → clear on **128→0**.  
+1. Sticky `bag_chore`: `needs_seal` → `needs_remove` (on pack finish and/or full→0 after seal) → clear on **128→0** (**primary**).  
 2. **Bag age / `bag_replaced`** on chore end (No Bag clear), **not** at Seal (Seal alone left age wrongly at ~0 while bag still in drawer).  
 3. After **128→0**, if no clean (`workstatus=1`) within **60s**, HA sends `handMode: 1` (default on, all boxes).  
-4. Device **FullAuto + catCleanOnOff** still owns post-**visit** auto-clean; this 60s path is post-**bag-replace** only.
+4. Device **FullAuto + catCleanOnOff** still owns post-**visit** auto-clean; this 60s path is post-**bag-replace** only.  
+5. **Hybrid auto-clear (1.5.0)** of sticky `needs_remove` when cloud err is not full/128, after allowed finished cleans (`presence` / reconcile idle only):  
+   - **Arm A:** `saw_no_bag_during_remove` + one allowed finished clean.  
+   - **Arm B:** two allowed finished cleans ≥**90 min** apart (blocks 07:00/07:05 morning-scoop false clear).  
+   - **Mark cleaned** (`ha_button` / `service`) **never** auto-clears `bag_chore`; auto-clear does **not** arm post-drawer Clean.  
+6. **Manual / Troubleshooting clears (1.5.0):** shared `_end_bag_chore`.  
+   - `mark_bag_replaced` and dashboard **Clear bag alerts (HA only)** (`furbulous.clear_bag_alerts`) clear sticky chore with a **presence-first** hard gate on live full (**16\|32**) or live **128** (fail closed / Resume polling hint when props unavailable).  
+   - **Empty** (`HAND_MODE_EMPTY`) clears sticky chore **without** that live gate and without a second Bag age stamp (`record_replaced=False`).
 
 ### 5.3 Live Upstairs seal → bag change → app clean (2026-08-16 PDT)
 
@@ -544,7 +551,7 @@ Roster is **per login**. Cats added on a linked spouse account may not appear un
 | **Last visit** | `/device/data/wc` `start_time` (prefer when rows exist) | 30s occupy→idle edges still drive Dirty/awaiting; WC↔presence dedup (1.4.0) |
 | **Last cleaned** | Prefer **`completionStatus` 2/3→1** time; `workstatus` 1→0 only with **cleaning** evidence (`completionStatus` 2/3 or `PHASE_CLEANING`) | **Pitfall:** `workstatus` 1→0 also happens when a **cat leaves** — do not stamp Last cleaned from leave alone (Downstairs Jet 2026-08-25: leave ~08:03 stamped false clean; real `completionStatus` still 07:05 morning scoop) |
 | **Bag age** | `errorReportEvent` on **No Bag clear (128→0)** / chore end | **Not** at Seal (1.4.5). Pack still emits `pack` event |
-| **Bag chore UI** | Sticky HA phase + bits (§5.2b) | Bag full / Remove Sealed Bag until 128→0 |
+| **Bag chore UI** | Sticky HA phase + bits (§5.2b) | Bag full / Remove Sealed Bag until 128→0, Hybrid auto-clear, or HA-only clear (1.5.0) |
 | **Post-bag-replace clean** | After 128→0 | If no `workstatus=1` within **60s**, HA Clean (1.4.5) |
 | **Litter age** | `workstatus` time on →8 | Device reset uses property time (1.4.0 A3) |
 | **Day boundary** | `LocalTime` day key change | Reset WC ingest watermark for new “today” |

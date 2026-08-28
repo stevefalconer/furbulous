@@ -121,7 +121,7 @@ Events are append-only in `config/.storage/furbulous.analytics_<entry_id>` (`STO
 | Delete config entry / wipe `.storage` / new volume | Gone |
 | Reconfigure (same `entry_id`) | Survives |
 
-Bag age restarts on **Seal**, **Empty**, waste-full clear, No Bag clear, or `furbulous.mark_bag_replaced` (cloud property times preferred when present — 1.3.22+). Litter age restarts on **I refilled the litter** (or device `workstatus=8`). **Last visit** prefers `/device/data/wc` `start_time` when the cloud returns today’s rows; **Last cleaned** prefers `completionStatus`/`workstatus` property times on clean edges. Cloud `Uses today` follows the vendor day (`LocalTime` date packing).
+Bag age restarts on **Empty**, waste-full / No Bag clear (**128→0**), or `furbulous.mark_bag_replaced` (not at Seal alone — 1.4.5+; cloud property times preferred when present — 1.3.22+). From **1.5.0**, `mark_bag_replaced` also clears sticky `bag_chore` (Remove Sealed Bag) unless live full/128 hard-gates it. Litter age restarts on **I refilled the litter** (or device `workstatus=8`). **Last visit** prefers `/device/data/wc` `start_time` when the cloud returns today’s rows; **Last cleaned** prefers `completionStatus`/`workstatus` property times on clean edges. Cloud `Uses today` follows the vendor day (`LocalTime` date packing).
 
 ### Notify entities (Companion app)
 
@@ -147,15 +147,29 @@ Example YAML: [`docs/dashboards/mobile_notifications.yaml`](dashboards/mobile_no
 
 While paused, both the 30s presence and 5min full coordinators stop hitting the API. Turning the switch off (or waiting out a timed pause) resumes and refreshes once.
 
+### Account tools — Clear bag alerts (1.5.0)
+
+Dashboard bottom **Account tools** stack: Pause/Resume first, then per-device **Clear bag alerts (HA only)**.
+
+| Control | Entity / service |
+|---------|------------------|
+| Clear sticky bag alerts | `button.<box>_clear_bag_alerts` |
+| Service | `furbulous.clear_bag_alerts` (`device_id`) |
+| Related | `furbulous.mark_bag_replaced` (also clears sticky chore + resets Bag age) |
+
+HA-only: presence-first hard gate on live full (**16\|32**) or No Bag (**128**); fails closed with a Resume polling hint when props are unavailable. Does not move the box. **Mark cleaned** stays on the box card and never clears `bag_chore`. Hybrid auto-clear may also drop sticky `needs_remove` after allowed finished cleans (see API ref §5.2b).
+
 ---
 
 ## 5. Polling budget (Pi-aware)
 
 | Path | Interval | Content |
 |------|----------|---------|
-| Presence | 30s | Properties only |
-| Pet roster | ≤60s | Cached `pet/list` |
-| Full | 5 min | List + stats + pets force + analytics recompute |
+| Presence | 30s | Properties only (`properties/get`) |
+| Pet roster | ≤24 h | Cached `pet/list` (rolling TTL; never force) |
+| Full | 5 min | Device list + **reuse** presence props + wcheader/wc; pets only if TTL expired |
+
+**Load (4 devices, idle HTTP/hour):** Before **708** → Option A / R1 **660** → R1 + daily pet/list **~588**. Presence stays **2.0** props/min per box.
 
 Secondary sensors stay **disabled by default** to limit recorder noise. Enable as needed.
 

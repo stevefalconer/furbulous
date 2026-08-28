@@ -3,7 +3,7 @@
 Plain-language guide for multi-cat households, “crazy cat ladies,” and cat daddies.  
 You do **not** need to be a Home Assistant expert to use the everyday pieces.
 
-**Integration version:** 1.3.17
+**Integration version:** 1.5.0
 
 **Sign-in tip:** A **dedicated Furbulous account** for Home Assistant is still best. If you must share one login with the phone app, use **Pause cloud polling** (or **Pause polling 1 hour**) on the litter dashboard / Furbulous hub device first — that stops HA from calling the cloud so the app can stay signed in while you edit pets, weights, or settings.
 
@@ -72,7 +72,18 @@ You’ll see sections roughly like:
 | Remove sealed bag + put drawer back | Clears the box “full” error in the cloud | **Restarts** Bag age when **Needs emptying** goes back to OK |
 | **Empty all litter** | Dumps **all** litter (safety confirm required) | Also restarts Bag age |
 
+After Seal, HA may keep **Remove Sealed Bag** / **Needs bag change** red on purpose while the sealed bag still sits in the drawer — even if the box screen looks fine. That sticky alert normally clears when HA sees **No Bag** clear, after a later clean proves the bag work is done, or when you use **Clear bag alerts** (below).
+
 If the box stays full / errored, it often **will not clean** after visits — that is why phone alerts on **Needs emptying** and **Trash door jammed** matter.
+
+### Account tools (bottom of the litter dashboard)
+
+At the bottom of the litter dashboard you’ll see **Account tools**:
+
+1. **Pause / Resume cloud polling** — same as the sign-in tip above.  
+2. Per-box **Clear bag alerts (HA only)** — turns off sticky Bag full / Remove Sealed Bag in Home Assistant when the physical bag chore is already done but HA missed it.
+
+**Clear bag alerts** does **not** move the box. It refuses to clear while the cloud still shows Bag full or No Bag (so it won’t hide a real problem). If polling is paused and HA can’t check, resume polling first. **Mark cleaned** stays on each box card and only fixes stuck Dirty — it does not clear bag alerts.
 
 ### After you add litter
 

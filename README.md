@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Domain** | `furbulous` |
-| **Version** | 1.4.6 |
+| **Version** | 1.5.0 |
 | **IoT class** | `cloud_polling` |
 | **Min HA** | 2024.4.0 |
 | **Issues** | [GitHub Issues](https://github.com/stevefalconer/furbulous/issues) |
@@ -27,8 +27,8 @@ This is **not** an official Furbulous product and is **not** affiliated with or 
 2. You select the **account region** (must match the country chosen when you created the app account). Wrong region usually returns **invalid credentials**.
 3. The integration authenticates to that region’s cloud host, lists devices, and stores a single API client on the config entry.
 4. Two coordinators refresh data (entities never call the API themselves):
-   - **~5 minutes:** device list, full properties, daily stats, pets (force refresh)  
-   - **~30 seconds:** properties (occupancy, weight, full/errors, modes); pet roster at most every **1 minute**
+   - **~5 minutes:** device list, reuse presence properties, daily stats (wcheader/wc), pets if daily TTL expired  
+   - **~30 seconds:** properties (occupancy, weight, full/errors, modes); pet roster at most every **24 hours**
 5. **Multi-cat identity** (app-style): match visit weight to the closest cat on the account roster (or learned weights).  
 6. Entities expose last visit (cat / time / weight), chore analytics, and controls.  
 7. Day/7d/30d history is **local** (90-day event log)—the cloud does not expose month history.
