@@ -86,3 +86,26 @@ mark_bag_replaced:
       required: false
       selector:
         text:
+
+clear_bag_alerts:
+  name: Clear bag alerts
+  description: >-
+    Clear sticky Bag full / Remove Sealed Bag alerts in Home Assistant only
+    (Troubleshooting escape hatch). Uses live presence status first. Blocked
+    while the cloud still reports Bag full or No Bag; fails closed if polling
+    is paused with no usable props (resume polling first). Does not call the
+    cloud or move the box.
+  fields:
+    device_id:
+      name: Device ID
+      description: >-
+        Cloud device id (from entity unique_id, e.g. 3129 for Master —
+        furbulous_3129_…).
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry ID
+      required: false
+      selector:
+        text:

@@ -11,6 +11,12 @@ All notable changes to this fork are documented here.
 - Empty (`HAND_MODE_EMPTY`) clears sticky chore without a second Bag age stamp and without the live hard gate.
 - 128→0 primary clear refactored onto the same helper (still arms post-drawer auto-clean).
 
+### Account tools: Clear bag alerts (HA only)
+
+- Per-device **Clear bag alerts (HA only)** button + optional `furbulous.clear_bag_alerts` service.
+- Presence-first live full/128 hard gate; fails closed with Resume polling hint when props are unavailable.
+- Dashboard bottom stack retitled **Account tools**: Pause/Resume first, then visible per-device clear buttons (no hide toggle). Mark cleaned stays on box cards.
+
 ## 1.4.6 — 2026-08-25
 
 ### False Last cleaned on visit leave + API docs

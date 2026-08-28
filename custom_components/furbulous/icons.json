@@ -33,7 +33,8 @@
       "pause_cleaning": { "default": "mdi:pause" },
       "resume_cleaning": { "default": "mdi:play" },
       "empty": { "default": "mdi:delete-empty" },
-      "pack": { "default": "mdi:package" }
+      "pack": { "default": "mdi:package" },
+      "clear_bag_alerts": { "default": "mdi:bell-cancel" }
     },
     "select": {
       "cleaning_delay": { "default": "mdi:timer-outline" }

@@ -90,6 +90,7 @@ def test_all_box_unique_ids_use_cat_parent_scheme():
         "clean_now",
         "empty_waste",
         "seal_waste_bag",
+        "clear_bag_alerts",
         "empty_confirm_ready",
         "auto_clean_after_visits",
         "quiet_hours",

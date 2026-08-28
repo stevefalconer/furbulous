@@ -6,7 +6,7 @@
 # Per box order:
 #   title → cat status → Today/7d → bag/seals/litter → Idle/Bag/Errors → Clean/Seal/Refilled
 # House: Today → visits/7d → seals/litter
-# Pause: own stack at bottom
+# Account tools (bottom): Pause/Resume, then per-device Clear bag alerts (HA only)
 #
 title: Furbulous
 views:
@@ -742,6 +742,8 @@ views:
   - type: vertical-stack
     cards:
     - type: custom:mushroom-title-card
+      title: Account tools
+    - type: custom:mushroom-title-card
       title: Pause polling (phone app)
     - type: custom:mushroom-template-card
       primary: |
@@ -820,3 +822,93 @@ views:
             service: switch.turn_off
             target:
               entity_id: switch.furbulous_pause_cloud_polling
+    - type: custom:mushroom-title-card
+      title: HA-only bag alerts
+    - type: custom:mushroom-template-card
+      primary: Does not talk to the Furbulous cloud
+      secondary: Blocked while cloud still shows Bag full or No Bag. Resume polling if this fails closed.
+      icon: mdi:bell-cancel
+      icon_color: grey
+      layout: horizontal
+      tap_action:
+        action: none
+    - type: custom:mushroom-title-card
+      title: Downstairs
+    - type: custom:mushroom-chips-card
+      alignment: end
+      card_mod:
+        style: |
+          ha-card { --chip-height: 42px; }
+          .chip-container {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            width: 100%;
+            gap: 8px;
+          }
+          mushroom-chip { width: 100% !important; justify-content: center !important; }
+      chips:
+      - type: entity
+        entity: button.family_room_downstairs_clear_bag_alerts_ha_only
+        name: Clear bag alerts (HA only)
+        icon: mdi:bell-cancel
+        content_info: name
+    - type: custom:mushroom-title-card
+      title: Master
+    - type: custom:mushroom-chips-card
+      alignment: end
+      card_mod:
+        style: |
+          ha-card { --chip-height: 42px; }
+          .chip-container {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            width: 100%;
+            gap: 8px;
+          }
+          mushroom-chip { width: 100% !important; justify-content: center !important; }
+      chips:
+      - type: entity
+        entity: button.master_bedroom_master_clear_bag_alerts_ha_only
+        name: Clear bag alerts (HA only)
+        icon: mdi:bell-cancel
+        content_info: name
+    - type: custom:mushroom-title-card
+      title: Cleo
+    - type: custom:mushroom-chips-card
+      alignment: end
+      card_mod:
+        style: |
+          ha-card { --chip-height: 42px; }
+          .chip-container {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            width: 100%;
+            gap: 8px;
+          }
+          mushroom-chip { width: 100% !important; justify-content: center !important; }
+      chips:
+      - type: entity
+        entity: button.cleo_clear_bag_alerts_ha_only
+        name: Clear bag alerts (HA only)
+        icon: mdi:bell-cancel
+        content_info: name
+    - type: custom:mushroom-title-card
+      title: Upstairs
+    - type: custom:mushroom-chips-card
+      alignment: end
+      card_mod:
+        style: |
+          ha-card { --chip-height: 42px; }
+          .chip-container {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            width: 100%;
+            gap: 8px;
+          }
+          mushroom-chip { width: 100% !important; justify-content: center !important; }
+      chips:
+      - type: entity
+        entity: button.front_bedroom_upstairs_clear_bag_alerts_ha_only
+        name: Clear bag alerts (HA only)
+        icon: mdi:bell-cancel
+        content_info: name

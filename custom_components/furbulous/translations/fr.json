@@ -71,6 +71,9 @@
     },
     "cannot_connect": {
       "message": "Cannot reach the Furbulous cloud"
+    },
+    "resume_polling_required": {
+      "message": "Resume polling first — Home Assistant has no live bag status for this box."
     }
   },
   "selector": {
@@ -302,6 +305,9 @@
       },
       "mark_litter_reset": {
         "name": "I refilled the litter"
+      },
+      "clear_bag_alerts": {
+        "name": "Clear bag alerts (HA only)"
       }
     },
     "select": {
