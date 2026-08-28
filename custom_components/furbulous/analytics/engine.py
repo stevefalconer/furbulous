@@ -32,6 +32,7 @@ from ..bag_chore import (
     AUTO_CLEAN_AFTER_DRAWER_S,
     CHORE_NEEDS_REMOVE,
     CHORE_NEEDS_SEAL,
+    CLEAN_PAIR_SPACING_S,
     chore_active,
 )
 from ..box_state import (
@@ -78,6 +79,14 @@ HAND_MODE_EMPTY = 2
 HAND_MODE_PACK = 3
 FLUSH_DEBOUNCE_S = 60.0
 STATUS_IDLE = "Idle"
+# Mark cleaned (ha_button / service) must never auto-clear bag_chore.
+ALLOWED_AUTO_CLEAR_SOURCES = frozenset(
+    {
+        "presence",
+        "reconcile_idle_after_clean",
+        "reconcile_idle_after_dirty",
+    }
+)
 STATUS_DIRTY = "Dirty"
 # Auto-clean tokens so a newer drawer event cancels a stale timer.
 _auto_clean_tokens: dict[str, int] = {}
@@ -963,6 +972,62 @@ class AnalyticsEngine:
                 translation_key="live_bag_alert_blocks_clear",
             )
 
+    def _maybe_auto_clear_bag_chore_after_clean(
+        self,
+        device_id: str,
+        *,
+        source: str,
+        now: float,
+        iotid: str | None = None,
+    ) -> None:
+        """Hybrid auto-clear of sticky needs_remove after allowed clean evidence.
+
+        Arm A: saw_no_bag_during_remove on a single allowed clean.
+        Arm B: two allowed cleans in this remove episode spaced >= 90 min.
+        Does not arm post-drawer Clean. Mark cleaned sources are excluded.
+        """
+        if source not in ALLOWED_AUTO_CLEAR_SOURCES:
+            return
+        did = str(device_id)
+        st = self._device_state.get(did) or {}
+        if st.get("bag_chore") != CHORE_NEEDS_REMOVE:
+            return
+        err = st.get("last_error_code")
+        if err is not None:
+            code = int(err)
+            if (code & WASTE_FULL_MASK) != 0 or (code & ERROR_NO_BAG) != 0:
+                return
+        ts_list = list(st.get("remove_clean_ts_list") or [])
+        ts_list.append(float(now))
+        if len(ts_list) > 3:
+            ts_list = ts_list[-3:]
+        st["remove_clean_ts_list"] = ts_list
+        self._dirty = True
+
+        clear_source: str | None = None
+        if st.get("saw_no_bag_during_remove"):
+            clear_source = "clean_evidence_arm_a"
+        elif (
+            len(ts_list) >= 2
+            and (ts_list[-1] - ts_list[-2]) >= CLEAN_PAIR_SPACING_S
+        ):
+            clear_source = "clean_evidence_arm_b"
+        if clear_source is None:
+            return
+        _LOGGER.info(
+            "Auto-clear bag chore device=%s source=%s",
+            did,
+            clear_source,
+        )
+        self._end_bag_chore(
+            did,
+            iotid=iotid or st.get("iotid"),
+            source=clear_source,
+            now=now,
+            arm_auto_clean=False,
+            record_replaced=True,
+        )
+
     def _end_bag_chore(
         self,
         device_id: str,
@@ -1123,6 +1188,9 @@ class AnalyticsEngine:
         st["clean_in_progress"] = False
         self._dirty = True
         self._need_immediate_flush = True
+        self._maybe_auto_clear_bag_chore_after_clean(
+            did, source=source, now=now, iotid=iotid
+        )
 
     def mark_cleaned(
         self,

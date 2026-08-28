@@ -1098,3 +1098,169 @@ async def test_cat_leave_does_not_stamp_last_cleaned():
     assert eng.store.events_for_device(77, event_types={"clean"}) == []
     assert eng._device_state["77"].get("awaiting_clean_since") is not None
     assert eng.toilet_status(77)["severity"] in ("attention", "critical")
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_morning_scoops_keep_sticky():
+    """Overnight needs_remove + err=0 + two cleans 5 min apart → sticky remains."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-morning")
+    eng.store._loaded = True
+    eng._device_state["91"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": False,
+        "remove_clean_ts_list": [],
+        "last_error_code": 0,
+        "iotid": "iot-91",
+    }
+    t0 = time.time()
+    eng._record_clean_finished(91, "iot-91", source="presence", now=t0)
+    eng._record_clean_finished(91, "iot-91", source="presence", now=t0 + 300)
+    assert eng.bag_chore(91) == "needs_remove"
+    assert eng._device_state["91"].get("saw_no_bag_during_remove") is False
+    ts_list = eng._device_state["91"].get("remove_clean_ts_list") or []
+    assert len(ts_list) == 2
+    assert len(eng.store.events_for_device(91, event_types={"bag_replaced"})) == 0
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_arm_a_saw_no_bag_one_presence_clean():
+    """saw_no_bag_during_remove + one presence finished clean + err=0 → clears."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-arm-a")
+    eng.store._loaded = True
+    eng._device_state["92"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": True,
+        "remove_clean_ts_list": [],
+        "last_error_code": 0,
+        "occupied": False,
+        "saw_clean_cycle": True,
+        "clean_in_progress": True,
+        "last_completion": 3,
+        "last_workstatus": 1,
+        "last_phase": "cleaning",
+        "iotid": "iot-92",
+    }
+    idle = {
+        "id": 92,
+        "iotid": "iot-92",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+        },
+    }
+    eng.process_snapshot([idle])
+    assert eng.bag_chore(92) is None
+    assert eng._device_state["92"].get("saw_no_bag_during_remove") is False
+    assert eng._device_state["92"].get("remove_clean_ts_list") == []
+    bags = eng.store.events_for_device(92, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    assert bags[0]["source"] == "clean_evidence_arm_a"
+    assert eng._device_state["92"].get("auto_clean_armed_ts") is None
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_arm_b_two_cleans_ninety_min():
+    """Two allowed cleans ≥90 min apart, never saw 128 → clears Arm B."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-arm-b")
+    eng.store._loaded = True
+    eng._device_state["93"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": False,
+        "remove_clean_ts_list": [],
+        "last_error_code": 0,
+        "iotid": "iot-93",
+    }
+    t0 = time.time()
+    eng._record_clean_finished(93, "iot-93", source="presence", now=t0)
+    assert eng.bag_chore(93) == "needs_remove"
+    eng._record_clean_finished(
+        93, "iot-93", source="reconcile_idle_after_clean", now=t0 + 5400
+    )
+    assert eng.bag_chore(93) is None
+    assert eng._device_state["93"].get("remove_clean_ts_list") == []
+    bags = eng.store.events_for_device(93, event_types={"bag_replaced"})
+    assert len(bags) == 1
+    assert bags[0]["source"] == "clean_evidence_arm_b"
+    assert eng._device_state["93"].get("auto_clean_armed_ts") is None
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_cat_leave_alone_no_clear():
+    """Cat leave alone while needs_remove does not clear bag_chore."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-leave")
+    eng.store._loaded = True
+    eng._device_state["94"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": True,
+        "last_error_code": 0,
+        "occupied": True,
+        "occupy_since": time.time() - 90,
+        "last_workstatus": 1,
+        "last_completion": 1,
+        "last_phase": "idle",
+        "iotid": "iot-94",
+    }
+    leave = {
+        "id": 94,
+        "iotid": "iot-94",
+        "properties": {
+            "workstatus": 0,
+            "completionStatus": 1,
+            "errorReportEvent": 0,
+            "catWeight": 8167,
+        },
+    }
+    eng.process_snapshot([leave])
+    assert eng.bag_chore(94) == "needs_remove"
+    assert eng.store.events_for_device(94, event_types={"clean"}) == []
+    assert len(eng.store.events_for_device(94, event_types={"bag_replaced"})) == 0
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_needs_seal_clean_no_clear():
+    """needs_seal + finished clean must not auto-clear bag_chore."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-seal")
+    eng.store._loaded = True
+    eng._device_state["95"] = {
+        "bag_chore": "needs_seal",
+        "saw_no_bag_during_remove": False,
+        "last_error_code": 32,
+        "iotid": "iot-95",
+    }
+    eng._record_clean_finished(95, "iot-95", source="presence", now=time.time())
+    assert eng.bag_chore(95) == "needs_seal"
+    assert eng._device_state["95"].get("remove_clean_ts_list") in (None, [])
+    assert len(eng.store.events_for_device(95, event_types={"bag_replaced"})) == 0
+
+
+@pytest.mark.asyncio
+async def test_hybrid_auto_clear_mark_cleaned_never_clears_chore():
+    """mark_cleaned with saw_no_bag + err=0 → bag_chore unchanged."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-hybrid-mark")
+    eng.store._loaded = True
+    eng._device_state["96"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": True,
+        "remove_clean_ts_list": [],
+        "last_error_code": 0,
+        "awaiting_clean_since": time.time() - 100,
+        "awaiting_clean_cat": "Jet",
+        "iotid": "iot-96",
+    }
+    eng.mark_cleaned(96, iotid="iot-96", source="ha_button")
+    assert eng.bag_chore(96) == "needs_remove"
+    assert eng._device_state["96"].get("saw_no_bag_during_remove") is True
+    assert eng._device_state["96"].get("remove_clean_ts_list") == []
+    assert len(eng.store.events_for_device(96, event_types={"clean"})) == 1
+    assert len(eng.store.events_for_device(96, event_types={"bag_replaced"})) == 0
+    # service source also excluded
+    eng.mark_cleaned(96, iotid="iot-96", source="service")
+    assert eng.bag_chore(96) == "needs_remove"
+    assert eng._device_state["96"].get("remove_clean_ts_list") == []

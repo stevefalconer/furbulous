@@ -28,6 +28,10 @@ BAG_STATUS_OK = "Bag OK"
 # After No Bag (128) clears to 0, wait this long then Clean if drum idle.
 AUTO_CLEAN_AFTER_DRAWER_S = 60.0
 
+# Hybrid auto-clear Arm B: two allowed finished cleans while needs_remove.
+# 90 min — above morning double-scoop (~5 min), below a quiet afternoon gap.
+CLEAN_PAIR_SPACING_S = 5400.0
+
 
 def chore_error_label(chore: str | None) -> str | None:
     """Dashboard error-chip text for an open chore, else None."""
