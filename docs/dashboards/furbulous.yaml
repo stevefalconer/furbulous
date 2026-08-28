@@ -888,7 +888,7 @@ views:
           mushroom-chip { width: 100% !important; justify-content: center !important; }
       chips:
       - type: entity
-        entity: button.cleo_clear_bag_alerts_ha_only
+        entity: button.middle_bedroom_cleo_clear_bag_alerts_ha_only
         name: Clear bag alerts (HA only)
         icon: mdi:bell-cancel
         content_info: name
