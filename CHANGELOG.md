@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## Unreleased
+
+### Sticky bag chore clear (mark bag replaced + Empty)
+
+- Shared `_end_bag_chore` clears `bag_chore` / `saw_no_bag_during_remove` / `remove_clean_ts_list`.
+- `mark_bag_replaced` clears sticky Remove Sealed Bag and **hard-gates** when live full (16|32) or No Bag (128).
+- Empty (`HAND_MODE_EMPTY`) clears sticky chore without a second Bag age stamp and without the live hard gate.
+- 128→0 primary clear refactored onto the same helper (still arms post-drawer auto-clean).
+
 ## 1.4.6 — 2026-08-25
 
 ### False Last cleaned on visit leave + API docs

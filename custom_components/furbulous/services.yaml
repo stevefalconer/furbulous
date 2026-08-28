@@ -56,9 +56,10 @@ mark_cleaned:
 mark_bag_replaced:
   name: Mark bag replaced
   description: >-
-    Reset Bag age when you already sealed/replaced the waste bag but Home
-    Assistant still shows Bag age Unknown (missed No Bag / full-clear poll).
-    Does not call the cloud or move the box.
+    Reset Bag age and clear sticky Remove Sealed Bag / Bag full alerts when you
+    already sealed/replaced the waste bag but Home Assistant missed No Bag
+    (or still shows the chore). Blocked while the cloud still reports Bag full
+    or No Bag. Does not call the cloud or move the box.
   fields:
     device_id:
       name: Device ID

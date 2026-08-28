@@ -63,6 +63,9 @@
     "empty_not_confirmed": {
       "message": "Not ready to empty. Empty dumps all litter — close the drum, turn ON “Empty — confirm ready”, then press Empty all litter within 90 seconds."
     },
+    "live_bag_alert_blocks_clear": {
+      "message": "Cloud still reports Bag full / No Bag — fix on the box or wait for the next poll; HA will not hide a live alert."
+    },
     "invalid_auth": {
       "message": "Invalid credentials or wrong Furbulous region"
     },

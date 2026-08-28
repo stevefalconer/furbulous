@@ -340,6 +340,69 @@ async def test_mark_bag_replaced_service_path():
 
 
 @pytest.mark.asyncio
+async def test_mark_bag_replaced_clears_needs_remove_when_cloud_clear():
+    """mark_bag_replaced from needs_remove + clear cloud → bag_chore None."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-mark-chore")
+    eng.store._loaded = True
+    eng._device_state["34"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": True,
+        "remove_clean_ts_list": [1.0],
+        "last_error_code": 0,
+        "iotid": "iot-34",
+    }
+    eng.mark_bag_replaced(34, iotid="iot-34", source="service")
+    assert eng.bag_chore(34) is None
+    assert eng._device_state["34"].get("saw_no_bag_during_remove") is False
+    assert eng._device_state["34"].get("remove_clean_ts_list") == []
+    assert len(eng.store.events_for_device(34, event_types={"bag_replaced"})) == 1
+
+
+@pytest.mark.asyncio
+async def test_mark_bag_replaced_blocked_when_live_full_or_no_bag():
+    """mark_bag_replaced with err=32 or 128 → HomeAssistantError; chore unchanged."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    hass = MagicMock()
+    for err, did in ((32, "35"), (128, "36")):
+        eng = AnalyticsEngine(hass, f"entry-mark-gate-{did}")
+        eng.store._loaded = True
+        eng._device_state[did] = {
+            "bag_chore": "needs_remove",
+            "saw_no_bag_during_remove": True,
+            "last_error_code": err,
+            "iotid": f"iot-{did}",
+        }
+        with pytest.raises(HomeAssistantError):
+            eng.mark_bag_replaced(did, iotid=f"iot-{did}", source="service")
+        assert eng.bag_chore(did) == "needs_remove"
+        assert eng._device_state[did].get("saw_no_bag_during_remove") is True
+        assert len(eng.store.events_for_device(did, event_types={"bag_replaced"})) == 0
+
+
+@pytest.mark.asyncio
+async def test_empty_clears_needs_remove_while_live_full():
+    """Empty with needs_remove + err=32 clears chore; exactly one bag_replaced."""
+    hass = MagicMock()
+    eng = AnalyticsEngine(hass, "entry-empty-chore")
+    eng.store._loaded = True
+    eng._device_state["37"] = {
+        "bag_chore": "needs_remove",
+        "saw_no_bag_during_remove": False,
+        "last_error_code": 32,
+        "is_full": True,
+        "full_episode_start": time.time() - 600,
+        "iotid": "iot-37",
+    }
+    eng.record_hand_mode(37, "iot-37", HAND_MODE_EMPTY)
+    assert eng.bag_chore(37) is None
+    assert eng._device_state["37"].get("saw_no_bag_during_remove") is False
+    bags = eng.store.events_for_device(37, event_types={"bag_replaced"})
+    assert len(bags) == 1
+
+
+@pytest.mark.asyncio
 async def test_mark_bag_replaced_hours_ago():
     """hours_ago backdates Bag age."""
     hass = MagicMock()
