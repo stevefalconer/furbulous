@@ -16,7 +16,9 @@ from collections.abc import Callable
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
+from ..const import DOMAIN
 from ..entity import extract_prop_value
 from ..error_report import (
     ERROR_NO_BAG,
@@ -30,6 +32,7 @@ from ..bag_chore import (
     AUTO_CLEAN_AFTER_DRAWER_S,
     CHORE_NEEDS_REMOVE,
     CHORE_NEEDS_SEAL,
+    CLEAN_PAIR_SPACING_S,
     chore_active,
 )
 from ..box_state import (
@@ -76,6 +79,14 @@ HAND_MODE_EMPTY = 2
 HAND_MODE_PACK = 3
 FLUSH_DEBOUNCE_S = 60.0
 STATUS_IDLE = "Idle"
+# Mark cleaned (ha_button / service) must never auto-clear bag_chore.
+ALLOWED_AUTO_CLEAR_SOURCES = frozenset(
+    {
+        "presence",
+        "reconcile_idle_after_clean",
+        "reconcile_idle_after_dirty",
+    }
+)
 STATUS_DIRTY = "Dirty"
 # Auto-clean tokens so a newer drawer event cancels a stale timer.
 _auto_clean_tokens: dict[str, int] = {}
@@ -934,18 +945,119 @@ class AnalyticsEngine:
             bag_ts = self._cloud_event_ts(
                 device, "errorReportEvent", "workstatus", now=now
             )
-            if self._record_bag_replaced(
-                did, iotid, source="presence_no_bag_cleared", now=bag_ts
-            ):
-                rank = 1
-            st["bag_chore"] = None
-            st["saw_no_bag_during_remove"] = False
-            self._arm_auto_clean_after_drawer(did, iotid)
+            self._end_bag_chore(
+                did,
+                iotid=iotid,
+                source="presence_no_bag_cleared",
+                now=bag_ts,
+                arm_auto_clean=True,
+                record_replaced=True,
+            )
             rank = 1
 
         if rank == 0 and identity_changed and occupied:
             return 2
         return rank
+
+    def _raise_if_live_bag_hazard(self, device_id: str) -> None:
+        """Block HA-only bag clears while cloud still shows full or No Bag."""
+        st = self._device_state.get(str(device_id)) or {}
+        err = st.get("last_error_code")
+        if err is None:
+            return
+        code = int(err)
+        if (code & WASTE_FULL_MASK) != 0 or (code & ERROR_NO_BAG) != 0:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="live_bag_alert_blocks_clear",
+            )
+
+    def _maybe_auto_clear_bag_chore_after_clean(
+        self,
+        device_id: str,
+        *,
+        source: str,
+        now: float,
+        iotid: str | None = None,
+    ) -> None:
+        """Hybrid auto-clear of sticky needs_remove after allowed clean evidence.
+
+        Arm A: saw_no_bag_during_remove on a single allowed clean.
+        Arm B: two allowed cleans in this remove episode spaced >= 90 min.
+        Does not arm post-drawer Clean. Mark cleaned sources are excluded.
+        """
+        if source not in ALLOWED_AUTO_CLEAR_SOURCES:
+            return
+        did = str(device_id)
+        st = self._device_state.get(did) or {}
+        if st.get("bag_chore") != CHORE_NEEDS_REMOVE:
+            return
+        err = st.get("last_error_code")
+        if err is not None:
+            code = int(err)
+            if (code & WASTE_FULL_MASK) != 0 or (code & ERROR_NO_BAG) != 0:
+                return
+        ts_list = list(st.get("remove_clean_ts_list") or [])
+        ts_list.append(float(now))
+        if len(ts_list) > 3:
+            ts_list = ts_list[-3:]
+        st["remove_clean_ts_list"] = ts_list
+        self._dirty = True
+
+        clear_source: str | None = None
+        if st.get("saw_no_bag_during_remove"):
+            clear_source = "clean_evidence_arm_a"
+        elif (
+            len(ts_list) >= 2
+            and (ts_list[-1] - ts_list[-2]) >= CLEAN_PAIR_SPACING_S
+        ):
+            clear_source = "clean_evidence_arm_b"
+        if clear_source is None:
+            return
+        _LOGGER.info(
+            "Auto-clear bag chore device=%s source=%s",
+            did,
+            clear_source,
+        )
+        self._end_bag_chore(
+            did,
+            iotid=iotid or st.get("iotid"),
+            source=clear_source,
+            now=now,
+            arm_auto_clean=False,
+            record_replaced=True,
+        )
+
+    def _end_bag_chore(
+        self,
+        device_id: str,
+        *,
+        source: str,
+        now: float,
+        arm_auto_clean: bool,
+        record_replaced: bool = True,
+        iotid: str | None = None,
+    ) -> bool:
+        """Clear sticky bag chore; optionally stamp bag_replaced / arm auto-clean.
+
+        Returns False only when ``record_replaced`` was True and bag_replaced
+        was debounced (chore flags are still cleared).
+        """
+        did = str(device_id)
+        st = self._device_state.setdefault(did, {})
+        iotid = iotid or st.get("iotid")
+        recorded = True
+        if record_replaced:
+            recorded = self._record_bag_replaced(
+                did, iotid, source=source, now=now
+            )
+        st["bag_chore"] = None
+        st["saw_no_bag_during_remove"] = False
+        st["remove_clean_ts_list"] = []
+        if arm_auto_clean:
+            self._arm_auto_clean_after_drawer(did, iotid)
+        self._dirty = True
+        return recorded
 
     def _record_bag_replaced(
         self,
@@ -1076,6 +1188,9 @@ class AnalyticsEngine:
         st["clean_in_progress"] = False
         self._dirty = True
         self._need_immediate_flush = True
+        self._maybe_auto_clear_bag_chore_after_clean(
+            did, source=source, now=now, iotid=iotid
+        )
 
     def mark_cleaned(
         self,
@@ -1102,18 +1217,26 @@ class AnalyticsEngine:
     ) -> None:
         """User/service acknowledge: waste bag was replaced (HA only — no API).
 
+        Clears sticky ``bag_chore``. Raises if live full (16|32) or No Bag (128).
         ``hours_ago`` backdates the bag-change time (e.g. autopack earlier today).
         """
         did = str(device_id)
-        st = self._device_state.get(did) or {}
+        st = self._device_state.setdefault(did, {})
         iotid = iotid or st.get("iotid")
+        self._raise_if_live_bag_hazard(did)
         now = time.time()
         if hours_ago is not None:
             now = now - max(0.0, float(hours_ago)) * 3600.0
         # Bypass debounce when explicitly marking (including backdated).
         st.pop("last_bag_ts", None)
-        self._device_state[did] = st
-        self._record_bag_replaced(did, iotid, source=source, now=now)
+        self._end_bag_chore(
+            did,
+            iotid=iotid,
+            source=source,
+            now=now,
+            arm_auto_clean=False,
+            record_replaced=True,
+        )
         self.recompute_all()
         self._notify()
 
@@ -1177,6 +1300,15 @@ class AnalyticsEngine:
                 )
                 st["last_empty_press_ts"] = now
                 self._record_bag_replaced(did, iotid, source=source, now=now)
+                # Empty may run while cloud still shows full; clear sticky chore.
+                self._end_bag_chore(
+                    did,
+                    iotid=iotid,
+                    source=source,
+                    now=now,
+                    arm_auto_clean=False,
+                    record_replaced=False,
+                )
                 if st.get("is_full"):
                     start = st.get("full_episode_start") or now
                     time_full = max(0.0, now - float(start))
