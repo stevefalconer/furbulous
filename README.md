@@ -196,7 +196,7 @@ Bus events for automations (do not depend on display names):
 1. Set accurate **pet weights in the Furbulous app** (multi-cat closest-weight match).  
 2. Prefer **Last cat** / **Last visit** after a use; **Who is inside** only while occupied.  
 3. **Bag age** and **Litter age** are your “is it overdue?” gauges — press **I refilled the litter** after topping up. Bag age also restarts when a bag-full error clears in the cloud.  
-4. Properties ~**30s**; pets ≤**1 min**; full stats **5 min**.
+4. Properties ~**30s**; pets ≤**24 h** (daily); full stats **5 min**.
 
 ---
 

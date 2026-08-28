@@ -153,7 +153,7 @@ Dashboard bottom **Account tools** stack: Pause/Resume first, then per-device **
 
 | Control | Entity / service |
 |---------|------------------|
-| Clear sticky bag alerts | `button.<box>_clear_bag_alerts` |
+| Clear sticky bag alerts | `button.<box>_clear_bag_alerts_ha_only` (unique_id slug `clear_bag_alerts`) |
 | Service | `furbulous.clear_bag_alerts` (`device_id`) |
 | Related | `furbulous.mark_bag_replaced` (also clears sticky chore + resets Bag age) |
 

@@ -28,7 +28,7 @@ Adoption: [docs/CAT_PARENT_GUIDE.md](docs/CAT_PARENT_GUIDE.md) · Power: [docs/P
 | entity-unique-id | PASS | Cat-parent slug scheme `furbulous_{id}_{slug}` (1.3.7) |
 | has-entity-name | PASS | translation_key names |
 | runtime-data | PASS | api, dual coordinators, analytics |
-| appropriate-polling | PASS | 30s / ≤60s pets / 5 min full |
+| appropriate-polling | PASS | 30s / ≤24 h pets / 5 min full (Option A reuse) |
 | common-modules | PASS | analytics, events, ux, schedule_props |
 | docs-high-level / install / removal | PASS | README + cat parent guide |
 
