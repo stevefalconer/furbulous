@@ -61,7 +61,9 @@ class FurbulousDataUpdateCoordinator(DataUpdateCoordinator):
                 return self.data
             return {"devices": [], "pets": []}
         try:
-            data = await self.api.async_get_full_snapshot()
+            data = await self.api.async_get_full_snapshot(
+                prior_devices=(self.data or {}).get("devices")
+            )
         except FurbulousCatAuthError as err:
             self._mark_unavailable()
             raise ConfigEntryAuthFailed from err
@@ -165,7 +167,7 @@ class FurbulousPresenceCoordinator(DataUpdateCoordinator):
         """Fetch presence-only snapshot.
 
         Interval: 30 s — occupancy, weight, full/errors, and display mode.
-        Calls properties/get per known iotid; pet/list at most every 60 s
+        Calls properties/get per known iotid; pet/list at most every 24 h
         (cached). No device list or daily stats (5 min full poll).
         """
         runtime = getattr(self.config_entry, "runtime_data", None)

@@ -20,6 +20,7 @@ from .const import (
     API_USER_AGENT,
     API_VERSION,
     PET_LIST_MIN_INTERVAL_SECONDS,
+    PRESENCE_PROPS_MAX_AGE_S,
 )
 from .regions import FurbulousRegion, get_region
 
@@ -64,7 +65,9 @@ class FurbulousCatAPI:
         self.identity_id: str | None = None
         # Last known device ids for presence polls (bounded: one list snapshot)
         self._known_devices: list[dict[str, Any]] = []
-        # Pet roster cache (1 min cadence — roster changes rarely)
+        # Presence properties cache for full-poll reuse (keyed by iotid)
+        self._presence_props_cache: dict[str, dict[str, Any]] = {}
+        # Pet roster cache (rolling 24 h — roster changes rarely)
         self._cached_pets: list[dict[str, Any]] = []
         self._last_pets_fetch_mono: float = 0.0
 
@@ -458,7 +461,7 @@ class FurbulousCatAPI:
             return False
 
     async def get_pets(self, *, force: bool = False) -> list[dict[str, Any]]:
-        """Fetch pet roster with a 1-minute minimum interval (unless force).
+        """Fetch pet roster with a rolling 24 h minimum interval (unless force).
 
         Roster names change rarely. Visit identity/weight come from
         ``properties/get`` on the 30s path — do not require pet/list that often.
@@ -493,27 +496,67 @@ class FurbulousCatAPI:
             _LOGGER.debug("Pet list error: %s", err)
             return list(self._cached_pets)
 
-    async def async_get_full_snapshot(self) -> dict[str, Any]:
-        """Full poll: device list + properties + daily stats + pets.
+    async def async_get_full_snapshot(
+        self, prior_devices: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
+        """Full poll: device list + cached props + daily stats + pets.
 
-        Snapshot is current state only — history lives in the local analytics store.
+        Does **not** call ``properties/get``. Merges presence props when the
+        cache entry is younger than ``PRESENCE_PROPS_MAX_AGE_S``; otherwise
+        reuses ``prior_devices`` props (or empty) and sets ``props_stale``.
         """
         start = time.monotonic()
+        now_mono = start
         devices = await self.get_devices()
+
+        prior_by_iotid: dict[str, dict[str, Any]] = {}
+        for prior in prior_devices or []:
+            prior_iotid = prior.get("iotid")
+            if prior_iotid is not None:
+                prior_by_iotid[str(prior_iotid)] = prior
+
+        stale_iotids: list[str] = []
         enriched: list[dict[str, Any]] = []
         for device in devices:
             iotid = device.get("iotid")
             if iotid:
                 device = dict(device)
-                props, prop_times = await self.get_device_properties(iotid)
-                device["properties"] = props
-                device["property_times"] = prop_times
+                cache_key = str(iotid)
+                entry = self._presence_props_cache.get(cache_key)
+                if (
+                    entry is not None
+                    and (now_mono - float(entry["mono_ts"]))
+                    < PRESENCE_PROPS_MAX_AGE_S
+                ):
+                    device["properties"] = entry.get("properties") or {}
+                    device["property_times"] = entry.get("property_times") or {}
+                    device.pop("props_stale", None)
+                else:
+                    prior = prior_by_iotid.get(cache_key)
+                    prior_props = (
+                        prior.get("properties") if isinstance(prior, dict) else None
+                    )
+                    if isinstance(prior_props, dict) and prior_props:
+                        device["properties"] = prior_props
+                        device["property_times"] = prior.get("property_times") or {}
+                    else:
+                        device["properties"] = {}
+                        device["property_times"] = {}
+                    device["props_stale"] = True
+                    stale_iotids.append(cache_key)
                 device["daily_stats"] = await self.get_device_daily_stats(iotid)
                 # Activity for Last cat / analytics (no pet names on records)
                 device["wc_history"] = await self.get_device_wc_history(iotid)
             enriched.append(device)
 
-        pets = await self.get_pets(force=True)
+        if stale_iotids:
+            _LOGGER.warning(
+                "Presence props cache stale/missing for iotids=%s; "
+                "reused prior or empty (no properties/get)",
+                stale_iotids,
+            )
+
+        pets = await self.get_pets(force=False)
 
         elapsed_ms = (time.monotonic() - start) * 1000
         _LOGGER.debug(
@@ -531,12 +574,12 @@ class FurbulousCatAPI:
         }
 
     async def async_get_presence_snapshot(self) -> dict[str, Any]:
-        """Light poll (~30s): properties for known devices; pets ≤1/min.
+        """Light poll (~30s): properties for known devices; pets ≤1/day.
 
         Properties include occupancy, weight, errors, and pet-identity fields —
         that single call is the high-value fast path.
 
-        Pet roster is throttled to ``PET_LIST_MIN_INTERVAL_SECONDS`` (60s).
+        Pet roster is throttled to ``PET_LIST_MIN_INTERVAL_SECONDS`` (24 h).
         Skips device list and daily stats (5 min full poll only).
         """
         start = time.monotonic()
@@ -556,8 +599,20 @@ class FurbulousCatAPI:
                 }
             )
 
-        # Cached if fetched within the last minute (no extra HTTP)
         pets = await self.get_pets(force=False)
+
+        # Publish props for full-poll reuse
+        mono_ts = time.monotonic()
+        for device in devices_out:
+            iotid = device.get("iotid")
+            if not iotid:
+                continue
+            self._presence_props_cache[str(iotid)] = {
+                "properties": device.get("properties") or {},
+                "property_times": device.get("property_times") or {},
+                "mono_ts": mono_ts,
+                "device_id": device.get("id"),
+            }
 
         elapsed_ms = (time.monotonic() - start) * 1000
         _LOGGER.debug(

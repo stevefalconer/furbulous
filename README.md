@@ -92,8 +92,8 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 
 | Coordinator | Interval | What it refreshes |
 |-------------|----------|-------------------|
-| **Normal** | 5 minutes | Device list, full properties, daily stats, pets (force) |
-| **Presence** | 30 seconds | Properties (occupancy, weight, errors, modes); pets ≤1/min cache |
+| **Normal** | 5 minutes | Device list, reuse presence properties, daily stats (wcheader/wc), pets if daily TTL expired |
+| **Presence** | 30 seconds | Properties (occupancy, weight, errors, modes); pets ≤1/day cache |
 
 - Requires internet and Furbulous cloud availability.  
 - On failure, entities go **unavailable**; the integration logs once when down and once when restored.  
@@ -101,8 +101,8 @@ Region default may be pre-selected from Home Assistant’s country setting when 
 - New litter boxes appear after the next normal poll **without** reloading the integration. Boxes/pets that disappear are pruned from the device registry.  
 - **Analytics** run from poll edges + Empty/Pack/litter-reset buttons (no vendor visit-history API).
 
-**Load (1 device, idle):** ~**180** cloud HTTP calls/hour  
-(~120 property polls + ~60 pet-list/hour + full-path list/stats).
+**Load (4 devices, idle HTTP/hour):** Before **708** → R1 (no full props) **660** → R1 + daily pet/list **~588**.  
+Presence keeps **2.0** `properties/get` per min per box; full poll never issues another props GET when the presence cache is fresh (&lt;90 s).
 
 ---
 

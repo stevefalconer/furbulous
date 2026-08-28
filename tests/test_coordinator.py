@@ -51,6 +51,28 @@ async def test_full_coordinator_success(mock_hass, mock_entry):
     assert data["region"] == "us"
     assert len(data["devices"]) == 1
     assert coord._unavailable_logged is False
+    api.async_get_full_snapshot.assert_awaited_once_with(prior_devices=None)
+
+
+@pytest.mark.asyncio
+async def test_full_coordinator_passes_prior_devices(mock_hass, mock_entry):
+    """Full coordinator wires prior_devices from last snapshot."""
+    api = MagicMock()
+    api.region_id = "us"
+    prior = [{"id": 1, "iotid": "x", "properties": {"catWeight": 1}}]
+    api.async_get_full_snapshot = AsyncMock(
+        return_value={
+            "authenticated": True,
+            "region": "us",
+            "devices": prior,
+            "pets": [],
+        }
+    )
+    coord = FurbulousDataUpdateCoordinator(mock_hass, api, mock_entry)
+    coord.data = {"devices": prior, "pets": []}
+    with patch.object(coord, "_async_prune_stale_devices"):
+        await coord._async_update_data()
+    api.async_get_full_snapshot.assert_awaited_once_with(prior_devices=prior)
 
 
 @pytest.mark.asyncio

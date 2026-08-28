@@ -88,5 +88,7 @@ ERROR_SEVERITY = {
 # Polling
 UPDATE_INTERVAL_NORMAL_MINUTES = 5
 UPDATE_INTERVAL_FAST_SECONDS = 30
-# Pet roster (account-scoped): slower than presence; properties stay at 30s
-PET_LIST_MIN_INTERVAL_SECONDS = 60
+# Presence props reuse on full poll (skip properties/get when fresher than this)
+PRESENCE_PROPS_MAX_AGE_S = 90.0
+# Pet roster (account-scoped): rolling 24 h from last successful fetch
+PET_LIST_MIN_INTERVAL_SECONDS = 86400

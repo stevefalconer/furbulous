@@ -6,14 +6,21 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.furbulous.const import PET_LIST_MIN_INTERVAL_SECONDS
+from custom_components.furbulous.const import (
+    PET_LIST_MIN_INTERVAL_SECONDS,
+    PRESENCE_PROPS_MAX_AGE_S,
+)
 from custom_components.furbulous.entity import FurbulousEntity
 from custom_components.furbulous.furbulous_api import FurbulousCatAPI
 from custom_components.furbulous.analytics.engine import AnalyticsEngine
 
 
-def test_pet_list_min_interval_is_at_least_60s():
-    assert PET_LIST_MIN_INTERVAL_SECONDS >= 60
+def test_pet_list_min_interval_is_daily():
+    assert PET_LIST_MIN_INTERVAL_SECONDS >= 86400
+
+
+def test_presence_props_max_age_is_90s():
+    assert PRESENCE_PROPS_MAX_AGE_S == 90.0
 
 
 @pytest.mark.asyncio
